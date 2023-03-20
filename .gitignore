@@ -1,0 +1,7 @@
+.idea
+
+*log*
+*secret*
+*test*
+
+!generate_cpem_secret.sh

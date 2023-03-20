@@ -1,0 +1,153 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - ${POD_CIDR:=192.168.0.0/16}
+    services:
+      cidrBlocks:
+        - ${SERVICE_CIDR:=172.26.0.0/16}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketCluster
+    name: "${CLUSTER_NAME}"
+  controlPlaneRef:
+    kind: TalosControlPlane
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    name: ${CLUSTER_NAME}-controlplane
+
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketCluster
+metadata:
+  name: "${CLUSTER_NAME}"
+spec:
+  projectID: "${PROJECT_ID}"
+  facility: "${FACILITY}"
+  vipManager: "CPEM"
+
+---
+## Control plane configs
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+kind: TalosControlPlane
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  version: v${KUBERNETES_VERSION}
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketMachineTemplate
+    name: "${CLUSTER_NAME}-control-plane"
+  controlPlaneConfig:
+    controlplane:
+      generateType: controlplane
+      talosVersion: ${TALOS_VERSION}
+      configPatches:
+        #        - op: replace
+        #          path: /cluster/controlPlane
+        #          value:
+        #            endpoint: https://{{ .controlPlaneEndpoint }}
+        - op: add
+          path: /cluster/inlineManifests
+          value:
+            name: cpem-secret
+            contents: |
+              SECRET
+        - op: add
+          path: /machine/kubelet/extraArgs
+          value:
+            cloud-provider: external
+            provider-id: "equinixmetal://{{ `{{ v1.instance_id }}` }}"
+        - op: add
+          path: /cluster/controllerManager/extraArgs
+          value:
+            cloud-provider: external
+        - op: add
+          path: /cluster/apiServer/extraArgs
+          value:
+            cloud-provider: external
+        - op: add
+          path: /cluster/externalCloudProvider
+          value:
+            enabled: true
+            manifests:
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.5.0/deployment.yaml
+
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-control-plane"
+spec:
+  template:
+    spec:
+      os: talos_v1
+      billingCycle: hourly
+      machineType: "${CONTROLPLANE_NODE_TYPE}"
+
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      os: talos_v1
+      billingCycle: hourly
+      machineType: "${WORKER_NODE_TYPE}"
+
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: TalosConfigTemplate
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+spec:
+  template:
+    spec:
+      generateType: join
+      talosVersion: ${TALOS_VERSION}
+      configPatches:
+        - op: add
+          path: /machine/kubelet/extraArgs
+          value:
+            cloud-provider: "external"
+            provider-id: "equinixmetal://{{ `{{ v1.instance_id }}` }}"
+
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  name: "${CLUSTER_NAME}-worker"
+  labels:
+    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+    pool: worker-pool
+spec:
+  replicas: ${WORKER_MACHINE_COUNT}
+  clusterName: ${CLUSTER_NAME}
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      pool: worker-pool
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+        pool: worker-pool
+    spec:
+      version: ${KUBERNETES_VERSION}
+      clusterName: ${CLUSTER_NAME}
+      bootstrap:
+        configRef:
+          name: "${CLUSTER_NAME}-worker"
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: TalosConfigTemplate
+      infrastructureRef:
+        name: "${CLUSTER_NAME}-worker"
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: PacketMachineTemplate
