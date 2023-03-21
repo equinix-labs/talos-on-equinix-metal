@@ -102,7 +102,7 @@ talosctl --talosconfig secrets/talosconfig kubeconfig secrets/
 
 #### static-config
 `generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
-with static talos configuration.
+with static Talos configuration.
 ```yaml
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
 kind: TalosConfigTemplate
@@ -142,40 +142,5 @@ apply with
 kubectl apply -f secrets/talos-alloy-102-static-config.yaml
 ```
 
-# Issues
-Cluster gets status 'provisioned', but the machine does not come up
-```shell
-❯ kubectl get clusters
-NAME              PHASE         AGE     VERSION
-talos-alloy-102   Provisioned   3m26s
-❯ kubectl get machines
-NAME                                            CLUSTER           NODENAME   PROVIDERID   PHASE     AGE     VERSION
-talos-alloy-102-worker-56ffdb7c4bxgs6ld-bzq4j   talos-alloy-102                           Pending   4m41s   v1.26.1
-```
-
-failed to retrieve kubeconfig secret for Cluster
-```shell
-E0320 11:52:20.087321      12 packetmachine_controller.go:198]  "msg"="owning cluster is not found, skipping mapping." "error"=null "Namespace"="default" "PacketCluster"="talos-alloy-102" 
-I0320 11:52:20.087463      12 packetcluster_controller.go:74] controller/packetcluster "msg"="Cluster Controller has not yet set OwnerRef" "name"="talos-alloy-102" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketCluster" 
-I0320 11:52:20.111666      12 logr.go:249] packetmachinetemplate-resource "msg"="default"  "name"="talos-alloy-102-control-plane"
-I0320 11:52:20.115060      12 logr.go:249] packetmachinetemplate-resource "msg"="validate create"  "name"="talos-alloy-102-control-plane"
-I0320 11:52:20.122371      12 logr.go:249] packetmachinetemplate-resource "msg"="default"  "name"="talos-alloy-102-worker"
-I0320 11:52:20.124017      12 logr.go:249] packetmachinetemplate-resource "msg"="validate create"  "name"="talos-alloy-102-worker"
-I0320 11:52:20.167297      12 logr.go:249] packetmachinetemplate-resource "msg"="default"  "name"="talos-alloy-102-worker"
-I0320 11:52:20.169172      12 logr.go:249] packetmachinetemplate-resource "msg"="validate update"  "name"="talos-alloy-102-worker"
-I0320 11:52:20.188985      12 logr.go:249] packetcluster-resource "msg"="default"  "name"="talos-alloy-102"
-I0320 11:52:20.190906      12 logr.go:249] packetcluster-resource "msg"="validate update"  "name"="talos-alloy-102"
-E0320 11:52:20.195688      12 packetmachine_controller.go:198]  "msg"="owning cluster is not found, skipping mapping." "error"=null "Namespace"="default" "PacketCluster"="talos-alloy-102" 
-I0320 11:52:20.196168      12 packetcluster_controller.go:112] controller/packetcluster "msg"="Reconciling PacketCluster" "cluster"="talos-alloy-102" "name"="talos-alloy-102" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketCluster" 
-I0320 11:52:20.242756      12 logr.go:249] packetmachine-resource "msg"="default"  "name"="talos-alloy-102-worker-rgpmb"
-I0320 11:52:20.246182      12 logr.go:249] packetmachine-resource "msg"="validate create"  "name"="talos-alloy-102-worker-rgpmb"
-I0320 11:52:20.248594      12 packetmachine_controller.go:91] controller/packetmachine "msg"="Machine Controller has not yet set OwnerRef" "name"="talos-alloy-102-worker-rgpmb" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketMachine" 
-I0320 11:52:20.290569      12 logr.go:249] packetmachine-resource "msg"="default"  "name"="talos-alloy-102-worker-rgpmb"
-I0320 11:52:20.292249      12 packetmachine_controller.go:91] controller/packetmachine "msg"="Machine Controller has not yet set OwnerRef" "name"="talos-alloy-102-worker-rgpmb" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketMachine" 
-I0320 11:52:20.292282      12 packetmachine_controller.go:91] controller/packetmachine "msg"="Machine Controller has not yet set OwnerRef" "name"="talos-alloy-102-worker-rgpmb" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketMachine" 
-I0320 11:52:20.299365      12 logr.go:249] packetmachine-resource "msg"="default"  "name"="talos-alloy-102-worker-rgpmb"
-I0320 11:52:20.309778      12 logr.go:249] packetmachine-resource "msg"="default"  "name"="talos-alloy-102-worker-rgpmb"
-I0320 11:52:20.361878      12 logr.go:249] packetmachine-resource "msg"="default"  "name"="talos-alloy-102-worker-rgpmb"
-E0320 11:52:20.395900      12 controller.go:317] controller/packetmachine "msg"="Reconciler error" "error"="failed to create scope: failed to get workload cluster client: failed to retrieve kubeconfig secret for Cluster default/talos-alloy-102: Secret \"talos-alloy-102-kubeconfig\" not found" "name"="talos-alloy-102-worker-rgpmb" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketMachine" 
-E0320 11:52:20.395975      12 controller.go:317] controller/packetmachine "msg"="Reconciler error" "error"="failed to create scope: failed to get workload cluster client: failed to retrieve kubeconfig secret for Cluster default/talos-alloy-102: Secret \"talos-alloy-102-kubeconfig\" not found" "name"="talos-alloy-102-worker-rgpmb" "namespace"="default" "reconciler group"="infrastructure.cluster.x-k8s.io" "reconciler kind"="PacketMachine" 
-```
+#### static-config issues
+- https://github.com/KrystianMarek/talos-on-equinix-metal/issues/2
