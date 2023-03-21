@@ -110,7 +110,7 @@ metadata:
 spec:
   template:
     spec:
-      generateType: join
+      generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
         - op: add
