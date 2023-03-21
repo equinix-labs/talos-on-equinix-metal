@@ -62,14 +62,87 @@ make tilt-up
 ./generate_cpem_secret.sh
 ```
 ```shell
-./generate_cluster.sh
+./generate_cluster_manifests.sh
+```
+
+#### Benchmark
+Using talosctl and metal cli as described in the [official guide] (https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/), with a twist.
+The cluster endpoint is configured as VIP attached to the control plane node.
+```shell
+metal device create \
+  --project-id $PROJECT_ID \
+  --facility $FACILITY \
+  --operating-system "talos_v1" \
+  --plan $PLAN\
+  --hostname toem-test-cp-1\
+  --userdata-file secrets/controlplane.yaml
 ```
 ```shell
-tilt up --port 10351
+metal device create \
+  --project-id $PROJECT_ID \
+  --facility $FACILITY \
+  --operating-system "talos_v1" \
+  --plan $PLAN\
+  --hostname toem-test-wo-1\
+  --userdata-file secrets/worker.yaml
+```
+```shell
+metal device get -o yaml > secrets/device-list.yaml
+export config_plane_ip=$(yq '.[] | select(.hostname == "toem-test-cp-1") | .ip_addresses[] | select(.public == true and .address_family == 4) | .address' secrets/device-list.yaml | head -n 1)
+```
+```shell
+talosctl --talosconfig secrets/talosconfig config endpoint ${config_plane_ip}
+talosctl --talosconfig secrets/talosconfig config node ${config_plane_ip}
+talosctl --talosconfig secrets/talosconfig bootstrap
+talosctl --talosconfig secrets/talosconfig kubeconfig secrets/
+```
+#### Benchmark issues
+- [kubectl fails with VIP](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/1)
+
+
+#### static-config
+`generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
+with static talos configuration.
+```yaml
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: TalosConfigTemplate
+metadata:
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      generateType: none
+      talosVersion: v1.3.5
+      data: |
+        #!talos
+        version: v1alpha1
+        debug: false
+        persist: true
+```
+```yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+kind: TalosControlPlane
+metadata:
+  name: talos-alloy-102-control-plane
+  namespace: default
+spec:
+  controlPlaneConfig:
+    controlplane:
+      generateType: none
+      talosVersion: v1.3.5
+      data: |
+        #!talos
+        version: v1alpha1
+        debug: false
+        persist: true
+```
+apply with
+```shell
+kubectl apply -f secrets/talos-alloy-102-static-config.yaml
 ```
 
 # Issues
-
 Cluster gets status 'provisioned', but the machine does not come up
 ```shell
 ❯ kubectl get clusters
