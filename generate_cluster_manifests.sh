@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-
 # https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
 SED_OPTIONS='1s/^/#!talos\n/'
 mkdir -p "${TOEM_MANIFEST_DIR}"
 
+kconf use kind-capi-test
 clusterctl generate cluster "${CLUSTER_NAME}" --from templates/cluster-talos-template.yaml > "${TOEM_MANIFEST_DIR}/${CLUSTER_NAME}.yaml"
 cd "${TOEM_SECRETS_DIR}"
 
@@ -26,18 +26,14 @@ sed -i '' "${SED_OPTIONS}" "${talosControl}"
 cp worker.yaml worker-vanilla.yaml
 cp controlplane.yaml controlplane-vanilla.yaml
 
-yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProvider.manifests[0] = "https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.5.0/deployment.yaml"' -i "${talosWorker}"
-yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProvider.manifests[0] = "https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.5.0/deployment.yaml"' -i "${talosControl}"
+yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProvider.manifests[0] = "https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml"' -i "${talosWorker}"
+yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProvider.manifests[0] = "https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml"' -i "${talosControl}"
 yq e '.cluster.apiServer.extraArgs.cloud-provider = "external"' -i "${talosControl}"
 yq e '.cluster.controllerManager.extraArgs.cloud-provider = "external"' -i "${talosControl}"
 yq e '.cluster.inlineManifests[0] = {"name":"cpem-secret", "contents":load_str("cpem/cpem.yaml")}' -i "${talosControl}"
 yq e '.cluster.network.cni.name = "custom" | .cluster.network.cni.urls[0] = "https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml"' -i "${talosControl}"
 yq e '.cluster.network.cni.name = "custom" | .cluster.network.cni.urls[0] = "https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml"' -i "${talosWorker}"
 
-# shellcheck disable=SC2016
-yq e '.machine.kubelet.extraArgs.cloud-provider = "external" | .machine.kubelet.extraArgs.provider-id = "equinixmetal://{{ `{{ v1.instance_id }}` }}"' -i "${talosControl}"
-# shellcheck disable=SC2016
-yq e '.machine.kubelet.extraArgs.cloud-provider = "external" | .machine.kubelet.extraArgs.provider-id = "equinixmetal://{{ `{{ v1.instance_id }}` }}"' -i "${talosWorker}"
 yq e '.machine.network.interfaces[0].interface = "eth3" | .machine.network.interfaces[0].vip.ip = env(TOEM_CP_ENDPOINT) | .machine.network.interfaces[0].vip.equinixMetal.apiToken = env(PACKET_API_KEY)' -i "${talosControl}"
 
 yq '... comments=""' "${talosWorker}" > "worker-no-comment.yaml"

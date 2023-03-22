@@ -13,3 +13,6 @@
 [submodule "cluster-api-bootstrap-provider-talos"]
 	path = cluster-api-bootstrap-provider-talos
 	url = git@github.com:KrystianMarek/cluster-api-bootstrap-provider-talos.git
+[submodule "cloud-provider-equinix-metal"]
+	path = cloud-provider-equinix-metal
+	url = git@github.com:equinix/cloud-provider-equinix-metal.git

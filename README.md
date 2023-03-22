@@ -8,7 +8,7 @@ PoC that aims to run [Talos Linux](https://www.talos.dev/) on [Equinix Metal](ht
 - [Equinix Metal](https://deploy.equinix.com/metal/)
 - [zsh env](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) plugin or equivalent 
 - [colima](https://github.com/abiosoft/colima) for MacOS users
-- python3
+- [kconf](https://github.com/particledecay/kconf)
 - go
 - [tilt](https://tilt.dev/)
 - [kind](https://kind.sigs.k8s.io/)
@@ -98,15 +98,16 @@ talosctl --talosconfig secrets/talosconfig config node ${config_plane_ip}
 talosctl --talosconfig secrets/talosconfig bootstrap
 talosctl --talosconfig secrets/talosconfig kubeconfig secrets/
 ```
-#### Benchmark issues
-**VIP**
-- [kubectl fails with VIP](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/1)
-- https://github.com/KrystianMarek/talos-on-equinix-metal/issues/3
-
+Use kubeconfig from secrets/kubeconfig to interact with the cluster
+```shell
+kconf add secrets/kubeconfig
+kconf use admin@${CLUSTER_NAME}
+```
+`kubectl` to hearts content... 
 
 #### static-config
 `generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
-with static Talos configuration.
+with static Talos configuration. This configuration is exactly the same as in case of the benchmark ^. 
 ```yaml
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
 kind: TalosConfigTemplate
@@ -143,7 +144,7 @@ spec:
 ```
 apply with
 ```shell
-kubectl apply -f secrets/talos-alloy-102-static-config.yaml
+kubectl apply -f secrets/${CLUSTER_NAME}-static-config.yaml
 ```
 
 #### static-config issues
