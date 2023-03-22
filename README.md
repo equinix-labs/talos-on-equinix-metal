@@ -91,7 +91,7 @@ metal device get -o yaml > secrets/device-list.yaml
 export config_plane_ip=$(yq '.[] | select(.hostname == "toem-test-cp-1") | .ip_addresses[] | select(.public == true and .address_family == 4) | .address' secrets/device-list.yaml | head -n 1)
 ```
 ```shell
-talosctl --talosconfig secrets/talosconfig config endpoint ${config_plane_ip}
+talosctl --talosconfig secrets/talosconfig config endpoint ${TOEM_CP_ENDPOINT}
 talosctl --talosconfig secrets/talosconfig config node ${config_plane_ip}
 talosctl --talosconfig secrets/talosconfig bootstrap
 talosctl --talosconfig secrets/talosconfig kubeconfig secrets/

@@ -28,11 +28,14 @@ yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProv
 yq e '.cluster.externalCloudProvider.enabled = true | .cluster.externalCloudProvider.manifests[0] = "https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.5.0/deployment.yaml"' -i "${talosControl}"
 yq e '.cluster.apiServer.extraArgs.cloud-provider = "external"' -i "${talosControl}"
 yq e '.cluster.controllerManager.extraArgs.cloud-provider = "external"' -i "${talosControl}"
-## shellcheck disable=SC2016
-#yq e '.cluster.kubelet.extraArgs.cloud-provider = "external" | .cluster.kubelet.extraArgs.provider-id = "\"equinixmetal://{{ `{{ v1.instance_id }}` }}\" "' -i "${talosControl}"
-## shellcheck disable=SC2016
-#yq e '.cluster.kubelet.extraArgs.cloud-provider = "external" | .cluster.kubelet.extraArgs.provider-id = "\"equinixmetal://{{ `{{ v1.instance_id }}` }}\" "' -i "${talosWorker}"
+# shellcheck disable=SC2016
+yq e '.machine.kubelet.extraArgs.cloud-provider = "external" | .machine.kubelet.extraArgs.provider-id = "\"equinixmetal://{{ `{{ v1.instance_id }}` }}\" "' -i "${talosControl}"
+# shellcheck disable=SC2016
+yq e '.machine.kubelet.extraArgs.cloud-provider = "external" | .machine.kubelet.extraArgs.provider-id = "\"equinixmetal://{{ `{{ v1.instance_id }}` }}\" "' -i "${talosWorker}"
 yq e '.cluster.inlineManifests[0] = {"name":"cpem-secret", "contents":load_str("cpem/cpem.yaml")}' -i "${talosControl}"
+
+yq e '.machine.network.interfaces[0].interface = "eth3" | .machine.network.interfaces[0].vip.ip = env(TOEM_CP_ENDPOINT) | .machine.network.interfaces[0].vip.equinixMetal.apiToken = env(PACKET_API_KEY)' -i "${talosControl}"
+
 yq '... comments=""' "${talosWorker}" > "worker-no-comment.yaml"
 yq '... comments=""' "${talosControl}" > "controlplane-no-comment.yaml"
 sed -i '' "${SED_OPTIONS}" "worker-no-comment.yaml"
