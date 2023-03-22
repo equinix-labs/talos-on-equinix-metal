@@ -107,7 +107,7 @@ kconf use admin@${CLUSTER_NAME}
 
 #### static-config
 `generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
-with static Talos configuration. This configuration is exactly the same as in case of the benchmark ^. 
+with static Talos configuration. This configuration is exactly the same as in case of the [benchmark](https://github.com/KrystianMarek/talos-on-equinix-metal#benchmark). 
 ```yaml
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
 kind: TalosConfigTemplate
