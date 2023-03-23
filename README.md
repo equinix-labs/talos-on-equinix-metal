@@ -62,12 +62,15 @@ make tilt-up
 ./generate_cpem_secret.sh
 ```
 ```shell
+./register-ip-for-talos-cp.sh
+```
+```shell
 ./generate_cluster_manifests.sh
 ```
 
 #### Benchmark
 Using talosctl and metal cli as described in the [official guide] (https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/), with a twist.
-The cluster endpoint is configured as VIP attached to the control plane node.
+The cluster endpoint is configured to use a VIP attached to the control plane node via [VIPEquinixMetalConfig](https://www.talos.dev/v1.3/reference/configuration/#vipequinixmetalconfig).
 ```shell
 metal device create \
   --project-id $PROJECT_ID \
@@ -75,7 +78,7 @@ metal device create \
   --operating-system "talos_v1" \
   --plan $PLAN\
   --hostname toem-test-cp-1\
-  --userdata-file secrets/controlplane.yaml
+  --userdata-file secrets/controlplane-no-comment.yaml
 ```
 ```shell
 metal device create \
@@ -84,7 +87,7 @@ metal device create \
   --operating-system "talos_v1" \
   --plan $PLAN\
   --hostname toem-test-wo-1\
-  --userdata-file secrets/worker.yaml
+  --userdata-file secrets/worker-no-comment.yaml
 ```
 ```shell
 metal device get -o yaml > secrets/device-list.yaml
@@ -146,6 +149,7 @@ apply with
 ```shell
 kubectl apply -f secrets/${CLUSTER_NAME}-static-config.yaml
 ```
+Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-config-redacted.yaml) an example of generated manifest.
 
 #### static-config issues
 - https://github.com/KrystianMarek/talos-on-equinix-metal/issues/2

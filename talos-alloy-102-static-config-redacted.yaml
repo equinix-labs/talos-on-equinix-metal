@@ -14,7 +14,7 @@ spec:
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
     kind: TalosControlPlane
-    name: talos-alloy-102-controlplane
+    name: talos-alloy-102-control-plane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: PacketCluster
@@ -113,6 +113,8 @@ spec:
             image: ghcr.io/siderolabs/kubelet:v1.26.1
             defaultRuntimeSeccompProfileEnabled: true
             disableManifestsDirectory: true
+            extraArgs:
+              cloud-provider: external
           network: {}
           install:
             disk: /dev/sda
@@ -180,6 +182,8 @@ spec:
             image: ghcr.io/siderolabs/kubelet:v1.26.1
             defaultRuntimeSeccompProfileEnabled: true
             disableManifestsDirectory: true
+            extraArgs:
+              cloud-provider: external
           network:
             interfaces:
               - interface: eth3

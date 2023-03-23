@@ -18,7 +18,7 @@ spec:
   controlPlaneRef:
     kind: TalosControlPlane
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
-    name: ${CLUSTER_NAME}-controlplane
+    name: "${CLUSTER_NAME}-control-plane"
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -48,12 +48,8 @@ spec:
       generateType: controlplane
       talosVersion: ${TALOS_VERSION}
       configPatches:
-        #        - op: replace
-        #          path: /cluster/controlPlane
-        #          value:
-        #            endpoint: https://{{ .controlPlaneEndpoint }}
         - op: add
-          path: /cluster/inlineManifests
+          path: /cluster/inlineManifests/0
           value:
             name: cpem-secret
             contents: |
@@ -62,7 +58,22 @@ spec:
           path: /machine/kubelet/extraArgs
           value:
             cloud-provider: external
-            provider-id: "equinixmetal://{{ `{{ v1.instance_id }}` }}"
+        - op: add
+          path: /machine/network
+          value:
+            interfaces: []
+        - op: add
+          path: /machine/network/interfaces/0
+          value:
+            interface: eth3
+            vip:
+              ip: ${TOEM_CP_ENDPOINT}
+              equinixMetal:
+                apiToken: ${PACKET_API_KEY}
+        - op: replace
+          path: /cluster/controlPlane
+          value:
+            endpoint: https://${TOEM_CP_ENDPOINT}:6443
         - op: add
           path: /cluster/controllerManager/extraArgs
           value:
@@ -72,11 +83,17 @@ spec:
           value:
             cloud-provider: external
         - op: add
+          path: /cluster/network/cni
+          value:
+            name: custom
+            urls:
+              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
+        - op: add
           path: /cluster/externalCloudProvider
           value:
             enabled: true
             manifests:
-              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.5.0/deployment.yaml
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -113,11 +130,26 @@ spec:
       generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
+        - op: replace
+          path: /cluster/controlPlane
+          value:
+            endpoint: https://${TOEM_CP_ENDPOINT}:6443
+        - op: add
+          path: /cluster/network/cni
+          value:
+            name: custom
+            urls:
+              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
+        - op: add
+          path: /cluster/externalCloudProvider
+          value:
+            enabled: true
+            manifests:
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
         - op: add
           path: /machine/kubelet/extraArgs
           value:
             cloud-provider: "external"
-            provider-id: "equinixmetal://{{ `{{ v1.instance_id }}` }}"
 
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
