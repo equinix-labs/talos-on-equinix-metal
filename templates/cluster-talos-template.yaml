@@ -94,6 +94,13 @@ spec:
             enabled: true
             manifests:
               - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+        - op: replace
+          path: /machine/install
+          value:
+            disk: /dev/sda # The disk used for installations.
+            image: ghcr.io/siderolabs/installer:v1.3.3 # Allows for supplying the image used to perform the installation.
+            bootloader: true # Indicates if a bootloader should be installed.
+            wipe: true # Indicates if the installation disk should be wiped at installation time.
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -130,6 +137,13 @@ spec:
       generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
+        - op: replace
+          path: /machine/install
+          value:
+            disk: /dev/sda # The disk used for installations.
+            image: ghcr.io/siderolabs/installer:v1.3.3 # Allows for supplying the image used to perform the installation.
+            bootloader: true # Indicates if a bootloader should be installed.
+            wipe: true # Indicates if the installation disk should be wiped at installation time.
         - op: replace
           path: /cluster/controlPlane
           value:

@@ -23,8 +23,8 @@ yq 'select(.kind == "TalosConfigTemplate") | .spec.template.spec.configPatches' 
 
 talosWorker="worker.yaml"
 talosControl="controlplane.yaml"
-talosctl machineconfig patch ${talosWorker} --patch @worker-patches.yaml -o worker-patched.yaml
-talosctl machineconfig patch ${talosControl} --patch @controlplane-patches.yaml -o controlplane-patched.yaml
+talosctl machineconfig patch ${talosWorker} --patch @worker-patches.yaml -o worker-capi.yaml
+talosctl machineconfig patch ${talosControl} --patch @controlplane-patches.yaml -o controlplane-capi.yaml
 cp ${talosWorker} worker-cli.yaml
 cp ${talosControl} controlplane-cli.yaml
 talosWorkerCli="worker-cli.yaml"
@@ -38,19 +38,18 @@ yq e '.cluster.inlineManifests[0] = {"name":"cpem-secret", "contents":load_str("
 yq e '.cluster.network.cni.name = "custom" | .cluster.network.cni.urls[0] = "https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml"' -i "${talosControlCli}"
 yq e '.cluster.network.cni.name = "custom" | .cluster.network.cni.urls[0] = "https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml"' -i "${talosWorkerCli}"
 
-# shellcheck disable=SC2016
 yq e '.machine.kubelet.extraArgs.cloud-provider = "external"' -i "${talosControlCli}"
-# shellcheck disable=SC2016
 yq e '.machine.kubelet.extraArgs.cloud-provider = "external"' -i "${talosWorkerCli}"
+yq e '.machine.install.wipe = true' -i "${talosControlCli}"
+yq e '.machine.install.wipe = true' -i "${talosWorkerCli}"
 yq e '.machine.network.interfaces[0].interface = "eth3" | .machine.network.interfaces[0].vip.ip = env(TOEM_CP_ENDPOINT) | .machine.network.interfaces[0].vip.equinixMetal.apiToken = env(PACKET_API_KEY)' -i "${talosControlCli}"
 
-yq '... comments=""' "${talosWorkerCli}" > "worker-no-comment.yaml"
-yq '... comments=""' "${talosControlCli}" > "controlplane-no-comment.yaml"
+yq '... comments=""' "${talosWorkerCli}" > "worker-cli-no-comment.yaml"
+yq '... comments=""' "${talosControlCli}" > "controlplane-cli-no-comment.yaml"
 
-yq e ' del(.spec.controlPlaneConfig.controlplane.configPatches) | .spec.controlPlaneConfig.controlplane.generateType = "none" | .spec.controlPlaneConfig.controlplane.data = load_str("controlplane-no-comment.yaml")' -i spec_TalosControlPlane_talos-alloy-102-control-plane.yml
-yq e ' del(.spec.template.spec.configPatches) | .spec.template.spec.generateType = "none" | .spec.template.spec.data = load_str("worker-no-comment.yaml")' -i spec_TalosConfigTemplate_talos-alloy-102-worker.yml
+yq e ' del(.spec.controlPlaneConfig.controlplane.configPatches) | .spec.controlPlaneConfig.controlplane.generateType = "none" | .spec.controlPlaneConfig.controlplane.data = load_str("controlplane-cli-no-comment.yaml")' -i spec_TalosControlPlane_${CLUSTER_NAME}-control-plane.yml
+yq e ' del(.spec.template.spec.configPatches) | .spec.template.spec.generateType = "none" | .spec.template.spec.data = load_str("worker-cli-no-comment.yaml")' -i spec_TalosConfigTemplate_${CLUSTER_NAME}-worker.yml
 yq eval-all spec_* > "${CLUSTER_NAME}-static-config.yaml"
-yq '... comments=""' "${CLUSTER_NAME}-static-config.yaml" > "${CLUSTER_NAME}-static-config-no-comment.yaml"
 
 rm spec_*
 cd "${TOEM_PROJECT_ROOT}"
@@ -70,5 +69,5 @@ function update_hashbang_and_validate() {
 
 export -f update_hashbang_and_validate
 gfind secrets -regex  '.*\(controlplane\|worker\).*' -exec bash -c "update_hashbang_and_validate {}" \;
-diff <(yq -P 'sort_keys(..)' secrets/controlplane-patched.yaml) <(yq -P 'sort_keys(..)' secrets/controlplane-no-comment.yaml)
-diff <(yq -P 'sort_keys(..)' secrets/worker-patched.yaml) <(yq -P 'sort_keys(..)' secrets/worker-no-comment.yaml)
+diff <(yq -P 'sort_keys(..)' secrets/controlplane-capi.yaml) <(yq -P 'sort_keys(..)' secrets/controlplane-cli-no-comment.yaml)
+diff <(yq -P 'sort_keys(..)' secrets/worker-capi.yaml) <(yq -P 'sort_keys(..)' secrets/worker-cli-no-comment.yaml)

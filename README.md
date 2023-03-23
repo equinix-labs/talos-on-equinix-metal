@@ -78,7 +78,7 @@ metal device create \
   --operating-system "talos_v1" \
   --plan $PLAN\
   --hostname toem-test-cp-1\
-  --userdata-file secrets/controlplane-no-comment.yaml
+  --userdata-file secrets/controlplane-cli-no-comment.yaml
 ```
 ```shell
 metal device create \
@@ -87,7 +87,7 @@ metal device create \
   --operating-system "talos_v1" \
   --plan $PLAN\
   --hostname toem-test-wo-1\
-  --userdata-file secrets/worker-no-comment.yaml
+  --userdata-file secrets/worker-cli-no-comment.yaml
 ```
 ```shell
 metal device get -o yaml > secrets/device-list.yaml
