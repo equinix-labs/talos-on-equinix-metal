@@ -1,23 +1,36 @@
-# Hi!
+# Talos on Equinix Metal with Cluster API
 
-PoC that aims to run [Talos Linux](https://www.talos.dev/) on [Equinix Metal](https://deploy.equinix.com/metal/) with
-[Kubernetes Cluster API](https://cluster-api.sigs.k8s.io/)
+Following project in an attempt to formulate the best practices of running
+[Talos Linux](https://www.talos.dev/) on [Equinix Metal](https://deploy.equinix.com/metal/),
+via [Kubernetes Cluster API](https://cluster-api.sigs.k8s.io/). 
 
-# Project setup
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+    B-->D;
+    C-->D;
+
+```
+
+- [prerequisites](##prerequisites)
+- [user setup](##user setup)
+- development setup
+- todo
+
 ## prerequisites
-- [Equinix Metal](https://deploy.equinix.com/metal/)
+- An account on [Equinix Metal](https://deploy.equinix.com/metal/)
 - [zsh env](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) plugin or equivalent 
 - [colima](https://github.com/abiosoft/colima) for MacOS users
 - [kconf](https://github.com/particledecay/kconf)
-- go
 - [tilt](https://tilt.dev/)
 - [kind](https://kind.sigs.k8s.io/)
-- kubectl
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [clusterctl](https://cluster-api.sigs.k8s.io/clusterctl/overview.html)
 - [Metal CLI](https://github.com/equinix/metal-cli/#installation)
 - [talosctl](https://github.com/siderolabs/talos)
 
-## experiment
+## user setup
 We will mix [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet). 
 This development setup is *somewhat equivalent* to
 ```sh
