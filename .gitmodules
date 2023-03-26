@@ -7,9 +7,6 @@
 [submodule "cluster-api-control-plane-provider-talos"]
 	path = cluster-api-control-plane-provider-talos
 	url = git@github.com:siderolabs/cluster-api-control-plane-provider-talos.git
-[submodule "cluster-api-provider-hetzner"]
-	path = cluster-api-provider-hetzner
-	url = git@github.com:syself/cluster-api-provider-hetzner.git
 [submodule "cluster-api-bootstrap-provider-talos"]
 	path = cluster-api-bootstrap-provider-talos
 	url = git@github.com:KrystianMarek/cluster-api-bootstrap-provider-talos.git
