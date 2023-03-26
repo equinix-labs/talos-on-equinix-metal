@@ -243,7 +243,7 @@ With Talos control plane and worker configuration the same as in case of CAPI de
 
 ## static-config
 For debugging purposes`generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
-with static Talos configuration. The intention behind this config to the have a bridge between [benchmark](#benchmark) and [development setup](#developer-setup)   
+with static Talos configuration. The intention behind this config is to the have a bridge between [benchmark](#benchmark) and [development setup](#developer-setup)   
 ```yaml
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
 kind: TalosConfigTemplate
@@ -284,4 +284,4 @@ kubectl apply -f secrets/${CLUSTER_NAME}-static-config.yaml
 ```
 
 ## ToDo
-- https://github.com/KrystianMarek/talos-on-equinix-metal/issues/2
+- Control Plane endpoint load balancing [\[1\]](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5)
