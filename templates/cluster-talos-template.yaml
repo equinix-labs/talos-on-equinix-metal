@@ -53,7 +53,13 @@ spec:
           value:
             name: cpem-secret
             contents: |
-              SECRET
+              apiVersion: v1
+              data:
+                cloud-sa.json: ${TOEM_CPEM_SECRET}
+              kind: Secret
+              metadata:
+                name: metal-cloud-config
+                namespace: kube-system
         - op: add
           path: /machine/kubelet/extraArgs
           value:
