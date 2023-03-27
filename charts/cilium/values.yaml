@@ -1,0 +1,25 @@
+cilium:
+  ipam:
+    mode: kubernetes
+  kubeProxyReplacement: strict
+  k8sServicePort: 6443
+  MTU: 9000
+  hubble:
+    enabled: true
+    metrics:
+      enabled:
+        - dns:query;ignoreAAAA
+        - drop
+        - tcp
+        - flow
+        - icmp
+        - http
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  # https://docs.cilium.io/en/stable/security/policy/intro/#policy-enforcement-modes
+  policyEnforcementMode: always
+  policyAuditMode: true # true - do not block traffic | false - block traffic
+  hostFirewall:
+    enabled: true

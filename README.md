@@ -112,9 +112,18 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
 
 
 ### setup
+- Create a python [virtual environment](https://docs.python.org/3/library/venv.html) 
+  ```shell
+  python -m venv
+  ```
+  With [dotenv](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) the python venv should be automatically activated.  
+  Install python resources:
+  ```shell
+  pip install -r resources.txt
+  ```
 - Examine and adjust [.env](.env). Create `secrets/metal` and populate with required `ENV`.
 - Create a temporary local cluster, you can use [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
-  [colima](https://github.com/abiosoft/colima), at the time of writing, this setup did not work on Docker Desktop:
+  [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop:
   ```shell
   kind create cluster
   ``` 
@@ -122,8 +131,8 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
   ```sh
   clusterctl init -b talos -c talos -i packet
   ```
-- Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the current issue with
-  CPEM EIP management.
+- Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the [issue with
+  CPEM EIP management](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5).
   ```shell
   ./register-ip-for-talos-cp.sh
   ```
@@ -139,7 +148,15 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
   ```shell
   watch clusterctl describe cluster "${CLUSTER_NAME}"
   ```
-- Download pull the `talosconfig` to interact with machines running Talos Linux:
+- Get the kubeconfig of the newly created cluster tin interact with the cluster
+  ```sh
+  clusterctl get kubeconfig "${CLUSTER_NAME}" > "secrets/${CLUSTER_NAME}.kubeconfig"
+  ```
+- One can use [kconf](https://github.com/particledecay/kconf) to merge the kubeconfig
+  ```sh
+  kconf add "secrets/${CLUSTER_NAME}.kubeconfig"
+  ```
+- Get the `talosconfig` to interact with machines running Talos Linux:
   ```shell
     kubectl get secret --namespace default "${CLUSTER_NAME}-talosconfig" -o jsonpath='{.data.talosconfig}' | base64 -d > secrets/talosconfig
     talosctl config merge secrets/talosconfig
@@ -175,7 +192,9 @@ On top of [user prerequisites](#user-prerequisites)
   ```sh
   make tilt-up
   ```
-- In another terminal continue with [user setup](#user-setup)
+- In another terminal continue with [user setup](#user-setup). The purpose of `generate_cluster_manifests.sh` is to generate
+  cluster manifest, Talos linux configuration, sync and validate generated configuration files. Ensuring that the 
+  configuration used in [benchmark](#benchmark) is the same as in case of [user setup](#user-setup) and [development setup](#developer-setup).
   - For additional instructions consider:
     - [Cluster Management API provider for Packet](https://github.com/kubernetes-sigs/cluster-api-provider-packet)
     - [Kubernetes Cloud Provider for Equinix Metal](https://github.com/equinix/cloud-provider-equinix-metal)
@@ -242,7 +261,7 @@ With Talos control plane and worker configuration the same as in case of CAPI de
 - `kubectl` to hearts content... 
 
 ## static-config
-For debugging purposes`generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml`  
+For debugging purposes`generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml` 
 with static Talos configuration. The intention behind this config is to the have a bridge between [benchmark](#benchmark) and [development setup](#developer-setup)   
 ```yaml
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
