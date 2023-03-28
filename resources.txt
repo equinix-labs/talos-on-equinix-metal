@@ -1,1 +1,4 @@
 invoke==2.0.0
+ipcalc==1.99.0
+PyYAML==6.0
+six==1.16.0

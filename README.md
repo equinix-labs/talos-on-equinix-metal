@@ -125,20 +125,16 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
 - Create a temporary local cluster, you can use [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
   [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop:
   ```shell
-  kind create cluster
+  kind create cluster --name kind-capi-test
   ``` 
 - In the context of the `kind` cluster mix [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet):
   ```sh
   clusterctl init -b talos -c talos -i packet
   ```
 - Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the [issue with
-  CPEM EIP management](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5).
+  CPEM EIP management](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5). Generate cluster manifest with:
   ```shell
-  ./register-ip-for-talos-cp.sh
-  ```
-- Generate cluster manifest with
-  ```shell
-  ./generate_cluster_manifests.sh
+  invoke build_manifests
   ```
 - Apply the cluster manifest  
   ```sh
@@ -222,7 +218,7 @@ With Talos control plane and worker configuration the same as in case of CAPI de
     --operating-system "talos_v1" \
     --plan $PLAN\
     --hostname toem-test-cp-1\
-    --userdata-file secrets/controlplane-cli-no-comment.yaml
+    --userdata-file secrets/controlplane-capi.yaml
   ```
 - Create the worker node
   ```shell
@@ -232,11 +228,11 @@ With Talos control plane and worker configuration the same as in case of CAPI de
     --operating-system "talos_v1" \
     --plan $PLAN\
     --hostname toem-test-wo-1\
-    --userdata-file secrets/worker-cli-no-comment.yaml
+    --userdata-file secrets/worker-capi.yaml
   ```
 - Observe the nodes coming up
   ```shell
-  metal device get
+  watch metal device get
   ```
 - Get the device list
   ```shell

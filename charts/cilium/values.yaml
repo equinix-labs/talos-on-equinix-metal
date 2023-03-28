@@ -23,3 +23,10 @@ cilium:
   policyAuditMode: true # true - do not block traffic | false - block traffic
   hostFirewall:
     enabled: true
+  ipv4:
+    enabled: true
+  ipv6:
+    enabled: false # ToDo: enable :)
+  encryption:
+    enabled: true
+    type: wireguard

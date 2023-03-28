@@ -91,24 +91,19 @@ spec:
         - op: add
           path: /cluster/network/cni
           value:
-            name: none
+            name: custom
+            urls:
+              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
         - op: add
           path: /cluster/proxy
           value:
-            disabled: true
+            disabled: false # ToDo https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free
         - op: add
           path: /cluster/externalCloudProvider
           value:
             enabled: true
             manifests:
               - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
-        - op: replace
-          path: /machine/install
-          value:
-            disk: /dev/sda # The disk used for installations.
-            image: ghcr.io/siderolabs/installer:v1.3.3 # Allows for supplying the image used to perform the installation.
-            bootloader: true # Indicates if a bootloader should be installed.
-            wipe: true # Indicates if the installation disk should be wiped at installation time.
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -146,24 +141,19 @@ spec:
       talosVersion: ${TALOS_VERSION}
       configPatches:
         - op: replace
-          path: /machine/install
-          value:
-            disk: /dev/sda # The disk used for installations.
-            image: ghcr.io/siderolabs/installer:v1.3.3 # Allows for supplying the image used to perform the installation.
-            bootloader: true # Indicates if a bootloader should be installed.
-            wipe: true # Indicates if the installation disk should be wiped at installation time.
-        - op: replace
           path: /cluster/controlPlane
           value:
             endpoint: https://${TOEM_CP_ENDPOINT}:6443
         - op: add
           path: /cluster/network/cni
           value:
-            name: none
+            name: custom
+            urls:
+              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
         - op: add
           path: /cluster/proxy
           value:
-            disabled: true
+            disabled: false # ToDo https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free
         - op: add
           path: /cluster/externalCloudProvider
           value:
