@@ -9,6 +9,18 @@ import glob
 import yaml
 
 
+def str_presenter(dumper, data):
+    """configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
+    if len(data.splitlines()) > 1:  # check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter) # to use with safe_dum
+
+
 def get_cpem_config():
     return {
         'apiKey': os.environ.get('PACKET_API_KEY'),
@@ -74,7 +86,7 @@ def _render_ip_addresses_file(document, addresses, ip_addresses_file_name):
     for address in ipcalc.Network('{}/{}'.format(document['address'], document['cidr'])):
         addresses.append(str(address))
     with open(ip_addresses_file_name, 'w') as ip_addresses_file:
-        ip_addresses_file.write(yaml.dump(addresses))
+        yaml.dump(addresses, ip_addresses_file)
 
 
 def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
@@ -87,7 +99,10 @@ def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
 def register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope):
     ip_reservations_file_name = "secrets/ip-{}-reservation.yaml".format(address_role)
     ip_addresses_file_name = "secrets/ip-{}-addresses.yaml".format(address_role)
-    cp_tags = ["talos-{}-vip".format(address_role), "cluster:{}".format(os.environ.get('CLUSTER_NAME'))]
+    if address_role == 'cp':
+        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(get_cluster_name())]
+    else:
+        cp_tags = ["talos-{}-vip".format(address_role), "cluster:{}".format(os.environ.get('CLUSTER_NAME'))]
 
     if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
@@ -250,6 +265,26 @@ def talos_apply_config_patches(ctx):
         ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
         ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
 
+    with open(os.path.join(get_secrets_dir(), get_cluster_name() + '.yaml')) as cluster_manifest_file:
+        documents = list()
+        for document in yaml.safe_load_all(cluster_manifest_file):
+            if document['kind'] == 'TalosControlPlane':
+                del(document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
+                document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
+                with open(os.path.join(get_secrets_dir(), cp_capi_file_name), 'r') as talos_cp_config_file:
+                    document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
+
+            if document['kind'] == 'TalosConfigTemplate':
+                del(document['spec']['template']['spec']['configPatches'])
+                document['spec']['template']['spec']['generateType'] = 'none'
+                with open(os.path.join(get_secrets_dir(), worker_capi_file_name), 'r') as talos_worker_config_file:
+                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
+
+            documents.append(document)
+
+    with open(os.path.join(get_secrets_dir(), get_cluster_name() + ".static-config.yaml"), 'w') as static_manifest:
+        yaml.dump_all(documents, static_manifest, sort_keys=True)
+
 
 @task(generate_cpem_config, clusterctl_generate_cluster, talos_apply_config_patches)
 def build_manifests(ctx):
@@ -259,23 +294,43 @@ def build_manifests(ctx):
 
 
 @task(use_kind_cluster_context)
-def get_cluster_secrets(ctx):
+def get_cluster_secrets(ctx, talosconfig='talosconfig'):
     """
     produces:
      [secrets_dir]/[cluster_name].kubeconfig
-    Patches it with correct Control Plane IP
     """
-    kubeconfig_file_name = os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig")
-    ctx.run("clusterctl get kubeconfig {} > {}".format(
-        get_cluster_name(),
-        kubeconfig_file_name
-    ), echo=True)
-    with open(kubeconfig_file_name, 'r') as kubeconfig_file:
-        data = yaml.safe_load(kubeconfig_file)
-        data['clusters'][0]['cluster']['server'] = "https://{}:6443".format(get_cp_address())
+    device_list_file_name = os.path.join(
+        get_secrets_dir(),
+        "device-list.yaml"
+    )
+    ctx.run("metal device get -o yaml > {}".format(device_list_file_name))
+    ip_addresses = list()
+    with open(device_list_file_name, 'r') as device_list_file:
+        for element in yaml.safe_load(device_list_file):
+            if get_cluster_name() in element['hostname']:
+                for ip_address in element['ip_addresses']:
+                    if ip_address['address_family'] == 4 and ip_address['public'] == True:
+                        ip_addresses.append(ip_address['address'])
 
-    with open(kubeconfig_file_name, 'w') as kubeconfig_file:
-        yaml.dump(data, kubeconfig_file)
+    ip_addresses_set = set(ip_addresses)
+    ip_addresses_set.remove(get_cp_address())
+
+    ctx.run("talosctl --talosconfig {} config endpoint {}".format(
+        os.path.join(get_secrets_dir(), talosconfig),
+        get_cp_address()), echo=True)
+    for ip_address in ip_addresses_set:
+        ctx.run("talosctl --talosconfig {} config node {}".format(
+            os.path.join(get_secrets_dir(), talosconfig),
+            ip_address), echo=True)
+
+    ctx.run("talosctl --talosconfig {} bootstrap --nodes {}".format(
+        os.path.join(get_secrets_dir(), talosconfig),
+        get_cp_address()), echo=True)
+    ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
+        os.path.join(get_secrets_dir(), talosconfig),
+        get_cp_address(),
+        os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig")
+    ), echo=True)
 
 
 @task()

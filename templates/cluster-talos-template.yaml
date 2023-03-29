@@ -26,9 +26,12 @@ kind: PacketCluster
 metadata:
   name: "${CLUSTER_NAME}"
 spec:
-  projectID: "${PROJECT_ID}"
-  facility: "${FACILITY}"
+  projectID: ${PROJECT_ID}
+  facility: ${FACILITY}
   vipManager: "CPEM"
+  controlPlaneEndpoint:
+    host: ${TOEM_CP_ENDPOINT}
+    port: 6443
 
 ---
 ## Control plane configs

@@ -138,7 +138,7 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
   ```
 - Apply the cluster manifest  
   ```sh
-  kubectl apply -f "secrets/${CLUSTER_NAME}.yaml"
+  kubectl apply -f "secrets/${CLUSTER_NAME}.static-config.yaml"
   ```
 - Wait for the cluster to come up
   ```shell
@@ -146,17 +146,11 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
   ```
 - Get the kubeconfig of the newly created cluster tin interact with the cluster
   ```sh
-  clusterctl get kubeconfig "${CLUSTER_NAME}" > "secrets/${CLUSTER_NAME}.kubeconfig"
+  invoke get-cluster-secrets
   ```
 - One can use [kconf](https://github.com/particledecay/kconf) to merge the kubeconfig
   ```sh
   kconf add "secrets/${CLUSTER_NAME}.kubeconfig"
-  ```
-- Get the `talosconfig` to interact with machines running Talos Linux:
-  ```shell
-    kubectl get secret --namespace default "${CLUSTER_NAME}-talosconfig" -o jsonpath='{.data.talosconfig}' | base64 -d > secrets/talosconfig
-    talosctl config merge secrets/talosconfig
-    talosctl -n <IP> version
   ```
 ## developer setup
 ### developer prerequisites
