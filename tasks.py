@@ -1,12 +1,12 @@
 import base64
+import glob
 import json
 import os
 import shutil
 
 import ipcalc
-from invoke import task, Collection
-import glob
 import yaml
+from invoke import task, Collection
 
 
 def str_presenter(dumper, data):
@@ -35,7 +35,7 @@ def get_cpem_config_yaml():
         json.dumps(get_cpem_config()).encode('ascii'))
 
 
-def get_cp_address():
+def get_cp_vip_address():
     with open('secrets/ip-cp-addresses.yaml', 'r') as cp_address:
         return yaml.safe_load(cp_address)[0]
 
@@ -177,7 +177,7 @@ def register_vips(ctx):
 
 
 @task()
-def use_kind_cluster_context(ctx, kind_cluster_name="kind-capi-test"):
+def use_kind_cluster_context(ctx, kind_cluster_name="kind-toem-capi-local"):
     ctx.run("kconf use {}".format(kind_cluster_name), echo=True)
 
 
@@ -194,7 +194,7 @@ def clusterctl_generate_cluster(ctx):
         echo=True,
         env={
             'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
-            'TOEM_CP_ENDPOINT': get_cp_address()
+            'TOEM_CP_ENDPOINT': get_cp_vip_address()
         }
     )
 
@@ -205,7 +205,7 @@ def talosctl_gen_config(ctx):
         ctx.run(
             "talosctl gen config {} https://{}:6443".format(
                 get_cluster_name(),
-                get_cp_address()
+                get_cp_vip_address()
             ),
             echo=True
         )
@@ -286,13 +286,6 @@ def talos_apply_config_patches(ctx):
         yaml.dump_all(documents, static_manifest, sort_keys=True)
 
 
-@task(generate_cpem_config, clusterctl_generate_cluster, talos_apply_config_patches)
-def build_manifests(ctx):
-    """
-    Build all
-    """
-
-
 @task(use_kind_cluster_context)
 def get_cluster_secrets(ctx, talosconfig='talosconfig'):
     """
@@ -304,41 +297,54 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
         "device-list.yaml"
     )
     ctx.run("metal device get -o yaml > {}".format(device_list_file_name))
-    ip_addresses = list()
+    ip_addresses = dict()
+    role_control_plane = 'control-plane'
+    role_worker = 'worker'
     with open(device_list_file_name, 'r') as device_list_file:
         for element in yaml.safe_load(device_list_file):
             if get_cluster_name() in element['hostname']:
                 for ip_address in element['ip_addresses']:
                     if ip_address['address_family'] == 4 and ip_address['public'] == True:
-                        ip_addresses.append(ip_address['address'])
+                        if role_control_plane in element['hostname']:
+                            ip_addresses[ip_address['address']] = role_control_plane
+                        else:
+                            ip_addresses[ip_address['address']] = role_worker
 
-    ip_addresses_set = set(ip_addresses)
-    ip_addresses_set.remove(get_cp_address())
+    ip_addresses.pop(get_cp_vip_address())
+    for key in ip_addresses:
+        ctx.run("talosctl --talosconfig {} config node {}".format(
+            os.path.join(get_secrets_dir(), talosconfig),
+            key), echo=True)
+
+        if ip_addresses[key] == role_control_plane:
+            control_plane_node = key
 
     ctx.run("talosctl --talosconfig {} config endpoint {}".format(
         os.path.join(get_secrets_dir(), talosconfig),
-        get_cp_address()), echo=True)
-    for ip_address in ip_addresses_set:
-        ctx.run("talosctl --talosconfig {} config node {}".format(
-            os.path.join(get_secrets_dir(), talosconfig),
-            ip_address), echo=True)
+        control_plane_node), echo=True)
 
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {}".format(
         os.path.join(get_secrets_dir(), talosconfig),
-        get_cp_address()), echo=True)
+        control_plane_node), echo=True)
+
     ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
         os.path.join(get_secrets_dir(), talosconfig),
-        get_cp_address(),
+        get_cp_vip_address(),
         os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig")
     ), echo=True)
 
 
 @task()
-def install_cilium(ctx):
-    with ctx.cd("charts/cilium"):
-        ctx.run("helm upgrade --install --namespace kube-system --set k8sServiceHost='{}' cilium ./".format(
-            get_cp_address()
-        ), echo=True)
+def install_network(ctx):
+    with ctx.cd("charts/networking"):
+        ctx.run("helm dependencies update", echo=True)
+        ctx.run("helm upgrade --install --namespace kube-system networking ./", echo=True)
+
+
+@task()
+def kind_clusterctl_init(ctx):
+    ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
+    ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
 
 
 @task()
@@ -360,7 +366,15 @@ def clean(ctx):
             print("{} already gone".format(name))
 
 
+@task(clean, generate_cpem_config, clusterctl_generate_cluster, talos_apply_config_patches)
+def build_manifests(ctx):
+    """
+    Build all
+    """
+
+
 ns = Collection(
+    kind_clusterctl_init,
     build_manifests,
     clusterctl_generate_cluster,
     generate_cpem_config,
@@ -373,7 +387,7 @@ ns = Collection(
     talos_apply_config_patches,
     use_kind_cluster_context,
     get_cluster_secrets,
-    install_cilium,
+    install_network,
     clean
 )
 

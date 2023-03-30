@@ -1,6 +1,6 @@
 apiVersion: v2
-name: cilium
-description: A Helm chart for Kubernetes
+name: networking
+description: Chart tracks compatible versions of talos + cilium + MetalLB
 
 type: application
 version: 0.1.0
@@ -8,5 +8,5 @@ appVersion: "1.16.0"
 
 dependencies:
   - name: cilium
-    version:  1.13.1
+    version: v1.11.2
     repository: "https://helm.cilium.io/"

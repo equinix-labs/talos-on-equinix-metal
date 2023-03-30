@@ -122,14 +122,11 @@ Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-
   pip install -r resources.txt
   ```
 - Examine and adjust [.env](.env). Create `secrets/metal` and populate with required `ENV`.
-- Create a temporary local cluster, you can use [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
-  [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop:
-  ```shell
-  kind create cluster --name kind-capi-test
-  ``` 
-- In the context of the `kind` cluster mix [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet):
+- Create a temporary local cluster, this setup uses [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
+  [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop.
+  In the context of the `kind` cluster mix [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet):
   ```sh
-  clusterctl init -b talos -c talos -i packet
+  invoke kind-clusterctl-init
   ```
 - Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the [issue with
   CPEM EIP management](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5). Generate cluster manifest with:
@@ -196,13 +193,9 @@ On top of [user prerequisites](#user-prerequisites)
 Using [talosctl](https://github.com/siderolabs/talos) and [Metal CLI](https://github.com/equinix/metal-cli/#installation) as described in the [official guide](https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/).
 With Talos control plane and worker configuration the same as in case of CAPI deployment.
 - Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the current issue with
-  CPEM EIP management.
+  CPEM EIP management. Generate cluster manifest with:
   ```shell
-  ./register-ip-for-talos-cp.sh
-  ```
-- Generate cluster manifest with
-  ```shell
-  ./generate_cluster_manifests.sh
+  invoke build_manifests
   ```
 - Create the control plane node
   ```shell
@@ -241,56 +234,14 @@ With Talos control plane and worker configuration the same as in case of CAPI de
   talosctl --talosconfig secrets/talosconfig config endpoint ${config_plane_ip}
   talosctl --talosconfig secrets/talosconfig config node ${config_plane_ip}
   talosctl --talosconfig secrets/talosconfig bootstrap
-  talosctl --talosconfig secrets/talosconfig kubeconfig secrets/
+  talosctl --talosconfig secrets/talosconfig kubeconfig secrets/kubeconfig
   ```
 - Use kubeconfig from secrets/kubeconfig to interact with the cluster
   ```shell
   kconf add secrets/kubeconfig
   kconf use admin@${CLUSTER_NAME}
   ```
-- `kubectl` to hearts content... 
-
-## static-config
-For debugging purposes`generate_cluster_manifests.sh` creates a file `secretes/${CLUSTER_NAME}-static-config.yaml` 
-with static Talos configuration. The intention behind this config is to the have a bridge between [benchmark](#benchmark) and [development setup](#developer-setup)   
-```yaml
-apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
-kind: TalosConfigTemplate
-metadata:
-  name: talos-alloy-102-worker
-  namespace: default
-spec:
-  template:
-    spec:
-      generateType: none
-      talosVersion: v1.3.5
-      data: |
-        #!talos
-        version: v1alpha1
-        debug: false
-        persist: true
-```
-```yaml
-apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
-kind: TalosControlPlane
-metadata:
-  name: talos-alloy-102-control-plane
-  namespace: default
-spec:
-  controlPlaneConfig:
-    controlplane:
-      generateType: none
-      talosVersion: v1.3.5
-      data: |
-        #!talos
-        version: v1alpha1
-        debug: false
-        persist: true
-```
-apply with
-```shell
-kubectl apply -f secrets/${CLUSTER_NAME}-static-config.yaml
-```
+- `kubectl` to hearts content...
 
 ## ToDo
 - Control Plane endpoint load balancing [\[1\]](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5)

@@ -1,8 +1,7 @@
 cilium:
   ipam:
     mode: kubernetes
-  kubeProxyReplacement: strict
-  k8sServicePort: 6443
+  kubeProxyReplacement: disabled
   MTU: 9000
   hubble:
     enabled: true
@@ -28,5 +27,29 @@ cilium:
   ipv6:
     enabled: false # ToDo: enable :)
   encryption:
-    enabled: true
+    enabled: false
     type: wireguard
+  securityContext:
+    capabilities:
+      ciliumAgent:
+        - CHOWN
+        - KILL
+        - NET_ADMIN
+        - NET_RAW
+        - IPC_LOCK
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - DAC_OVERRIDE
+        - FOWNER
+        - SETGID
+        - SETUID
+    securityContext:
+      capabilities:
+        cleanCiliumState:
+          - NET_ADMIN
+          - SYS_ADMIN
+          - SYS_RESOURCE
+  cgroup:
+    autoMount:
+      enabled: false
+    hostRoot: /sys/fs/cgroup

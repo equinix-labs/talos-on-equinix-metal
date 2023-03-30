@@ -94,13 +94,7 @@ spec:
         - op: add
           path: /cluster/network/cni
           value:
-            name: custom
-            urls:
-              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
-        - op: add
-          path: /cluster/proxy
-          value:
-            disabled: false # ToDo https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free
+            name: none
         - op: add
           path: /cluster/externalCloudProvider
           value:
@@ -150,13 +144,7 @@ spec:
         - op: add
           path: /cluster/network/cni
           value:
-            name: custom
-            urls:
-              - https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/calico.yaml
-        - op: add
-          path: /cluster/proxy
-          value:
-            disabled: false # ToDo https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kubeproxy-free
+            name: none
         - op: add
           path: /cluster/externalCloudProvider
           value:
