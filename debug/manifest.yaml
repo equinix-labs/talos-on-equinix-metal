@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug
+  namespace: network-services
+spec:
+  containers:
+    - image: praqma/network-multitool:fedora #https://github.com/wbitt/Network-MultiTool
+      command:
+        - "sleep"
+        - "604800"
+      imagePullPolicy: IfNotPresent
+      name: ubuntu
+  restartPolicy: Always

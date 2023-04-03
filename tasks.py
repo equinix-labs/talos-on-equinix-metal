@@ -18,7 +18,7 @@ def str_presenter(dumper, data):
 
 
 yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter) # to use with safe_dum
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
 
 
 def get_cpem_config():
@@ -96,9 +96,23 @@ def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
             _render_ip_addresses_file(document, addresses, ip_addresses_file_name)
 
 
+def get_ip_addresses_file_name(address_role):
+    return os.path.join(
+        get_secrets_dir(),
+        "ip-{}-addresses.yaml".format(address_role)
+    )
+
+
+def get_ip_reservation_file_name(address_role):
+    return os.path.join(
+        get_secrets_dir(),
+        "ip-{}-reservation.yaml".format(address_role)
+    )
+
+
 def register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope):
-    ip_reservations_file_name = "secrets/ip-{}-reservation.yaml".format(address_role)
-    ip_addresses_file_name = "secrets/ip-{}-addresses.yaml".format(address_role)
+    ip_reservations_file_name = get_ip_reservation_file_name(address_role)
+    ip_addresses_file_name = get_ip_addresses_file_name(address_role)
     if address_role == 'cp':
         cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(get_cluster_name())]
     else:
@@ -269,13 +283,13 @@ def talos_apply_config_patches(ctx):
         documents = list()
         for document in yaml.safe_load_all(cluster_manifest_file):
             if document['kind'] == 'TalosControlPlane':
-                del(document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
+                del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
                 document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
                 with open(os.path.join(get_secrets_dir(), cp_capi_file_name), 'r') as talos_cp_config_file:
                     document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
 
             if document['kind'] == 'TalosConfigTemplate':
-                del(document['spec']['template']['spec']['configPatches'])
+                del (document['spec']['template']['spec']['configPatches'])
                 document['spec']['template']['spec']['generateType'] = 'none'
                 with open(os.path.join(get_secrets_dir(), worker_capi_file_name), 'r') as talos_worker_config_file:
                     document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
@@ -310,18 +324,24 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
                         else:
                             ip_addresses[ip_address['address']] = role_worker
 
-    ip_addresses.pop(get_cp_vip_address())
+    if len(ip_addresses) == 0:
+        print("No devices found for cluster {}, setup failed.".format(get_cluster_name()))
+        return
+
+    with open(os.path.join(get_secrets_dir(), talosconfig), 'r') as talosconfig_file:
+        talosconfig_data = yaml.safe_load(talosconfig_file)
+        talosconfig_data['contexts'][get_cluster_name()]['nodes'] = list()
+        talosconfig_data['contexts'][get_cluster_name()]['endpoints'] = list()
+
     for key in ip_addresses:
-        ctx.run("talosctl --talosconfig {} config node {}".format(
-            os.path.join(get_secrets_dir(), talosconfig),
-            key), echo=True)
+        talosconfig_data['contexts'][get_cluster_name()]['nodes'].append(key)
 
         if ip_addresses[key] == role_control_plane:
+            talosconfig_data['contexts'][get_cluster_name()]['endpoints'].append(key)
             control_plane_node = key
 
-    ctx.run("talosctl --talosconfig {} config endpoint {}".format(
-        os.path.join(get_secrets_dir(), talosconfig),
-        control_plane_node), echo=True)
+    with open(os.path.join(get_secrets_dir(), talosconfig), 'w') as talosconfig_file:
+        yaml.dump(talosconfig_data, talosconfig_file)
 
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {}".format(
         os.path.join(get_secrets_dir(), talosconfig),
@@ -335,10 +355,20 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
 
 
 @task()
-def install_network(ctx):
-    with ctx.cd("charts/networking"):
+def install_network_service_dependencies(ctx):
+    chart_directory = os.path.join('charts', 'network-services-dependencies')
+    with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace kube-system networking ./", echo=True)
+        ctx.run("kubectl apply -f namespace.yaml", echo=True)
+        ctx.run("helm upgrade --install --namespace network-services network-services-dependencies ./", echo=True)
+
+
+@task(install_network_service_dependencies)
+def install_network_services(ctx):
+    chart_directory = os.path.join('charts', 'network-services')
+    with ctx.cd(chart_directory):
+        ctx.run("helm dependencies update", echo=True)
+        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)
 
 
 @task()
@@ -366,7 +396,8 @@ def clean(ctx):
             print("{} already gone".format(name))
 
 
-@task(clean, generate_cpem_config, clusterctl_generate_cluster, talos_apply_config_patches)
+@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, clusterctl_generate_cluster,
+      talos_apply_config_patches)
 def build_manifests(ctx):
     """
     Build all
@@ -374,6 +405,7 @@ def build_manifests(ctx):
 
 
 ns = Collection(
+    install_network_service_dependencies,
     kind_clusterctl_init,
     build_manifests,
     clusterctl_generate_cluster,
@@ -387,7 +419,7 @@ ns = Collection(
     talos_apply_config_patches,
     use_kind_cluster_context,
     get_cluster_secrets,
-    install_network,
+    install_network_services,
     clean
 )
 
@@ -396,4 +428,3 @@ ns.configure({
         'all_ips_file_name': 'secrets/all-ips.yaml'
     }
 })
-

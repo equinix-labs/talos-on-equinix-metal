@@ -28,7 +28,7 @@ metadata:
 spec:
   projectID: ${PROJECT_ID}
   facility: ${FACILITY}
-  vipManager: "CPEM"
+  vipManager: "KUBE_VIP"
   controlPlaneEndpoint:
     host: ${TOEM_CP_ENDPOINT}
     port: 6443
@@ -40,7 +40,7 @@ kind: TalosControlPlane
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
-  version: v${KUBERNETES_VERSION}
+  version: ${KUBERNETES_VERSION}
   replicas: ${CONTROL_PLANE_MACHINE_COUNT}
   infrastructureTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -51,6 +51,30 @@ spec:
       generateType: controlplane
       talosVersion: ${TALOS_VERSION}
       configPatches:
+#        - op: replace
+#          path: /cluster/apiServer
+#          value:
+#            image: registry.k8s.io/kube-apiserver:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/controllerManager
+#          value:
+#            image: registry.k8s.io/kube-controller-manager:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/proxy
+#          value:
+#            image: registry.k8s.io/kube-proxy:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/scheduler
+#          value:
+#            image: registry.k8s.io/kube-scheduler:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /machine/kubelet
+#          value:
+#            image: ghcr.io/siderolabs/kubelet:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /machine/install
+#          value:
+#            image: ghcr.io/siderolabs/installer:${TALOS_VERSION}
         - op: add
           path: /cluster/inlineManifests/0
           value:
@@ -100,7 +124,7 @@ spec:
           value:
             enabled: true
             manifests:
-              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/${CPEM_VERSION}/deployment.yaml
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -137,6 +161,30 @@ spec:
       generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
+#        - op: replace
+#          path: /cluster/apiServer
+#          value:
+#            image: registry.k8s.io/kube-apiserver:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/controllerManager
+#          value:
+#            image: registry.k8s.io/kube-controller-manager:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/proxy
+#          value:
+#            image: registry.k8s.io/kube-proxy:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /cluster/scheduler
+#          value:
+#            image: registry.k8s.io/kube-scheduler:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /machine/kubelet
+#          value:
+#            image: ghcr.io/siderolabs/kubelet:${KUBERNETES_VERSION}
+#        - op: replace
+#          path: /machine/install
+#          value:
+#            image: ghcr.io/siderolabs/installer:${TALOS_VERSION}
         - op: replace
           path: /cluster/controlPlane
           value:
@@ -150,7 +198,7 @@ spec:
           value:
             enabled: true
             manifests:
-              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/${CPEM_VERSION}/deployment.yaml
         - op: add
           path: /machine/kubelet/extraArgs
           value:

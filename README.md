@@ -94,8 +94,6 @@ graph LR
 - [static config](#static-config)
 - [todo](#todo)
 
-Consider [talos-alloy-102-static-config-redacted.yaml](./talos-alloy-102-static-config-redacted.yaml) an example of generated manifest
-
 ## user setup
 ### user prerequisites
 
