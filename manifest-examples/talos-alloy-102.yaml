@@ -1,0 +1,189 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: talos-alloy-102
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 172.26.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: TalosControlPlane
+    name: talos-alloy-102-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketCluster
+    name: talos-alloy-102
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketCluster
+metadata:
+  name: talos-alloy-102
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: REDACTED_CONTROL_PLANE_VIP
+    port: 6443
+  facility: pa4
+  projectID: REDACTED_PROJECT_ID
+  vipManager: KUBE_VIP
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+kind: TalosControlPlane
+metadata:
+  name: talos-alloy-102-control-plane
+  namespace: default
+spec:
+  controlPlaneConfig:
+    controlplane:
+      configPatches:
+      - op: add
+        path: /cluster/inlineManifests/0
+        value:
+          contents: |
+            apiVersion: v1
+            data:
+              cloud-sa.json: REDACTED_CPEM_CONFIG
+            kind: Secret
+            metadata:
+              name: metal-cloud-config
+              namespace: kube-system
+          name: cpem-secret
+      - op: add
+        path: /machine/kubelet/extraArgs
+        value:
+          cloud-provider: external
+      - op: add
+        path: /machine/network
+        value:
+          interfaces: []
+      - op: add
+        path: /machine/network/interfaces/0
+        value:
+          interface: eth3
+          vip:
+            equinixMetal:
+              apiToken: REDACTED_TOKEN
+            ip: REDACTED_CONTROL_PLANE_VIP
+      - op: replace
+        path: /cluster/controlPlane
+        value:
+          endpoint: https://REDACTED_CONTROL_PLANE_VIP:6443
+      - op: add
+        path: /cluster/controllerManager/extraArgs
+        value:
+          cloud-provider: external
+      - op: add
+        path: /cluster/apiServer/extraArgs
+        value:
+          cloud-provider: external
+      - op: add
+        path: /cluster/network/cni
+        value:
+          name: none
+      - op: add
+        path: /cluster/externalCloudProvider
+        value:
+          enabled: true
+          manifests:
+          - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+      generateType: controlplane
+      talosVersion: v1.3.3
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketMachineTemplate
+    name: talos-alloy-102-control-plane
+  replicas: 1
+  version: v1.26.1
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: talos-alloy-102-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      billingCycle: hourly
+      machineType: m3.small.x86
+      os: talos_v1
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      billingCycle: hourly
+      machineType: m3.small.x86
+      os: talos_v1
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: TalosConfigTemplate
+metadata:
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      configPatches:
+      - op: replace
+        path: /cluster/controlPlane
+        value:
+          endpoint: https://REDACTED_CONTROL_PLANE_VIP:6443
+      - op: add
+        path: /cluster/network/cni
+        value:
+          name: none
+      - op: add
+        path: /cluster/externalCloudProvider
+        value:
+          enabled: true
+          manifests:
+          - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+      - op: add
+        path: /machine/kubelet/extraArgs
+        value:
+          cloud-provider: external
+      generateType: worker
+      talosVersion: v1.3.3
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: talos-alloy-102
+    pool: worker-pool
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  clusterName: talos-alloy-102
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: talos-alloy-102
+      pool: worker-pool
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: talos-alloy-102
+        pool: worker-pool
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: TalosConfigTemplate
+          name: talos-alloy-102-worker
+      clusterName: talos-alloy-102
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: PacketMachineTemplate
+        name: talos-alloy-102-worker
+      version: v1.26.1

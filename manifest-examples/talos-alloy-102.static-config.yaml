@@ -1,0 +1,296 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: talos-alloy-102
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 172.26.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: TalosControlPlane
+    name: talos-alloy-102-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketCluster
+    name: talos-alloy-102
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketCluster
+metadata:
+  name: talos-alloy-102
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: REDACTED_CONTROL_PLANE_VIP
+    port: 6443
+  facility: pa4
+  projectID: REDACTED_METAL_PROJECT_ID
+  vipManager: KUBE_VIP
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+kind: TalosControlPlane
+metadata:
+  name: talos-alloy-102-control-plane
+  namespace: default
+spec:
+  controlPlaneConfig:
+    controlplane:
+      data: |
+        #!talos
+        cluster:
+          aggregatorCA:
+            crt: REDACTED_CERT
+            key: REDACTED_CERT
+          apiServer:
+            admissionControl:
+            - configuration:
+                apiVersion: pod-security.admission.config.k8s.io/v1alpha1
+                defaults:
+                  audit: restricted
+                  audit-version: latest
+                  enforce: baseline
+                  enforce-version: latest
+                  warn: restricted
+                  warn-version: latest
+                exemptions:
+                  namespaces:
+                  - kube-system
+                  runtimeClasses: []
+                  usernames: []
+                kind: PodSecurityConfiguration
+              name: PodSecurity
+            auditPolicy:
+              apiVersion: audit.k8s.io/v1
+              kind: Policy
+              rules:
+              - level: Metadata
+            certSANs:
+            - REDACTED_CONTROL_PLANE_VIP
+            disablePodSecurityPolicy: true
+            extraArgs:
+              cloud-provider: external
+            image: registry.k8s.io/kube-apiserver:v1.26.1
+          ca:
+            crt: REDACTED_CERT
+            key: REDACTED_CERT
+          clusterName: talos-alloy-102
+          controlPlane:
+            endpoint: https://REDACTED_CONTROL_PLANE_VIP:6443
+          controllerManager:
+            extraArgs:
+              cloud-provider: external
+            image: registry.k8s.io/kube-controller-manager:v1.26.1
+          discovery:
+            enabled: true
+            registries:
+              kubernetes:
+                disabled: true
+              service: {}
+          etcd:
+            ca:
+              crt: REDACTED_CERT
+              key: REDACTED_CERT
+          externalCloudProvider:
+            enabled: true
+            manifests:
+            - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+          extraManifests: []
+          id: REDACTED_TOKEN
+          inlineManifests:
+          - contents: |
+              apiVersion: v1
+              data:
+                cloud-sa.json: REDACTED_CPEM_CONFIGURATION
+              kind: Secret
+              metadata:
+                name: metal-cloud-config
+                namespace: kube-system
+            name: cpem-secret
+          network:
+            cni:
+              name: none
+            dnsDomain: cluster.local
+            podSubnets:
+            - 10.244.0.0/16
+            serviceSubnets:
+            - 10.96.0.0/12
+          proxy:
+            image: registry.k8s.io/kube-proxy:v1.26.1
+          scheduler:
+            image: registry.k8s.io/kube-scheduler:v1.26.1
+          secret: REDACTED_TOKEN
+          secretboxEncryptionSecret: REDACTED_TOKEN
+          serviceAccount:
+            key: REDACTED_TOKEN
+          token: REDACTED_TOKEN
+        debug: false
+        machine:
+          ca:
+            crt: REDACTED_CERT
+            key: REDACTED_CERT
+          certSANs: []
+          features:
+            apidCheckExtKeyUsage: true
+            rbac: true
+            stableHostname: true
+          install:
+            bootloader: true
+            disk: /dev/sda
+            image: ghcr.io/siderolabs/installer:v1.3.3
+            wipe: false
+          kubelet:
+            defaultRuntimeSeccompProfileEnabled: true
+            disableManifestsDirectory: true
+            extraArgs:
+              cloud-provider: external
+            image: ghcr.io/siderolabs/kubelet:v1.26.1
+          network:
+            interfaces:
+            - interface: eth3
+              vip:
+                equinixMetal:
+                  apiToken: REDACTED_TOKEN
+                ip: REDACTED_CONTROL_PLANE_VIP
+          registries: {}
+          token: REDACTED_TOKEN
+          type: controlplane
+        persist: true
+        version: v1alpha1
+      generateType: none
+      talosVersion: v1.3.3
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketMachineTemplate
+    name: talos-alloy-102-control-plane
+  replicas: 1
+  version: v1.26.1
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: talos-alloy-102-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      billingCycle: hourly
+      machineType: m3.small.x86
+      os: talos_v1
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketMachineTemplate
+metadata:
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      billingCycle: hourly
+      machineType: m3.small.x86
+      os: talos_v1
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: TalosConfigTemplate
+metadata:
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      data: |
+        #!talos
+        cluster:
+          ca:
+            crt: REDACTED_CERT
+            key: ""
+          controlPlane:
+            endpoint: https://REDACTED_CONTROL_PLANE_VIP:6443
+          discovery:
+            enabled: true
+            registries:
+              kubernetes:
+                disabled: true
+              service: {}
+          externalCloudProvider:
+            enabled: true
+            manifests:
+            - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/v3.6.0/deployment.yaml
+          id: REDACTED_TOKEN
+          network:
+            cni:
+              name: none
+            dnsDomain: cluster.local
+            podSubnets:
+            - 10.244.0.0/16
+            serviceSubnets:
+            - 10.96.0.0/12
+          secret: REDACTED_TOKEN
+          token: REDACTED_TOKEN
+        debug: false
+        machine:
+          ca:
+            crt: REDACTED_CERT
+            key: ""
+          certSANs: []
+          features:
+            apidCheckExtKeyUsage: true
+            rbac: true
+            stableHostname: true
+          install:
+            bootloader: true
+            disk: /dev/sda
+            image: ghcr.io/siderolabs/installer:v1.3.3
+            wipe: false
+          kubelet:
+            defaultRuntimeSeccompProfileEnabled: true
+            disableManifestsDirectory: true
+            extraArgs:
+              cloud-provider: external
+            image: ghcr.io/siderolabs/kubelet:v1.26.1
+          network: {}
+          registries: {}
+          token: REDACTED_TOKEN
+          type: worker
+        persist: true
+        version: v1alpha1
+      generateType: none
+      talosVersion: v1.3.3
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: talos-alloy-102
+    pool: worker-pool
+  name: talos-alloy-102-worker
+  namespace: default
+spec:
+  clusterName: talos-alloy-102
+  replicas: 1
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: talos-alloy-102
+      pool: worker-pool
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: talos-alloy-102
+        pool: worker-pool
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: TalosConfigTemplate
+          name: talos-alloy-102-worker
+      clusterName: talos-alloy-102
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+        kind: PacketMachineTemplate
+        name: talos-alloy-102-worker
+      version: v1.26.1

@@ -147,6 +147,14 @@ graph LR
   ```sh
   kconf add "secrets/${CLUSTER_NAME}.kubeconfig"
   ```
+  In that case context can be easily set with
+  ```shell
+  kconf use admin@${CLUSTER_NAME}
+  ```
+- Patch cluster nodes with static routes to enable BGP, Install networking services (Cilium)
+  ```shell
+  invoke install-network-services
+  ```
 ## developer setup
 ### developer prerequisites
 On top of [user prerequisites](#user-prerequisites)
@@ -177,8 +185,8 @@ On top of [user prerequisites](#user-prerequisites)
   ```sh
   make tilt-up
   ```
-- In another terminal continue with [user setup](#user-setup). The purpose of `generate_cluster_manifests.sh` is to generate
-  cluster manifest, Talos linux configuration, sync and validate generated configuration files. Ensuring that the 
+- In another terminal continue with [user setup](#user-setup). This project uses [invoke](https://www.pyinvoke.org/) for automation.
+  Use `invoke --list` to list all available tasks. Apart from other tasks invoke, ensures that the 
   configuration used in [benchmark](#benchmark) is the same as in case of [user setup](#user-setup) and [development setup](#developer-setup).
   - For additional instructions consider:
     - [Cluster Management API provider for Packet](https://github.com/kubernetes-sigs/cluster-api-provider-packet)
