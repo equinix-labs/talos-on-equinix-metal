@@ -1,0 +1,7 @@
+apiVersion: v2
+name: network-services
+description: Chart tracks compatible versions of talos + cilium + MetalLB
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"

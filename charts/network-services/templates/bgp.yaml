@@ -1,0 +1,34 @@
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: peer1
+spec:
+  myASN: 65000
+  peerASN: 65530
+  peerAddress: 169.254.255.1
+
+---
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: peer2
+spec:
+  myASN: 65000
+  peerASN: 65530
+  peerAddress: 169.254.255.2
+
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: {{ .Values.metallb.clusterName }}
+
+{{- range $k, $v := .Values.metallb.pools }}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ $v.name }}
+spec:
+  addresses: {{ $v.addresses }}
+{{- end}}
