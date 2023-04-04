@@ -1,9 +1,13 @@
 - op: add
+  path: /machine/network
+  value:
+    interfaces: []
+- op: add
   path: /machine/network/interfaces/-
   value:
     interface: bond0
     routes:
       - network: 169.254.255.1/32
-        gateway: 10.78.10.130
+        gateway: ToDo
       - network: 169.254.255.2/32
-        gateway: 10.78.10.130
+        gateway: ToDo
