@@ -51,30 +51,6 @@ spec:
       generateType: controlplane
       talosVersion: ${TALOS_VERSION}
       configPatches:
-#        - op: replace
-#          path: /cluster/apiServer
-#          value:
-#            image: registry.k8s.io/kube-apiserver:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/controllerManager
-#          value:
-#            image: registry.k8s.io/kube-controller-manager:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/proxy
-#          value:
-#            image: registry.k8s.io/kube-proxy:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/scheduler
-#          value:
-#            image: registry.k8s.io/kube-scheduler:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /machine/kubelet
-#          value:
-#            image: ghcr.io/siderolabs/kubelet:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /machine/install
-#          value:
-#            image: ghcr.io/siderolabs/installer:${TALOS_VERSION}
         - op: add
           path: /cluster/inlineManifests/0
           value:
@@ -161,30 +137,6 @@ spec:
       generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
-#        - op: replace
-#          path: /cluster/apiServer
-#          value:
-#            image: registry.k8s.io/kube-apiserver:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/controllerManager
-#          value:
-#            image: registry.k8s.io/kube-controller-manager:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/proxy
-#          value:
-#            image: registry.k8s.io/kube-proxy:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /cluster/scheduler
-#          value:
-#            image: registry.k8s.io/kube-scheduler:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /machine/kubelet
-#          value:
-#            image: ghcr.io/siderolabs/kubelet:${KUBERNETES_VERSION}
-#        - op: replace
-#          path: /machine/install
-#          value:
-#            image: ghcr.io/siderolabs/installer:${TALOS_VERSION}
         - op: replace
           path: /cluster/controlPlane
           value:

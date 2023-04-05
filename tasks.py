@@ -60,7 +60,7 @@ def generate_cpem_config(ctx, cpem_config_file="secrets/cpem/cpem.yaml"):
     --dry-run='client' secret generic -n kube-system metal-cloud-config \
     --from-literal='cloud-sa.json={}'".format(
         json.dumps(cpem_config)
-    ), echo=True)
+    ), hide='stdout', echo=True)
 
     # print(k8s_secret.stdout)
     yaml_k8s_secret = yaml.safe_load(k8s_secret.stdout)
@@ -389,7 +389,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
             node_patch_data[pod['node']] = dict()
             node_patch_data[pod['node']]['gateway'] = pod['gateway']
 
-        nodes_raw = ctx.run("kubectl get nodes -o yaml",hide='stdout', echo=True).stdout
+        nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=True).stdout
         for node in yaml.safe_load(nodes_raw)['items']:
             node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = list()
             node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node['status']['addresses']
@@ -441,7 +441,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                         ), echo=True)
 
 
-@task(hack_fix_bgp_peer_routs)
+@task()
 def install_network_service_dependencies(ctx):
     chart_directory = os.path.join('charts', 'network-services-dependencies')
     with ctx.cd(chart_directory):
@@ -450,7 +450,7 @@ def install_network_service_dependencies(ctx):
         ctx.run("helm upgrade --install --namespace network-services network-services-dependencies ./", echo=True)
 
 
-@task(install_network_service_dependencies)
+@task(install_network_service_dependencies, hack_fix_bgp_peer_routs)
 def install_network_services(ctx):
     chart_directory = os.path.join('charts', 'network-services')
     with ctx.cd(chart_directory):

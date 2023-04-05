@@ -2,8 +2,14 @@ cilium:
   MTU: 9000
   bpf:
     masquerade: true
+  bgp:
+    enabled: false # ToDo: true | remove MetalLB
+    announce:
+      loadbalancerIP: true
+  bgpControlPlane:
+    enabled: true
   encryption:
-    enabled: false
+    enabled: false # ToDo: true
     type: wireguard
   hostFirewall:
     enabled: true
@@ -21,13 +27,35 @@ cilium:
       enabled: true
     ui:
       enabled: true
-#  ipam:
-#    mode: kubernetes
+  ipam:
+    mode: kubernetes
   ipv4:
     enabled: true
   ipv6:
-    enabled: false
-  kubeProxyReplacement: disabled
+    enabled: false # ToDo: true | https://yolops.net/k8s-dualstack-cilium.html
+  kubeProxyReplacement: disabled # ToDo: strick | Run without KubeProxy https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kube-proxy-hybrid-modes
   policyAuditMode: true
-  policyEnforcementMode: default
-
+  policyEnforcementMode: default # ToDo: always | https://docs.cilium.io/en/stable/security/policy/intro/#policy-enforcement-modes
+  cgroup:
+    hostRoot: /sys/fs/cgroup
+    autoMount:
+      enabled: false
+  securityContext:
+    privileged: true # ToDo: false | https://github.com/cilium/cilium/issues/21603#issuecomment-1453753820
+    capabilities:
+      ciliumAgent:
+        - CHOWN
+        - KILL
+        - NET_ADMIN
+        - NET_RAW
+        - IPC_LOCK
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - DAC_OVERRIDE
+        - FOWNER
+        - SETGID
+        - SETUID
+      cleanCiliumState:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
