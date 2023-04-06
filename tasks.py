@@ -1,4 +1,3 @@
-import base64
 import glob
 import json
 import os
@@ -8,44 +7,12 @@ import ipcalc
 import yaml
 from invoke import task, Collection
 
-
-def str_presenter(dumper, data):
-    """configures yaml for dumping multiline strings
-    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
-    if len(data.splitlines()) > 1:  # check for multiline string
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
-
+from tasks_pkg import apps, network
+from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, get_cpem_config_yaml, get_cp_vip_address, \
+    get_cpem_config
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
-
-
-def get_cpem_config():
-    return {
-        'apiKey': os.environ.get('PACKET_API_KEY'),
-        'projectID': os.environ.get('PROJECT_ID'),
-        'eipTag': '',
-        'eipHealthCheckUseHostIP': True
-    }
-
-
-def get_cpem_config_yaml():
-    return base64.b64encode(
-        json.dumps(get_cpem_config()).encode('ascii'))
-
-
-def get_cp_vip_address():
-    with open('secrets/ip-cp-addresses.yaml', 'r') as cp_address:
-        return yaml.safe_load(cp_address)[0]
-
-
-def get_cluster_name():
-    return os.environ.get('CLUSTER_NAME')
-
-
-def get_secrets_dir():
-    return os.environ.get('TOEM_SECRETS_DIR')
 
 
 @task()
@@ -303,8 +270,7 @@ def talos_apply_config_patches(ctx):
 @task(use_kind_cluster_context)
 def get_cluster_secrets(ctx, talosconfig='talosconfig'):
     """
-    produces:
-     [secrets_dir]/[cluster_name].kubeconfig
+    produces: [secrets_dir]/[cluster_name].kubeconfig
     """
     device_list_file_name = os.path.join(
         get_secrets_dir(),
@@ -354,110 +320,6 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
     ), echo=True)
 
 
-@task
-def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='network-services'):
-    with open(os.path.join(get_secrets_dir(), talosconfig_file_name), 'r') as talosconfig_file:
-        talosconfig = yaml.safe_load(talosconfig_file)
-
-    hack_directory = os.path.join('hack', 'bgp')
-    with ctx.cd(hack_directory):
-        ctx.run("kubectl apply -f manifest.yaml", echo=True)
-        pods_raw = ctx.run(
-            "kubectl -n {} get pods -o yaml".format(namespace),
-            hide='stdout', echo=True).stdout
-
-        debug_pods = list()
-        for pod in yaml.safe_load(pods_raw)['items']:
-            if 'debug' in pod['metadata']['name']:
-                debug_pods.append({
-                    "name": pod['metadata']['name'],
-                    'node': pod['spec']['nodeName']
-                })
-
-        for debug_pod in debug_pods:
-            if 'debug' in debug_pod['name']:
-                debug_pod['gateway'] = ctx.run("kubectl -n network-services exec {} -- /bin/bash "
-                        "-c \"curl -s https://metadata.platformequinix.com/metadata | "
-                        "jq -r '.network.addresses[] | "
-                        "select(.public == false and .address_family == 4) | .gateway'\"".format(
-                    debug_pod['name'])
-                    , echo=True
-                ).stdout.strip()
-
-        node_patch_data = dict()
-        for pod in debug_pods:
-            node_patch_data[pod['node']] = dict()
-            node_patch_data[pod['node']]['gateway'] = pod['gateway']
-
-        nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=True).stdout
-        for node in yaml.safe_load(nodes_raw)['items']:
-            node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = list()
-            node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node['status']['addresses']
-
-        # print("#### node_patch_data")
-        # print(node_patch_data)
-        # print("#### talosconfig")
-        # print(talosconfig)
-
-        if len(node_patch_data.keys()) != len(talosconfig['contexts'][get_cluster_name()]['nodes']):
-            print("Node list returned by kubectl is out of sync with your talosconfig! Fix before patching.")
-            return
-
-        for hostname in node_patch_data:
-            patch_name = "{}.json".format(hostname)
-            talos_patch = None
-            if 'control-plane' in hostname:
-                with open(os.path.join(
-                        hack_directory,
-                        'talos-control-plane-patch.template.yaml'), 'r') as talos_cp_patch_file:
-                    talos_patch = yaml.safe_load(talos_cp_patch_file)
-                    for route in talos_patch[0]['value']['routes']:
-                        route['gateway'] = node_patch_data[hostname]['gateway']
-            elif 'worker' in hostname:
-                with open(os.path.join(
-                        hack_directory,
-                        'talos-worker-patch.template.yaml'), 'r') as talos_cp_patch_file:
-                    talos_patch = yaml.safe_load(talos_cp_patch_file)
-                    for route in talos_patch[1]['value']['routes']:
-                        route['gateway'] = node_patch_data[hostname]['gateway']
-            else:
-                print('Unrecognised node role: {}, should be "control-plane" OR "worker. '
-                      'Node will NOT be patched.'.format(hostname))
-
-            if talos_patch is not None:
-                patch_file_name = os.path.join(hack_directory, patch_name)
-                with open(patch_file_name, 'w') as patch_file:
-                    json.dump(talos_patch, patch_file, indent=2)
-
-                for address in node_patch_data[hostname]['addresses']:
-                    if address['type'] == 'ExternalIP' and address['address'] in talosconfig['contexts'][get_cluster_name()]['nodes']:
-                        ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
-                            os.path.join(
-                                os.environ.get('TOEM_PROJECT_ROOT'),
-                                get_secrets_dir(),
-                                talosconfig_file_name),
-                            address['address'],
-                            patch_name
-                        ), echo=True)
-
-
-@task()
-def install_network_service_dependencies(ctx):
-    chart_directory = os.path.join('charts', 'network-services-dependencies')
-    with ctx.cd(chart_directory):
-        ctx.run("helm dependencies update", echo=True)
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services-dependencies ./", echo=True)
-
-
-@task(install_network_service_dependencies, hack_fix_bgp_peer_routs)
-def install_network_services(ctx):
-    chart_directory = os.path.join('charts', 'network-services')
-    with ctx.cd(chart_directory):
-        ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)
-
-
 @task()
 def kind_clusterctl_init(ctx):
     ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
@@ -491,27 +353,29 @@ def build_manifests(ctx):
     """
 
 
-ns = Collection(
-    hack_fix_bgp_peer_routs,
-    install_network_service_dependencies,
-    kind_clusterctl_init,
-    build_manifests,
-    clusterctl_generate_cluster,
-    generate_cpem_config,
-    get_all_metal_ips,
-    register_cp_vip,
-    register_ingress_vip,
-    register_vpn_vip,
-    register_vips,
-    talosctl_gen_config,
-    talos_apply_config_patches,
-    use_kind_cluster_context,
-    get_cluster_secrets,
-    install_network_services,
-    clean
-)
+ns = Collection()
+ns.add_task(kind_clusterctl_init)
+ns.add_task(build_manifests)
+ns.add_task(clusterctl_generate_cluster)
+ns.add_task(generate_cpem_config)
+ns.add_task(get_all_metal_ips)
+ns.add_task(register_cp_vip)
+ns.add_task(register_ingress_vip)
+ns.add_task(register_vpn_vip)
+ns.add_task(register_vips)
+ns.add_task(talosctl_gen_config)
+ns.add_task(talos_apply_config_patches)
+ns.add_task(use_kind_cluster_context)
+ns.add_task(get_cluster_secrets)
+ns.add_task(clean)
+
+ns.add_collection(network)
+ns.add_collection(apps)
 
 ns.configure({
+    'tasks': {
+        'search_root': os.environ.get('TOEM_PROJECT_ROOT')
+    },
     'core': {
         'all_ips_file_name': 'secrets/all-ips.yaml'
     }
