@@ -92,7 +92,8 @@ spec:
         - op: add
           path: /machine/network/interfaces/0
           value:
-            interface: eth3
+            deviceSelector:
+              driver: '*'
             vip:
               ip: ${TOEM_CP_ENDPOINT}
               equinixMetal:

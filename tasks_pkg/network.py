@@ -10,8 +10,8 @@ yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
 
 
-@task
-def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='network-services'):
+@task()
+def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='kube-system'):
     with open(os.path.join(get_secrets_dir(), talosconfig_file_name), 'r') as talosconfig_file:
         talosconfig = yaml.safe_load(talosconfig_file)
 
@@ -32,13 +32,14 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
 
         for debug_pod in debug_pods:
             if 'debug' in debug_pod['name']:
-                debug_pod['gateway'] = ctx.run("kubectl -n network-services exec {} -- /bin/bash "
-                                               "-c \"curl -s https://metadata.platformequinix.com/metadata | "
-                                               "jq -r '.network.addresses[] | "
-                                               "select(.public == false and .address_family == 4) | .gateway'\"".format(
-                    debug_pod['name'])
-                    , echo=True
-                ).stdout.strip()
+                debug_pod['gateway'] = ctx.run(
+                    "kubectl -n {} exec {} -- /bin/bash "
+                    "-c \"curl -s https://metadata.platformequinix.com/metadata | "
+                    "jq -r '.network.addresses[] | "
+                    "select(.public == false and .address_family == 4) | .gateway'\"".format(
+                        namespace,
+                        debug_pod['name'])
+                    , echo=True).stdout.strip()
 
         node_patch_data = dict()
         for pod in debug_pods:
@@ -124,19 +125,19 @@ def install_network_service_dependencies(ctx):
     chart_directory = os.path.join('apps', 'network-services-dependencies')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade --install --wait --namespace network-services network-services-dependencies ./",
-                echo=True)
+        # ctx.run("kubectl apply -f namespace.yaml", echo=True)
         # https://gateway-api.sigs.k8s.io/guides/?h=crds#installing-a-gateway-controller
         # https://docs.cilium.io/en/stable/network/servicemesh/tls-termination/#create-tls-certificate-and-private-key
         ctx.run("kubectl apply -f "
                 "https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml",
                 echo=True)
+        ctx.run("helm upgrade --install --namespace kube-system network-services-dependencies ./",
+                echo=True)
 
 
-@task(hack_fix_bgp_peer_routs)
+@task(install_network_service_dependencies, hack_fix_bgp_peer_routs)
 def install_network_services(ctx):
     chart_directory = os.path.join('apps', 'network-services')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)
+        ctx.run("helm upgrade --install --namespace kube-system network-services ./", echo=True)

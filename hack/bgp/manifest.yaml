@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: debug
-  namespace: network-services
+  namespace: kube-system
   labels:
     k8s-app: debug
 spec:
