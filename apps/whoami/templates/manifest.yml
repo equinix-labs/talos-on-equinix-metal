@@ -1,0 +1,111 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: whoami-deployment
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whoami-app
+  template:
+    metadata:
+      labels:
+        app: whoami-app
+    spec:
+      containers:
+        - name: whoami-app
+          image: traefik/whoami
+#          securityContext: {}
+#            allowPrivilegeEscalation: false
+##            runAsNonRoot: true
+#            capabilities:
+#              drop:
+#               - "ALL"
+#            seccompProfile:
+#              type: RuntimeDefault
+          ports:
+            - containerPort: 80
+              name: whoami-app-port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: whoami-app-port
+  selector:
+    app: whoami-app
+
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: ingress-whoami-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+  ingress:
+    - fromEndpoints:
+        - {}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: ingress-whoami-policy-world
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+  ingress:
+    - fromEntities:
+      - world
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: egress-whoami-policy
+spec:
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+  egress:
+    - toEndpoints:
+        - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-gcp
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.test_app.fqdn }}
+  name: whoami-test-app
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: cilium
+  rules:
+    - host: {{ .Values.test_app.fqdn }}
+      http:
+        paths:
+          - backend:
+              service:
+                name: whoami-service
+                port:
+                  name: http
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - {{ .Values.test_app.fqdn }}
+      secretName: tls.{{ .Values.test_app.fqdn }}
+

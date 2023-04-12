@@ -8,7 +8,7 @@ import yaml
 from invoke import task, Collection
 
 from tasks_pkg import apps, network
-from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir,\
+from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_cpem_config
 from tasks_pkg.network import build_network_service_dependencies_manifest
 
@@ -166,37 +166,41 @@ def use_kind_cluster_context(ctx, kind_cluster_name="kind-toem-capi-local"):
 def patch_template_with_cilium_manifest(
         ctx,
         templates_dir='templates',
-        cluster_template_file_name='cluster-talos-template.yaml',
+        cluster_template_file_name='inline-cni.yaml',
         manifest_name='network-services-dependencies.yaml'):
 
     with open(os.path.join(get_secrets_dir(), manifest_name), 'r') as network_manifest_file:
-        network_manifest = network_manifest_file.read()
+        network_manifest = list(yaml.safe_load_all(network_manifest_file))
 
+    network_manifest_yaml = yaml.safe_dump_all(network_manifest)
     with open(os.path.join(templates_dir, cluster_template_file_name), 'r') as cluster_template_file:
         _cluster_template = list(yaml.safe_load_all(cluster_template_file))
         for document in _cluster_template:
             if document['kind'] == 'TalosControlPlane':
                 for patch in document['spec']['controlPlaneConfig']['controlplane']['configPatches']:
                     if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
-                        patch['value']['contents'] = network_manifest
+                        patch['value']['contents'] = network_manifest_yaml
             if document['kind'] == 'TalosConfigTemplate':
                 for patch in document['spec']['template']['spec']['configPatches']:
                     if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
-                        patch['value']['contents'] = network_manifest
+                        patch['value']['contents'] = network_manifest_yaml
 
-        with open(os.path.join(templates_dir, 'cluster-talos.yaml'), 'w') as target:
+        with open(os.path.join(templates_dir, get_cluster_name() + '.yaml'), 'w') as target:
             yaml.safe_dump_all(_cluster_template, target)
 
 
 @task(register_cp_vip, use_kind_cluster_context)
-def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template='cluster-talos.yaml'):
+def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name=None):
     """
     Generate cluster spec with clusterctl
     """
+    if cluster_template_name is None:
+        cluster_template_name = get_cluster_name() + '.yaml'
+
     ctx.run("clusterctl generate cluster {} \
     --from {} > {}".format(
         get_cluster_name(),
-        os.path.join(templates_dir, cluster_template),
+        os.path.join(templates_dir, cluster_template_name),
         os.path.join(get_secrets_dir(), get_cluster_name() + ".yaml")
     ),
         echo=True,
@@ -286,7 +290,7 @@ def talos_apply_config_patches(ctx):
                 del (document['spec']['template']['spec']['configPatches'])
                 document['spec']['template']['spec']['generateType'] = 'none'
                 with open(os.path.join(get_secrets_dir(), worker_capi_file_name), 'r') as talos_worker_config_file:
-                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
+                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read().strip()
 
             documents.append(document)
 
@@ -374,7 +378,21 @@ def clean(ctx):
 
 @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
       clusterctl_generate_cluster, talos_apply_config_patches)
-def build_manifests(ctx):
+def build_manifests_inline_cni(ctx):
+    """
+    Build all
+    """
+
+
+@task()
+def produce_cluster_template(ctx):
+    with ctx.cd("templates"):
+        ctx.run("cp kubeproxy.yaml " + get_cluster_name() + ".yaml")
+
+
+@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, produce_cluster_template,
+      clusterctl_generate_cluster, talos_apply_config_patches)
+def build_manifests_kubeproxy(ctx):
     """
     Build all
     """
@@ -383,7 +401,8 @@ def build_manifests(ctx):
 ns = Collection()
 ns.add_task(patch_template_with_cilium_manifest)
 ns.add_task(kind_clusterctl_init)
-ns.add_task(build_manifests)
+ns.add_task(build_manifests_kubeproxy)
+ns.add_task(build_manifests_inline_cni)
 ns.add_task(clusterctl_generate_cluster)
 ns.add_task(generate_cpem_config)
 ns.add_task(get_all_metal_ips)

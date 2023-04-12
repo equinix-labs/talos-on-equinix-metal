@@ -58,10 +58,8 @@ def get_dns_management_token(ctx, provider='google'):
 def install_dns_and_tls_dependencies(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
     with ctx.cd(dns_tls_directory):
-        # ToDo:  https://docs.cilium.io/en/v1.13/network/servicemesh/gateway-api/gateway-api/
-        ctx.run("kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml", echo=True)
         ctx.run("helm dependency build", echo=True)
-        ctx.run("helm upgrade --install --namespace {} "
+        ctx.run("helm upgrade --wait --install --namespace {} "
                 "--set external_dns.provider.google.google_project={} "
                 "--set external_dns.provider.google.domain_filter={} "
                 "dns-and-tls-dependencies ./".format(
@@ -71,7 +69,7 @@ def install_dns_and_tls_dependencies(ctx):
                 ), echo=True)
 
 
-@task()
+@task(install_dns_and_tls_dependencies)
 def install_dns_and_tls(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls')
     with ctx.cd(dns_tls_directory):
@@ -86,8 +84,8 @@ def install_dns_and_tls(ctx):
 
 
 @task()
-def install_test_app(ctx):
-    dns_tls_directory = os.path.join('apps', 'test-app')
+def install_whoami_app(ctx):
+    dns_tls_directory = os.path.join('apps', 'whoami')
     with ctx.cd(dns_tls_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
         ctx.run("helm upgrade --install --namespace test-application "

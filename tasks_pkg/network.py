@@ -4,7 +4,7 @@ import os
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cluster_name
+from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cluster_name, get_cp_vip_address
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -86,7 +86,8 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                     json.dump(talos_patch, patch_file, indent=2)
 
                 for address in node_patch_data[hostname]['addresses']:
-                    if address['type'] == 'ExternalIP' and address['address'] in talosconfig['contexts'][get_cluster_name()]['nodes']:
+                    if address['type'] == 'ExternalIP' and address['address'] in\
+                            talosconfig['contexts'][get_cluster_name()]['nodes']:
                         ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
                             os.path.join(
                                 os.environ.get('TOEM_PROJECT_ROOT'),
@@ -102,13 +103,20 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
     chart_directory = os.path.join('apps', manifest_name)
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm template --namespace kube-system {} ./ > {}".format(
-            manifest_name,
-            os.path.join(
-                get_secrets_dir(),
-                manifest_name + '.yaml'
-            )
-        ), echo=True)
+        ctx.run("helm template --namespace network-services "
+                "--set cilium.bpf.masquerade=true "
+                "--set cilium.kubeProxyReplacement=strict "
+                "--set cilium.k8sServiceHost={} "
+                "--set cilium.k8sServicePort={} "
+                " {} ./ > {}".format(
+                    get_cp_vip_address(),
+                    '6443',
+                    manifest_name,
+                    os.path.join(
+                        get_secrets_dir(),
+                        manifest_name + '.yaml'
+                    )
+                ), echo=True)
 
 
 @task()
@@ -116,7 +124,14 @@ def install_network_service_dependencies(ctx):
     chart_directory = os.path.join('apps', 'network-services-dependencies')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace kube-system network-services-dependencies ./", echo=True)
+        ctx.run("kubectl apply -f namespace.yaml", echo=True)
+        ctx.run("helm upgrade --install --wait --namespace network-services network-services-dependencies ./",
+                echo=True)
+        # https://gateway-api.sigs.k8s.io/guides/?h=crds#installing-a-gateway-controller
+        # https://docs.cilium.io/en/stable/network/servicemesh/tls-termination/#create-tls-certificate-and-private-key
+        ctx.run("kubectl apply -f "
+                "https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml",
+                echo=True)
 
 
 @task(hack_fix_bgp_peer_routs)
@@ -124,4 +139,4 @@ def install_network_services(ctx):
     chart_directory = os.path.join('apps', 'network-services')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace kube-system network-services ./", echo=True)
+        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)

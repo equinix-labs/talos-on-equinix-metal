@@ -1,3 +1,4 @@
 *
 !.gitignore
-!cluster-talos-template.yaml
+!inline-cni.yaml
+!kubeproxy.yaml

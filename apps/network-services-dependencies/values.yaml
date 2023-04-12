@@ -14,7 +14,7 @@ cilium:
       - envoy
   MTU: 9000
   bpf:
-    masquerade: true
+    masquerade: false # ToDo: Conflict with kube-proxy ?
   bgp:
     enabled: false # ToDo: true | remove MetalLB
     announce:
@@ -46,7 +46,7 @@ cilium:
     enabled: true
   ipv6:
     enabled: false # ToDo: true | https://yolops.net/k8s-dualstack-cilium.html
-  kubeProxyReplacement: strict # ToDo: strict | Run without KubeProxy
+  kubeProxyReplacement: partial # strict - run without KubeProxy
   policyAuditMode: true
   policyEnforcementMode: default # ToDo: always | https://docs.cilium.io/en/stable/security/policy/intro/#policy-enforcement-modes
   cgroup:
