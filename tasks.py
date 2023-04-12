@@ -8,11 +8,12 @@ import yaml
 from invoke import task, Collection
 
 from tasks_pkg import apps, network
-from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, get_cpem_config_yaml, get_cp_vip_address, \
-    get_cpem_config
+from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir,\
+    get_cpem_config_yaml, get_cp_vip_address, get_cpem_config
+from tasks_pkg.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
 
 @task()
@@ -59,7 +60,7 @@ def _render_ip_addresses_file(document, addresses, ip_addresses_file_name):
 def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
     addresses = list()
     with open(ip_reservations_file_name, 'r') as ip_reservations_file:
-        for document in yaml.safe_load_all(ip_reservations_file):
+        for document in yaml.safe_load(ip_reservations_file):
             _render_ip_addresses_file(document, addresses, ip_addresses_file_name)
 
 
@@ -92,14 +93,13 @@ def register_vip(ctx, all_ips_file_name, address_role, address_count, address_sc
     with open(all_ips_file_name, 'r') as all_ips_file:
         no_reservations = False
         addresses = list()
-        for document in yaml.unsafe_load_all(all_ips_file):
-            for element in document:
-                if element['facility']['code'] == os.environ.get('FACILITY') and element.get('tags') == cp_tags:
-                    _render_ip_addresses_file(element, addresses, ip_addresses_file_name)
-                    no_reservations = False
-                    break
-                else:
-                    no_reservations = True
+        for ip_spec in yaml.safe_load(all_ips_file):
+            if ip_spec['facility']['code'] == os.environ.get('FACILITY') and ip_spec.get('tags') == cp_tags:
+                _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
+                no_reservations = False
+                break
+            else:
+                no_reservations = True
 
         if no_reservations:
             ctx.run("metal ip request -p {} -t {} -q {} -f {} --tags '{}' -o yaml > {}".format(
@@ -162,14 +162,41 @@ def use_kind_cluster_context(ctx, kind_cluster_name="kind-toem-capi-local"):
     ctx.run("kconf use {}".format(kind_cluster_name), echo=True)
 
 
+@task(build_network_service_dependencies_manifest)
+def patch_template_with_cilium_manifest(
+        ctx,
+        templates_dir='templates',
+        cluster_template_file_name='cluster-talos-template.yaml',
+        manifest_name='network-services-dependencies.yaml'):
+
+    with open(os.path.join(get_secrets_dir(), manifest_name), 'r') as network_manifest_file:
+        network_manifest = network_manifest_file.read()
+
+    with open(os.path.join(templates_dir, cluster_template_file_name), 'r') as cluster_template_file:
+        _cluster_template = list(yaml.safe_load_all(cluster_template_file))
+        for document in _cluster_template:
+            if document['kind'] == 'TalosControlPlane':
+                for patch in document['spec']['controlPlaneConfig']['controlplane']['configPatches']:
+                    if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
+                        patch['value']['contents'] = network_manifest
+            if document['kind'] == 'TalosConfigTemplate':
+                for patch in document['spec']['template']['spec']['configPatches']:
+                    if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
+                        patch['value']['contents'] = network_manifest
+
+        with open(os.path.join(templates_dir, 'cluster-talos.yaml'), 'w') as target:
+            yaml.safe_dump_all(_cluster_template, target)
+
+
 @task(register_cp_vip, use_kind_cluster_context)
-def clusterctl_generate_cluster(ctx):
+def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template='cluster-talos.yaml'):
     """
     Generate cluster spec with clusterctl
     """
     ctx.run("clusterctl generate cluster {} \
-    --from templates/cluster-talos-template.yaml > {}".format(
+    --from {} > {}".format(
         get_cluster_name(),
+        os.path.join(templates_dir, cluster_template),
         os.path.join(get_secrets_dir(), get_cluster_name() + ".yaml")
     ),
         echo=True,
@@ -264,7 +291,7 @@ def talos_apply_config_patches(ctx):
             documents.append(document)
 
     with open(os.path.join(get_secrets_dir(), get_cluster_name() + ".static-config.yaml"), 'w') as static_manifest:
-        yaml.dump_all(documents, static_manifest, sort_keys=True)
+        yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
 
 
 @task(use_kind_cluster_context)
@@ -345,8 +372,8 @@ def clean(ctx):
             print("{} already gone".format(name))
 
 
-@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, clusterctl_generate_cluster,
-      talos_apply_config_patches)
+@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
+      clusterctl_generate_cluster, talos_apply_config_patches)
 def build_manifests(ctx):
     """
     Build all
@@ -354,6 +381,7 @@ def build_manifests(ctx):
 
 
 ns = Collection()
+ns.add_task(patch_template_with_cilium_manifest)
 ns.add_task(kind_clusterctl_init)
 ns.add_task(build_manifests)
 ns.add_task(clusterctl_generate_cluster)

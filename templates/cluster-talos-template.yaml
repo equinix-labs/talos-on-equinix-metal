@@ -64,6 +64,24 @@ spec:
                 name: metal-cloud-config
                 namespace: kube-system
         - op: add
+          path: /cluster/inlineManifests/1
+          value:
+            name: network-services-namespace
+            contents: |
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                labels:
+                  pod-security.kubernetes.io/enforce: privileged
+                  pod-security.kubernetes.io/audit: privileged
+                  pod-security.kubernetes.io/warn: privileged
+                name: network-services
+        - op: add
+          path: /cluster/inlineManifests/2
+          value:
+            name: network-services-dependencies
+            contents: | #ToDo
+        - op: add
           path: /machine/kubelet/extraArgs
           value:
             cloud-provider: external
@@ -95,6 +113,10 @@ spec:
           path: /cluster/network/cni
           value:
             name: none
+        - op: add
+          path: /cluster/proxy
+          value:
+            disabled: true
         - op: add
           path: /cluster/externalCloudProvider
           value:
@@ -137,14 +159,44 @@ spec:
       generateType: worker
       talosVersion: ${TALOS_VERSION}
       configPatches:
+        - op: add
+          path: /cluster
+          value:
+            inlineManifests: []
+        - op: add
+          path: /cluster/inlineManifests/0
+          value:
+            name: network-services-namespace
+            contents: |
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                labels:
+                  pod-security.kubernetes.io/enforce: privileged
+                  pod-security.kubernetes.io/audit: privileged
+                  pod-security.kubernetes.io/warn: privileged
+                name: network-services
+        - op: add
+          path: /cluster/inlineManifests/1
+          value:
+            name: network-services-dependencies
+            contents: | #ToDo
         - op: replace
           path: /cluster/controlPlane
           value:
             endpoint: https://${TOEM_CP_ENDPOINT}:6443
         - op: add
+          path: /cluster/network
+          value:
+            cni: {}
+        - op: add
           path: /cluster/network/cni
           value:
             name: none
+        - op: add
+          path: /cluster/proxy
+          value:
+            disabled: true
         - op: add
           path: /cluster/externalCloudProvider
           value:

@@ -98,17 +98,30 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
 
 
 @task()
+def build_network_service_dependencies_manifest(ctx, manifest_name='network-services-dependencies'):
+    chart_directory = os.path.join('apps', manifest_name)
+    with ctx.cd(chart_directory):
+        ctx.run("helm dependencies update", echo=True)
+        ctx.run("helm template --namespace kube-system {} ./ > {}".format(
+            manifest_name,
+            os.path.join(
+                get_secrets_dir(),
+                manifest_name + '.yaml'
+            )
+        ), echo=True)
+
+
+@task()
 def install_network_service_dependencies(ctx):
     chart_directory = os.path.join('apps', 'network-services-dependencies')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services-dependencies ./", echo=True)
+        ctx.run("helm upgrade --install --namespace kube-system network-services-dependencies ./", echo=True)
 
 
-@task(install_network_service_dependencies, hack_fix_bgp_peer_routs)
+@task(hack_fix_bgp_peer_routs)
 def install_network_services(ctx):
     chart_directory = os.path.join('apps', 'network-services')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)
+        ctx.run("helm upgrade --install --namespace kube-system network-services ./", echo=True)

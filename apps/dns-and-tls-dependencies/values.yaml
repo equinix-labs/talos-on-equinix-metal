@@ -1,4 +1,6 @@
 cert-manager:
+  extraArgs:
+    - --feature-gates=ExperimentalGatewayAPISupport=true
   installCRDs: true
   serviceAccount:
     name: cert-manager

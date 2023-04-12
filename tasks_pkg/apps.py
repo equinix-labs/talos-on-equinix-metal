@@ -58,6 +58,8 @@ def get_dns_management_token(ctx, provider='google'):
 def install_dns_and_tls_dependencies(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
     with ctx.cd(dns_tls_directory):
+        # ToDo:  https://docs.cilium.io/en/v1.13/network/servicemesh/gateway-api/gateway-api/
+        ctx.run("kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml", echo=True)
         ctx.run("helm dependency build", echo=True)
         ctx.run("helm upgrade --install --namespace {} "
                 "--set external_dns.provider.google.google_project={} "

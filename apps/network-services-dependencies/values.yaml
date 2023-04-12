@@ -1,9 +1,17 @@
 cilium:
+  enableXTSocketFallback: false
   ingressController:
     enabled: true
+    loadbalancerMode: shared
   loadBalancer:
     l7:
       backend: envoy
+  gatewayAPI:
+    enabled: true
+  debug:
+    enabled: false
+    verbose:
+      - envoy
   MTU: 9000
   bpf:
     masquerade: true
@@ -38,7 +46,7 @@ cilium:
     enabled: true
   ipv6:
     enabled: false # ToDo: true | https://yolops.net/k8s-dualstack-cilium.html
-  kubeProxyReplacement: partial # ToDo: strick | Run without KubeProxy https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#kube-proxy-hybrid-modes
+  kubeProxyReplacement: strict # ToDo: strict | Run without KubeProxy
   policyAuditMode: true
   policyEnforcementMode: default # ToDo: always | https://docs.cilium.io/en/stable/security/policy/intro/#policy-enforcement-modes
   cgroup:
