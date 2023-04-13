@@ -11,7 +11,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 @task()
-def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='kube-system'):
+def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='network-services'):
     with open(os.path.join(get_secrets_dir(), talosconfig_file_name), 'r') as talosconfig_file:
         talosconfig = yaml.safe_load(talosconfig_file)
 
@@ -159,13 +159,13 @@ def install_network_service_dependencies(ctx):
         ctx.run("kubectl apply -f "
                 "https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml",
                 echo=True)
-        ctx.run("helm upgrade --install --namespace kube-system network-services-dependencies ./",
+        ctx.run("helm upgrade --install --namespace network-services network-services-dependencies ./",
                 echo=True)
 
 
-@task(install_network_service_dependencies, hack_fix_bgp_peer_routs)
+@task(hack_fix_bgp_peer_routs)
 def install_network_services(ctx):
     chart_directory = os.path.join('apps', 'network-services')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace kube-system network-services ./", echo=True)
+        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)

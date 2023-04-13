@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: debug
-  namespace: kube-system
+  namespace: network-services
   labels:
     k8s-app: debug
 spec:
@@ -28,5 +28,6 @@ spec:
             - "604800"
           imagePullPolicy: IfNotPresent
           name: debug
+      hostNetwork: true
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
