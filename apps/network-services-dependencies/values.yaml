@@ -7,7 +7,7 @@ cilium:
     l7:
       backend: envoy
   gatewayAPI:
-    enabled: true
+    enabled: false
   debug:
     enabled: false
     verbose:

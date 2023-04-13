@@ -49,7 +49,8 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
         nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=True).stdout
         for node in yaml.safe_load(nodes_raw)['items']:
             node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = list()
-            node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node['status']['addresses']
+            node_patch_data[node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node['status'][
+                'addresses']
 
         # print("#### node_patch_data")
         # print(node_patch_data)
@@ -87,7 +88,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                     json.dump(talos_patch, patch_file, indent=2)
 
                 for address in node_patch_data[hostname]['addresses']:
-                    if address['type'] == 'ExternalIP' and address['address'] in\
+                    if address['type'] == 'ExternalIP' and address['address'] in \
                             talosconfig['contexts'][get_cluster_name()]['nodes']:
                         ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
                             os.path.join(
@@ -102,6 +103,9 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
 @task()
 def build_network_service_dependencies_manifest(ctx, manifest_name='network-services-dependencies'):
     chart_directory = os.path.join('apps', manifest_name)
+    manifest_file_name = os.path.join(
+        get_secrets_dir(),
+        manifest_name + '.yaml')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
         ctx.run("helm template --namespace network-services "
@@ -113,11 +117,35 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
                     get_cp_vip_address(),
                     '6443',
                     manifest_name,
-                    os.path.join(
-                        get_secrets_dir(),
-                        manifest_name + '.yaml'
-                    )
+                    manifest_file_name
                 ), echo=True)
+
+    # Talos controller chokes on the '\n' in yaml
+    # [talos] controller failed {
+    #       "component": "controller-runtime",
+    #       "controller": "k8s.ExtraManifestController",
+    #       "error": "1 error occurred:\x5cn\x5ct* error updating manifests:
+    #           invalid Yaml document separator: null\x5cn\x5cn"
+    #   }
+    # Helm does not mind those, we need to fix them.
+    manifest = list()
+    with open(manifest_file_name, 'r') as manifest_file:
+        _manifest = list(yaml.safe_load_all(manifest_file))
+
+        for document in _manifest:
+            if document is not None:
+                if 'data' in document:
+                    data_keys = document['data'].keys()
+                    for key in data_keys:
+                        if '\n' in document['data'][key]:
+                            tmp_list = document['data'][key].split('\n')
+                            for index, _ in enumerate(tmp_list):
+                                tmp_list[index] = tmp_list[index].rstrip()
+                            document['data'][key] = "\n".join(tmp_list).strip()
+                manifest.append(document)
+
+    with open(manifest_file_name, 'w') as manifest_file:
+        yaml.safe_dump_all(manifest, manifest_file)
 
 
 @task()

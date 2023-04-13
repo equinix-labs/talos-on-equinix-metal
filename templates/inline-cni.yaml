@@ -161,9 +161,8 @@ spec:
       talosVersion: ${TALOS_VERSION}
       configPatches:
         - op: add
-          path: /cluster
-          value:
-            inlineManifests: []
+          path: /cluster/inlineManifests
+          value: []
         - op: add
           path: /cluster/inlineManifests/0
           value:
