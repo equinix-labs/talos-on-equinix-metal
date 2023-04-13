@@ -156,6 +156,7 @@ def install_network_service_dependencies(ctx):
         # ctx.run("kubectl apply -f namespace.yaml", echo=True)
         # https://gateway-api.sigs.k8s.io/guides/?h=crds#installing-a-gateway-controller
         # https://docs.cilium.io/en/stable/network/servicemesh/tls-termination/#create-tls-certificate-and-private-key
+        ctx.run("kubectl apply -f namespace.yaml")
         ctx.run("kubectl apply -f "
                 "https://github.com/kubernetes-sigs/gateway-api/releases/download/v0.6.2/standard-install.yaml",
                 echo=True)
