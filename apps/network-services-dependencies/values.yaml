@@ -4,7 +4,7 @@ metallb:
 cilium:
   ipam:
     mode: kubernetes
-  kubeProxyReplacement: partial
+  kubeProxyReplacement: strict
   securityContext:
     privileged: true
   cgroup:
@@ -12,15 +12,7 @@ cilium:
       enabled: false
       hostRoot: /sys/fs/cgroup
   enableXTSocketFallback: false
-  ingressController:
-    enabled: true
-    loadbalancerMode: shared
-  loadBalancer:
-    l7:
-      backend: envoy
-  gatewayAPI:
-    enabled: true
-  MTU: 9000
+  MTU: 1500
   hubble:
     enabled: true
     metrics:
@@ -35,40 +27,15 @@ cilium:
       enabled: true
     ui:
       enabled: true
-#  debug:
-#    enabled: false
-#    verbose:
-#      - envoy
-#  MTU: 9000
-#  bpf:
-#    masquerade: false # ToDo: Conflict with kube-proxy ?
-#  bgp:
-#    enabled: false # ToDo: true | remove MetalLB
-#    announce:
-#      loadbalancerIP: true
-#  bgpControlPlane:
-#    enabled: true
-#  encryption:
-#    enabled: false # ToDo: true
-#    type: wireguard
-#  hostFirewall:
-#    enabled: true
-#  hubble:
-#    enabled: true
-#    metrics:
-#      enabled:
-#      - dns:query;ignoreAAAA
-#      - drop
-#      - tcp
-#      - flow
-#      - icmp
-#      - http
-#    relay:
-#      enabled: true
-#    ui:
-#      enabled: true
-#  ipam:
-#    mode: kubernetes
+  bpf:
+    masquerade: true
+  encryption:
+    enabled: false # secret "cilium-ipsec-keys" not found
+  hostFirewall:
+    enabled: true
+  policyEnforcementMode: always
+  policyAuditMode: true
+
 #  ipv4:
 #    enabled: true
 #  ipv6:
@@ -81,7 +48,6 @@ cilium:
 #    autoMount:
 #      enabled: false
 #  securityContext:
-#    privileged: true # ToDo: false | https://github.com/cilium/cilium/issues/21603#issuecomment-1453753820
 #    capabilities:
 #      ciliumAgent:
 #        - CHOWN

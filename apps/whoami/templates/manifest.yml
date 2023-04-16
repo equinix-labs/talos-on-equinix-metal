@@ -1,3 +1,32 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cilium-ingress-secrets
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cilium-secrets
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cilium-ingress-secrets
+subjects:
+  - kind: ServiceAccount
+    name: cilium
+    namespace: network-services
+---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -55,33 +84,34 @@ spec:
     matchLabels:
       app: whoami-app
   ingress:
-    - fromEndpoints:
-        - {}
----
-apiVersion: "cilium.io/v2"
-kind: CiliumNetworkPolicy
-metadata:
-  name: ingress-whoami-policy-world
-  namespace: {{ .Release.Namespace }}
-spec:
-  endpointSelector:
-    matchLabels:
-      app: whoami-app
-  ingress:
     - fromEntities:
-      - world
----
-apiVersion: "cilium.io/v2"
-kind: CiliumNetworkPolicy
-metadata:
-  name: egress-whoami-policy
-spec:
-  endpointSelector:
-    matchLabels:
-      app: whoami-app
+        - world
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEntities:
+        - cluster
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
   egress:
+    - toEntities:
+        - world
+    - toEntities:
+        - cluster
     - toEndpoints:
-        - {}
+      - matchLabels:
+          io.kubernetes.pod.namespace: kube-system
+          k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -92,7 +122,7 @@ metadata:
   name: whoami-test-app
   namespace: {{ .Release.Namespace }}
 spec:
-  ingressClassName: cilium
+  ingressClassName: nginx
   rules:
     - host: {{ .Values.test_app.fqdn }}
       http:

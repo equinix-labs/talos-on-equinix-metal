@@ -94,3 +94,11 @@ def install_whoami_app(ctx):
                     os.environ.get('TOEM_TEST_SUBDOMAIN'),
                     os.environ.get('GCP_DOMAIN')
                 )), echo=True)
+
+
+@task()
+def install_ingress_controller(ctx):
+    app_directory = os.path.join('apps', 'ingress-bundle')
+    with ctx.cd(app_directory):
+        ctx.run("helm dependency update", echo=True)
+        ctx.run("helm upgrade --install ingress-bundle ./", echo=True)

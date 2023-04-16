@@ -1,6 +1,4 @@
 cert-manager:
-  extraArgs:
-    - --feature-gates=ExperimentalGatewayAPISupport=true
   installCRDs: true
   serviceAccount:
     name: cert-manager
@@ -9,5 +7,5 @@ external_dns:
   provider:
     google:
       enabled: true
-      google_project: ToDo
-      domain_filter: ToDo
+      google_project: passed via CLI
+      domain_filter: passed via CLI

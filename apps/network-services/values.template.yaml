@@ -3,3 +3,5 @@ metallb:
   pools:
     - name: # ToDo
       addresses: # ToDo
+firewall:
+  enabled: false

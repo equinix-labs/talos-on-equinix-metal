@@ -80,6 +80,10 @@ spec:
               ip: ${TOEM_CP_ENDPOINT}
               equinixMetal:
                 apiToken: ${PACKET_API_KEY}
+        - op: add
+          path: /machine/network/kubespan
+          value:
+            enabled: true
         - op: replace
           path: /cluster/controlPlane
           value:
@@ -96,6 +100,10 @@ spec:
           path: /cluster/network/cni
           value:
             name: none
+        - op: add
+          path: /cluster/proxy
+          value:
+            disabled: true
         - op: add
           path: /cluster/externalCloudProvider
           value:
@@ -151,6 +159,10 @@ spec:
           value:
             name: none
         - op: add
+          path: /cluster/proxy
+          value:
+            disabled: true
+        - op: add
           path: /cluster/externalCloudProvider
           value:
             enabled: true
@@ -160,6 +172,10 @@ spec:
           path: /machine/kubelet/extraArgs
           value:
             cloud-provider: "external"
+        - op: add
+          path: /machine/network/kubespan
+          value:
+            enabled: true
 
 ---
 apiVersion: cluster.x-k8s.io/v1beta1

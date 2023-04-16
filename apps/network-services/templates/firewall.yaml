@@ -1,0 +1,26 @@
+{{- if .Values.firewall.enabled }}
+apiVersion: "cilium.io/v2"
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: "restrict-incoming-connection"
+spec:
+  description: "Limit incoming connections only to specified ports"
+  nodeSelector: {}
+  ingress:
+    - fromEntities:
+        - world
+    - toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+            - port: "6443" # KubeAPI
+              protocol: TCP
+            - port: "50000" # Talos
+              protocol: TCP
+            - port: "50001" # Talos
+              protocol: TCP
+            - port: 51820 @ wireguard
+              protocol: TCP
+{{- end }}
