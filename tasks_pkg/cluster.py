@@ -1,165 +1,18 @@
 import glob
-import json
 import os
 import shutil
 
-import ipcalc
 import yaml
 from invoke import task
 
+from tasks_pkg.equinix_metal import register_cp_vip, generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address, get_cpem_config
+    get_cpem_config_yaml, get_cp_vip_address
+from tasks_pkg.k8s_context import use_kind_cluster_context
 from tasks_pkg.network import build_network_service_dependencies_manifest
-
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
-
-
-@task()
-def generate_cpem_config(ctx, cpem_config_file="secrets/cpem/cpem.yaml"):
-    """
-    Generates config for 'Cloud Provider for Equinix Metal'
-    {}
-    """.format(cpem_config_file)
-    cpem_config = get_cpem_config()
-    ctx.run("mkdir -p secrets/cpem", echo=True)
-    k8s_secret = ctx.run("kubectl create -o yaml \
-    --dry-run='client' secret generic -n kube-system metal-cloud-config \
-    --from-literal='cloud-sa.json={}'".format(
-        json.dumps(cpem_config)
-    ), hide='stdout', echo=True)
-
-    # print(k8s_secret.stdout)
-    yaml_k8s_secret = yaml.safe_load(k8s_secret.stdout)
-    del yaml_k8s_secret['metadata']['creationTimestamp']
-
-    with open(cpem_config_file, 'w') as cpem_config:
-        yaml.dump(yaml_k8s_secret, cpem_config)
-
-
-@task()
-def get_all_metal_ips(ctx, all_ips_file=None):
-    """
-    Gets IP addresses for the Equinix Metal Project
-    Produces {}
-    """.format(all_ips_file)
-    if all_ips_file is None:
-        all_ips_file = ctx.core.all_ips_file_name
-
-    ctx.run("metal ip get -o yaml > {}".format(all_ips_file), echo=True)
-
-
-def _render_ip_addresses_file(document, addresses, ip_addresses_file_name):
-    for address in ipcalc.Network('{}/{}'.format(document['address'], document['cidr'])):
-        addresses.append(str(address))
-    with open(ip_addresses_file_name, 'w') as ip_addresses_file:
-        yaml.dump(addresses, ip_addresses_file)
-
-
-def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
-    addresses = list()
-    with open(ip_reservations_file_name, 'r') as ip_reservations_file:
-        for document in yaml.safe_load(ip_reservations_file):
-            _render_ip_addresses_file(document, addresses, ip_addresses_file_name)
-
-
-def get_ip_addresses_file_name(address_role):
-    return os.path.join(
-        get_secrets_dir(),
-        "ip-{}-addresses.yaml".format(address_role)
-    )
-
-
-def get_ip_reservation_file_name(address_role):
-    return os.path.join(
-        get_secrets_dir(),
-        "ip-{}-reservation.yaml".format(address_role)
-    )
-
-
-def register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope):
-    ip_reservations_file_name = get_ip_reservation_file_name(address_role)
-    ip_addresses_file_name = get_ip_addresses_file_name(address_role)
-    if address_role == 'cp':
-        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(get_cluster_name())]
-    else:
-        cp_tags = ["talos-{}-vip".format(address_role), "cluster:{}".format(os.environ.get('CLUSTER_NAME'))]
-
-    if os.path.isfile(ip_reservations_file_name):
-        render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
-        return
-
-    with open(all_ips_file_name, 'r') as all_ips_file:
-        no_reservations = False
-        addresses = list()
-        for ip_spec in yaml.safe_load(all_ips_file):
-            if ip_spec['facility']['code'] == os.environ.get('FACILITY') and ip_spec.get('tags') == cp_tags:
-                _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
-                no_reservations = False
-                break
-            else:
-                no_reservations = True
-
-        if no_reservations:
-            ctx.run("metal ip request -p {} -t {} -q {} -f {} --tags '{}' -o yaml > {}".format(
-                os.environ.get('METAL_PROJECT_ID'),
-                address_scope,
-                address_count,
-                os.environ.get('FACILITY'),
-                ",".join(cp_tags),
-                ip_reservations_file_name
-            ), echo=True)
-
-            render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
-
-
-@task(get_all_metal_ips)
-def register_vpn_vip(ctx, all_ips_file_name=None, address_role="vpn", address_count=2, address_scope="public_ipv4"):
-    """
-    Registers a VIP to be used for anycast ingress
-    """
-    if all_ips_file_name is None:
-        all_ips_file_name = ctx.core.all_ips_file_name
-
-    register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope)
-
-
-# ToDo: Registering a global_ipv4 is broken
-@task(get_all_metal_ips)
-def register_ingress_vip(
-        ctx, all_ips_file_name=None, address_role="ingress", address_count=1, address_scope="public_ipv4"):
-    """
-    Registers a VIP 'global ipv4' to be used for anycast ingress
-    Be patient, registering one takes a human intervention on the Equinix Metal side.
-    """
-    if all_ips_file_name is None:
-        all_ips_file_name = ctx.core.all_ips_file_name
-
-    register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope)
-
-
-@task(get_all_metal_ips)
-def register_cp_vip(ctx, all_ips_file_name=None, address_role="cp", address_count=1, address_scope="public_ipv4"):
-    """
-    Registers a VIP to be managed by Talos, used as Control Plane endpoint
-    """
-    if all_ips_file_name is None:
-        all_ips_file_name = ctx.core.all_ips_file_name
-
-    register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope)
-
-
-@task(register_vpn_vip, register_ingress_vip, register_cp_vip)
-def register_vips(ctx):
-    """
-    Registers VIPs required by the setup.
-    """
-
-
-@task()
-def use_kind_cluster_context(ctx, kind_cluster_name="kind-toem-capi-local"):
-    ctx.run("kconf use {}".format(kind_cluster_name), echo=True)
 
 
 @task(build_network_service_dependencies_manifest)
@@ -168,6 +21,10 @@ def patch_template_with_cilium_manifest(
         templates_dir='templates',
         cluster_template_file_name='inline-cni.yaml',
         manifest_name='network-services-dependencies.yaml'):
+    """
+    Patch talos machine config with cilium CNI manifest for inline installation method
+    https://www.talos.dev/v1.3/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
+    """
 
     with open(os.path.join(get_secrets_dir(), manifest_name), 'r') as network_manifest_file:
         network_manifest = list(yaml.safe_load_all(network_manifest_file))
@@ -192,7 +49,7 @@ def patch_template_with_cilium_manifest(
 @task(register_cp_vip, use_kind_cluster_context)
 def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name=None):
     """
-    Generate cluster spec with clusterctl
+    Produces ClusterAPI manifest, to be applied on the management cluster.
     """
     if cluster_template_name is None:
         cluster_template_name = get_cluster_name() + '.yaml'
@@ -213,6 +70,9 @@ def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template
 
 @task(register_cp_vip)
 def talosctl_gen_config(ctx):
+    """
+    Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
+    """
     with ctx.cd(get_secrets_dir()):
         ctx.run(
             "talosctl gen config {} https://{}:6443".format(
@@ -325,20 +185,25 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
         print("No devices found for cluster {}, setup failed.".format(get_cluster_name()))
         return
 
-    with open(os.path.join(get_secrets_dir(), talosconfig), 'r') as talosconfig_file:
-        talosconfig_data = yaml.safe_load(talosconfig_file)
-        talosconfig_data['contexts'][get_cluster_name()]['nodes'] = list()
-        talosconfig_data['contexts'][get_cluster_name()]['endpoints'] = list()
+    with open(os.path.join(get_secrets_dir(), talosconfig), 'r') as talos_config_file:
+        talos_config_data = yaml.safe_load(talos_config_file)
+        talos_config_data['contexts'][get_cluster_name()]['nodes'] = list()
+        talos_config_data['contexts'][get_cluster_name()]['endpoints'] = list()
 
+    control_plane_node = None
     for key in ip_addresses:
-        talosconfig_data['contexts'][get_cluster_name()]['nodes'].append(key)
+        talos_config_data['contexts'][get_cluster_name()]['nodes'].append(key)
 
         if ip_addresses[key] == role_control_plane:
-            talosconfig_data['contexts'][get_cluster_name()]['endpoints'].append(key)
+            talos_config_data['contexts'][get_cluster_name()]['endpoints'].append(key)
             control_plane_node = key
 
-    with open(os.path.join(get_secrets_dir(), talosconfig), 'w') as talosconfig_file:
-        yaml.dump(talosconfig_data, talosconfig_file)
+    with open(os.path.join(get_secrets_dir(), talosconfig), 'w') as talos_config_file:
+        yaml.dump(talos_config_data, talos_config_file)
+
+    if control_plane_node is None:
+        print('Could not produce ' + os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig"))
+        return
 
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {}".format(
         os.path.join(get_secrets_dir(), talosconfig),
@@ -353,46 +218,63 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig'):
 
 @task()
 def kind_clusterctl_init(ctx):
+    """
+    Produces local management(kind) k8s cluster and inits it with ClusterAPI
+    """
     ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
     ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
 
 
 @task()
 def clean(ctx):
-    secret_files = glob.glob('./secrets/**', recursive=True)
+    """
+    USE WITH CAUTION! - Nukes all local configuration.
+    """
+    secret_files = glob.glob(
+        os.path.join(
+            ctx.core.secrets_dir,
+            '**'),
+        recursive=True)
+
     whitelisted_files = [
-        './secrets/',
-        './secrets/metal'
+        ctx.core.secrets_dir,
+        os.path.join(ctx.core.secrets_dir, 'metal')
     ]
 
     files_to_remove = list(set(secret_files) - set(whitelisted_files))
-    for name in files_to_remove:
-        try:
-            if os.path.isfile(name):
-                os.remove(name)
-            else:
-                shutil.rmtree(name)
-        except:
-            print("{} already gone".format(name))
+    print('Following files will be removed:')
+    for file in files_to_remove:
+        print(file)
+
+    user_input = input('Continue y/N ?')
+    if user_input.strip().lower() == 'y':
+        for name in files_to_remove:
+            try:
+                if os.path.isfile(name):
+                    os.remove(name)
+                else:
+                    shutil.rmtree(name)
+            except OSError:
+                print("{} already gone".format(name))
 
 
 @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
       clusterctl_generate_cluster, talos_apply_config_patches)
 def build_manifests_inline_cni(ctx):
     """
-    Build all
+    Produces cluster manifests with inline CNI - cilium
     """
 
 
 @task()
 def produce_cluster_template(ctx):
     with ctx.cd("templates"):
-        ctx.run("cp kubeproxy.yaml " + get_cluster_name() + ".yaml")
+        ctx.run("cp default.yaml " + get_cluster_name() + ".yaml")
 
 
 @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, produce_cluster_template,
       clusterctl_generate_cluster, talos_apply_config_patches)
-def build_manifests_kubeproxy(ctx):
+def build_manifests(ctx):
     """
-    Build all
+    Produces cluster manifests
     """

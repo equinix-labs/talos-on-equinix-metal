@@ -14,6 +14,12 @@ def str_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 
+def get_cfg(value, default):
+    if value is None:
+        return default
+    return value
+
+
 def get_secrets_dir():
     return os.path.join(
         os.environ.get('TOEM_PROJECT_ROOT'),

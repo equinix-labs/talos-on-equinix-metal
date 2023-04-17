@@ -1,4 +1,4 @@
 *
 !.gitignore
 !inline-cni.yaml
-!kubeproxy.yaml
+!default.yaml
