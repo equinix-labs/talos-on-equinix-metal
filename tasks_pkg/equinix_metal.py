@@ -1,5 +1,4 @@
 import json
-import json
 import os
 
 import ipcalc
@@ -122,12 +121,11 @@ def register_vpn_vip(ctx, all_ips_file_name=None, address_role="vpn", address_co
     register_vip(ctx, all_ips_file_name, address_role, address_count, address_scope)
 
 
-# ToDo: Registering a global_ipv4 is broken
 @task(get_all_metal_ips)
 def register_ingress_vip(
-        ctx, all_ips_file_name=None, address_role="ingress", address_count=1, address_scope="public_ipv4"):
+        ctx, all_ips_file_name=None, address_role="ingress", address_count=1, address_scope="global_ipv4"):
     """
-    Registers a VIP 'global ipv4' to be used for anycast ingress
+    Register VIP (VirtualIP) 'global ipv4' to be used for anycast ingress
     Be patient, registering one takes a human intervention on the Equinix Metal side.
     """
     if all_ips_file_name is None:
@@ -152,3 +150,51 @@ def register_vips(ctx):
     """
     Registers VIPs required by the setup.
     """
+
+
+@task()
+def list_facilities(ctx):
+    """
+    Wrapper for 'metal facilities get'
+    """
+    ctx.run('metal facilities get', echo=True)
+
+
+@task()
+def check_capacity(ctx):
+    """
+    Check device capacity for clusters specified in invoke.yaml
+    """
+    nodes = dict()
+    bary_facility = ctx.constellation.bary.facility
+    nodes[bary_facility] = dict()
+    bary_roles = ctx.constellation.bary.nodes.keys()
+    for role in bary_roles:
+        for node in ctx.constellation.bary.nodes[role]:
+            node_type = node['type']
+            if node_type not in nodes[bary_facility]:
+                nodes[bary_facility][node_type] = node['count']
+            else:
+                nodes[bary_facility][node_type] = nodes[bary_facility][node_type] + node['count']
+
+    for satellite in ctx.constellation.satellites:
+        satellite_facility = satellite['facility']
+        if satellite_facility not in nodes:
+            nodes[satellite_facility] = dict()
+
+        satellite_roles = satellite['nodes'].keys()
+        for role in satellite_roles:
+            for node in satellite['nodes'][role]:
+                satellite_type = node['type']
+                if satellite_type not in nodes[satellite_facility]:
+                    nodes[satellite_facility][satellite_type] = node['count']
+                else:
+                    nodes[satellite_facility][satellite_type] = nodes[satellite_facility][satellite_type] + node['count']
+
+    for facility in nodes:
+        for node_type, count in nodes[facility].items():
+            ctx.run("metal capacity check -f {} -P {} -q {}".format(
+                facility, node_type, count
+            ), echo=True)
+
+
