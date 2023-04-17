@@ -20,6 +20,13 @@ def get_cfg(value, default):
     return value
 
 
+def get_constellation_spec(ctx):
+    clusters = list()
+    clusters.append(ctx.constellation.bary)
+    clusters.extend(ctx.constellation.satellites)
+    return clusters
+
+
 def get_secrets_dir():
     return os.path.join(
         os.environ.get('TOEM_PROJECT_ROOT'),

@@ -5,7 +5,7 @@ import shutil
 import yaml
 from invoke import task
 
-from tasks_pkg.equinix_metal import register_cp_vip, generate_cpem_config, register_vips
+from tasks_pkg.equinix_metal import register_vips, generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address
 from tasks_pkg.k8s_context import use_kind_cluster_context
@@ -46,7 +46,7 @@ def patch_template_with_cilium_manifest(
             yaml.safe_dump_all(_cluster_template, target)
 
 
-@task(register_cp_vip, use_kind_cluster_context)
+@task(register_vips, use_kind_cluster_context)
 def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name=None):
     """
     Produces ClusterAPI manifest, to be applied on the management cluster.
@@ -68,7 +68,7 @@ def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template
     )
 
 
-@task(register_cp_vip)
+@task(register_vips)
 def talosctl_gen_config(ctx):
     """
     Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
@@ -94,7 +94,7 @@ def add_talos_hashbang(filename):
 @task(talosctl_gen_config)
 def talos_apply_config_patches(ctx):
     """
-    Generate (controlplane)|(worker)-capi.yaml as a talos cli compatible configuration files,
+    Produces [secrets_dir]((controlplane)|(worker))-capi.yaml as a talos cli compatible configuration files,
     to be used in benchmark deployment.
     Validate configuration files with talosctl validate
     Prepend #!talos as per
@@ -161,7 +161,7 @@ def talos_apply_config_patches(ctx):
 @task(use_kind_cluster_context)
 def get_cluster_secrets(ctx, talosconfig='talosconfig'):
     """
-    produces: [secrets_dir]/[cluster_name].kubeconfig
+    Produces [secrets_dir]/[cluster_name].kubeconfig
     """
     device_list_file_name = os.path.join(
         get_secrets_dir(),
@@ -268,6 +268,9 @@ def build_manifests_inline_cni(ctx):
 
 @task()
 def produce_cluster_template(ctx):
+    """
+    An equivalent to patch-template-with-cilium-manifest
+    """
     with ctx.cd("templates"):
         ctx.run("cp default.yaml " + get_cluster_name() + ".yaml")
 

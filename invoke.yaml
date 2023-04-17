@@ -4,6 +4,16 @@ constellation:
     pod_cidr_blocks: 10.1.0.0/16
     service_cidr_blocks: 10.2.0.0/16
     facility: pa4
+    vips:
+      - role: cp
+        count: 1
+        type: public_ipv4
+      - role: ingress
+        count: 1
+        type: public_ipv4
+      - role: mesh
+        count: 1
+        type: public_ipv4
     nodes:
       control_plane:
         - type: m3.small.x86
@@ -16,6 +26,16 @@ constellation:
       pod_cidr_blocks: 10.3.0.0/16
       service_cidr: 10.4.0.0/16
       facility: am6
+      vips:
+        - role: cp
+          count: 1
+          type: public_ipv4
+        - role: ingress
+          count: 1
+          type: global_ipv4
+        - role: mesh
+          count: 1
+          type: public_ipv4
       nodes:
         control_plane:
           - type: m3.small.x86
@@ -27,6 +47,16 @@ constellation:
       pod_cidr_blocks: 10.5.0.0/16
       service_cidr: 10.6.0.0/16
       facility: fr2
+      vips:
+        - role: cp
+          count: 1
+          type: public_ipv4
+        - role: ingress
+          count: 1
+          type: global_ipv4
+        - role: mesh
+          count: 1
+          type: public_ipv4
       nodes:
         control_plane:
           - type: m3.small.x86
