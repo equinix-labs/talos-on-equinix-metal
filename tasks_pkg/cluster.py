@@ -7,7 +7,7 @@ from invoke import task
 
 from tasks_pkg.equinix_metal import register_vips, generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address
+    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec
 from tasks_pkg.k8s_context import use_kind_cluster_context
 from tasks_pkg.network import build_network_service_dependencies_manifest
 
@@ -47,25 +47,27 @@ def patch_template_with_cilium_manifest(
 
 
 @task(register_vips, use_kind_cluster_context)
-def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name=None):
+def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name='default.yaml'):
     """
     Produces ClusterAPI manifest, to be applied on the management cluster.
     """
-    if cluster_template_name is None:
-        cluster_template_name = get_cluster_name() + '.yaml'
-
-    ctx.run("clusterctl generate cluster {} \
-    --from {} > {}".format(
-        get_cluster_name(),
-        os.path.join(templates_dir, cluster_template_name),
-        os.path.join(get_secrets_dir(), get_cluster_name() + ".yaml")
-    ),
-        echo=True,
-        env={
-            'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
-            'TOEM_CP_ENDPOINT': get_cp_vip_address()
-        }
-    )
+    for cluster_spec in get_constellation_spec(ctx):
+        ctx.run("clusterctl generate cluster {} --from {} > {}".format(
+            cluster_spec['name'],
+            os.path.join(templates_dir, cluster_template_name),
+            os.path.join(get_secrets_dir(), cluster_spec['name'], "cluster-manifest.yaml")
+        ),
+            echo=True,
+            env={
+                'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
+                'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_spec),
+                'POD_CIDR': cluster_spec['pod_cidr_blocks'],
+                'SERVICE_CIDR': cluster_spec['service_cidr_blocks'],
+                'SERVICE_DOMAIN': "{}.local".format(cluster_spec['name']),
+                'CLUSTER_NAME': cluster_spec['name'],
+                'FACILITY': cluster_spec['facility']
+            }
+        )
 
 
 @task(register_vips)
@@ -73,14 +75,16 @@ def talosctl_gen_config(ctx):
     """
     Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
     """
-    with ctx.cd(get_secrets_dir()):
-        ctx.run(
-            "talosctl gen config {} https://{}:6443".format(
-                get_cluster_name(),
-                get_cp_vip_address()
-            ),
-            echo=True
-        )
+    for cluster_spec in get_constellation_spec(ctx):
+        cluster_spec_dir = os.path.join(get_secrets_dir(), cluster_spec['name'])
+        with ctx.cd(cluster_spec_dir):
+            ctx.run(
+                "talosctl gen config {} https://{}:6443".format(
+                    cluster_spec['name'],
+                    get_cp_vip_address(cluster_spec)
+                ),
+                echo=True
+            )
 
 
 def add_talos_hashbang(filename):
@@ -91,31 +95,28 @@ def add_talos_hashbang(filename):
         file.write("#!talos\n" + data)
 
 
-@task(talosctl_gen_config)
-def talos_apply_config_patches(ctx):
-    """
-    Produces [secrets_dir]((controlplane)|(worker))-capi.yaml as a talos cli compatible configuration files,
-    to be used in benchmark deployment.
-    Validate configuration files with talosctl validate
-    Prepend #!talos as per
-    https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
-    """
-    with open(os.path.join(get_secrets_dir(), get_cluster_name() + '.yaml')) as cluster_manifest_file:
+def _talos_apply_config_patch(ctx, cluster_spec):
+    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], 'cluster-manifest.yaml')
+    cluster_manifest_static_file_name = os.path.join(
+        get_secrets_dir(), cluster_spec['name'], 'cluster-manifest.static-config.yaml')
+    config_dir_name = os.path.join(get_secrets_dir(), cluster_spec['name'])
+
+    with open(cluster_manifest_file_name) as cluster_manifest_file:
         for document in yaml.safe_load_all(cluster_manifest_file):
             if document['kind'] == 'TalosControlPlane':
-                with open(os.path.join(get_secrets_dir(), 'controlplane-patches.yaml'), 'w') as cp_patches_file:
+                with open(os.path.join(config_dir_name, 'controlplane-patches.yaml'), 'w') as cp_patches_file:
                     yaml.dump(
                         document['spec']['controlPlaneConfig']['controlplane']['configPatches'],
                         cp_patches_file
                     )
             if document['kind'] == 'TalosConfigTemplate':
-                with open(os.path.join(get_secrets_dir(), 'worker-patches.yaml'), 'w') as worker_patches_file:
+                with open(os.path.join(config_dir_name, 'worker-patches.yaml'), 'w') as worker_patches_file:
                     yaml.dump(
                         document['spec']['template']['spec']['configPatches'],
                         worker_patches_file
                     )
 
-    with ctx.cd(get_secrets_dir()):
+    with ctx.cd(config_dir_name):
         worker_capi_file_name = "worker-capi.yaml"
         cp_capi_file_name = "controlplane-capi.yaml"
         ctx.run(
@@ -131,31 +132,44 @@ def talos_apply_config_patches(ctx):
             echo=True
         )
 
-        add_talos_hashbang(os.path.join(get_secrets_dir(), worker_capi_file_name))
-        add_talos_hashbang(os.path.join(get_secrets_dir(), cp_capi_file_name))
+        add_talos_hashbang(os.path.join(config_dir_name, worker_capi_file_name))
+        add_talos_hashbang(os.path.join(config_dir_name, cp_capi_file_name))
 
         ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
         ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
 
-    with open(os.path.join(get_secrets_dir(), get_cluster_name() + '.yaml')) as cluster_manifest_file:
+    with open(cluster_manifest_file_name) as cluster_manifest_file:
         documents = list()
         for document in yaml.safe_load_all(cluster_manifest_file):
             if document['kind'] == 'TalosControlPlane':
                 del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
                 document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
-                with open(os.path.join(get_secrets_dir(), cp_capi_file_name), 'r') as talos_cp_config_file:
+                with open(os.path.join(config_dir_name, cp_capi_file_name), 'r') as talos_cp_config_file:
                     document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
 
             if document['kind'] == 'TalosConfigTemplate':
                 del (document['spec']['template']['spec']['configPatches'])
                 document['spec']['template']['spec']['generateType'] = 'none'
-                with open(os.path.join(get_secrets_dir(), worker_capi_file_name), 'r') as talos_worker_config_file:
+                with open(os.path.join(config_dir_name, worker_capi_file_name), 'r') as talos_worker_config_file:
                     document['spec']['template']['spec']['data'] = talos_worker_config_file.read().strip()
 
             documents.append(document)
 
-    with open(os.path.join(get_secrets_dir(), get_cluster_name() + ".static-config.yaml"), 'w') as static_manifest:
+    with open(cluster_manifest_static_file_name, 'w') as static_manifest:
         yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
+
+
+@task(talosctl_gen_config)
+def talos_apply_config_patches(ctx):
+    """
+    Produces [secrets_dir]/[cluster_name]/((controlplane)|(worker))-capi.yaml
+    as a talos cli compatible configuration files, to be used in benchmark deployment.
+    Validate configuration files with talosctl validate
+    Prepend #!talos as per
+    https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
+    """
+    for cluster_spec in get_constellation_spec(ctx):
+        _talos_apply_config_patch(ctx, cluster_spec)
 
 
 @task(use_kind_cluster_context)
@@ -257,25 +271,16 @@ def clean(ctx):
             except OSError:
                 print("{} already gone".format(name))
 
-
-@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
-      clusterctl_generate_cluster, talos_apply_config_patches)
-def build_manifests_inline_cni(ctx):
-    """
-    Produces cluster manifests with inline CNI - cilium
-    """
-
-
-@task()
-def produce_cluster_template(ctx):
-    """
-    An equivalent to patch-template-with-cilium-manifest
-    """
-    with ctx.cd("templates"):
-        ctx.run("cp default.yaml " + get_cluster_name() + ".yaml")
+# ToDo: Fix or remove ?
+# @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
+#       clusterctl_generate_cluster, talos_apply_config_patches)
+# def build_manifests_inline_cni(ctx):
+#     """
+#     Produces cluster manifests with inline CNI - cilium
+#     """
 
 
-@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, produce_cluster_template,
+@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips,
       clusterctl_generate_cluster, talos_apply_config_patches)
 def build_manifests(ctx):
     """

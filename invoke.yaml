@@ -24,7 +24,7 @@ constellation:
   satellites:
     - name: ganymede
       pod_cidr_blocks: 10.3.0.0/16
-      service_cidr: 10.4.0.0/16
+      service_cidr_blocks: 10.4.0.0/16
       facility: am6
       vips:
         - role: cp
@@ -45,7 +45,7 @@ constellation:
             count: 2
     - name: callisto
       pod_cidr_blocks: 10.5.0.0/16
-      service_cidr: 10.6.0.0/16
+      service_cidr_blocks: 10.6.0.0/16
       facility: fr2
       vips:
         - role: cp

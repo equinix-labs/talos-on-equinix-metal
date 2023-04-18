@@ -26,11 +26,15 @@ def generate_cpem_config(ctx, cpem_config_file_name="cpem/cpem.yaml"):
             'cpem'
         )
     ), echo=True)
-    k8s_secret = ctx.run("kubectl create -o yaml \
+
+    command = "kubectl create -o yaml \
     --dry-run='client' secret generic -n kube-system metal-cloud-config \
-    --from-literal='cloud-sa.json={}'".format(
+    --from-literal='cloud-sa.json={}'"
+
+    print("In background ran something similar to: \n{}".format(command))
+    k8s_secret = ctx.run(command.format(
         json.dumps(cpem_config)
-    ), hide='stdout', echo=True)
+    ), hide='stdout', echo=False)
 
     yaml_k8s_secret = yaml.safe_load(k8s_secret.stdout)
     del yaml_k8s_secret['metadata']['creationTimestamp']
@@ -115,6 +119,9 @@ def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
                     ), echo=True)
                     return
 
+    # Todo: There is a bug in Metal CLI that prevents us from using the CLI in this case.
+    #       Thankfully API endpoint works.
+    #       https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/
     payload = {
         "type": "global_ipv4",
         "quantity": 1,
@@ -150,8 +157,10 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
     with open(project_ips_file_name, 'r') as all_ips_file:
         no_reservations = False
         addresses = list()
+        # ToDo: OMG FIX or DELETE ME!
         for ip_spec in yaml.safe_load(all_ips_file):
-            if ip_spec['facility']['code'] == cluster_facility and ip_spec.get('tags') == cp_tags:
+            if (ip_spec['global_ip'] or ('facility' in ip_spec and ip_spec['facility']['code'] == cluster_facility))\
+                    and ip_spec.get('tags')[0] == cp_tags[0]:
                 _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
                 no_reservations = False
                 break
@@ -161,7 +170,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
         if no_reservations:
             if address_type == 'public_ipv4':
                 ctx.run("metal ip request -p {} -t {} -q {} -f {} --tags '{}' -o yaml > {}".format(
-                    os.environ.get('METAL_PROJECT_ID'),
+                    "${METAL_PROJECT_ID}",
                     address_type,
                     address_count,
                     cluster_facility,
@@ -176,7 +185,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
             render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
 
 
-@task()
+@task(get_project_ips, create_config_dirs)
 def register_vips(ctx, project_ips_file_name=None):
     """
     Registers VIPs as per constellation spec in invoke.yaml

@@ -48,9 +48,10 @@ def get_cpem_config_yaml():
         json.dumps(get_cpem_config()).encode('ascii'))
 
 
-def get_cp_vip_address():
+def get_cp_vip_address(cluster_spec):
     with open(os.path.join(
         get_secrets_dir(),
+        cluster_spec['name'],
         'ip-cp-addresses.yaml'
     ), 'r') as cp_address:
         return yaml.safe_load(cp_address)[0]
