@@ -1,11 +1,12 @@
 import glob
 import os
+import re
 import shutil
 
 import yaml
 from invoke import task
 
-from tasks_pkg.equinix_metal import register_vips, generate_cpem_config, register_vips
+from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec
 from tasks_pkg.k8s_context import use_kind_cluster_context
@@ -244,18 +245,23 @@ def clean(ctx):
     """
     USE WITH CAUTION! - Nukes all local configuration.
     """
-    secret_files = glob.glob(
+    files_to_remove = glob.glob(
         os.path.join(
             ctx.core.secrets_dir,
             '**'),
         recursive=True)
+    files_to_remove = list(map(lambda fname: re.sub("/$", "", fname), files_to_remove))
 
     whitelisted_files = [
         ctx.core.secrets_dir,
-        os.path.join(ctx.core.secrets_dir, 'metal')
+        os.path.join(ctx.core.secrets_dir, 'secrets')
     ]
+    whitelisted_files = list(map(lambda fname: re.sub("/$", "", fname), whitelisted_files))
 
-    files_to_remove = list(set(secret_files) - set(whitelisted_files))
+    files_to_remove = list(set(files_to_remove) - set(whitelisted_files))
+    if len(files_to_remove) == 0:
+        return
+
     print('Following files will be removed:')
     for file in files_to_remove:
         print(file)
@@ -270,6 +276,7 @@ def clean(ctx):
                     shutil.rmtree(name)
             except OSError:
                 print("{} already gone".format(name))
+
 
 # ToDo: Fix or remove ?
 # @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,

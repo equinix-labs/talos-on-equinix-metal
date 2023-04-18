@@ -1,13 +1,12 @@
 import glob
 import json
 import os
-import pprint
 
 import ipcalc
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
+from tasks_pkg.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_cfg, get_constellation_spec
 
 yaml.add_representer(str, str_presenter)
@@ -160,7 +159,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
         # ToDo: OMG FIX or DELETE ME!
         for ip_spec in yaml.safe_load(all_ips_file):
             if (ip_spec['global_ip'] or ('facility' in ip_spec and ip_spec['facility']['code'] == cluster_facility))\
-                    and ip_spec.get('tags')[0] == cp_tags[0]:
+                    and 'tags' in ip_spec and len(ip_spec.get('tags')) > 0 and ip_spec.get('tags')[0] == cp_tags[0]:
                 _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
                 no_reservations = False
                 break
