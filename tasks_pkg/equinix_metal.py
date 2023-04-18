@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import pprint
@@ -90,6 +91,48 @@ def get_ip_reservation_file_name(cluster_spec, address_role):
     )
 
 
+def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
+    """
+    We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
+    affect the management cluster (bary).
+    """
+    if cluster_spec['name'] != ctx.constellation.bary.name:
+        existing_ip_reservation_file_names = glob.glob(
+            os.path.join(
+                ctx.core.secrets_dir,
+                '**',
+                os.path.basename(ip_reservations_file_name)
+            ),
+            recursive=True)
+        for existing_ip_reservation_file_name in existing_ip_reservation_file_names:
+            if ctx.constellation.bary.name not in existing_ip_reservation_file_name:
+                if cluster_spec['name'] not in existing_ip_reservation_file_name:
+                    print('Global IP reservation file already exists. Copying config for satellite: '
+                          + cluster_spec['name'])
+                    ctx.run('cp {} {}'.format(
+                        existing_ip_reservation_file_name,
+                        ip_reservations_file_name
+                    ), echo=True)
+                    return
+
+    payload = {
+        "type": "global_ipv4",
+        "quantity": 1,
+        "fail_on_approval_required": "false",
+        "tags": cp_tags
+    }
+    ctx.run("curl -s -X POST "
+            "-H 'Content-Type: application/json' "
+            "-H \"X-Auth-Token: {}\" "
+            "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
+            "-d '{}' | yq e -P - > {}".format(
+                "${METAL_AUTH_TOKEN}",
+                "${METAL_PROJECT_ID}",
+                json.dumps(payload),
+                ip_reservations_file_name
+            ), echo=True)
+
+
 def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address_type, address_count):
     cluster_facility = cluster_spec['facility']
 
@@ -100,7 +143,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
     # else:
     cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
 
-    if os.path.isfile(ip_reservations_file_name):
+    if os.path.isfile(ip_reservations_file_name) and address_type != 'global_ipv4':
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
         return
 
@@ -126,22 +169,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
                     ip_reservations_file_name
                 ), echo=True)
             elif address_type == 'global_ipv4':
-                payload = {
-                    "type": "global_ipv4",
-                    "quantity": 1,
-                    "fail_on_approval_required": "false",
-                    "tags": cp_tags
-                }
-                ctx.run("curl -s -X POST "
-                        "-H 'Content-Type: application/json' "
-                        "-H 'X-Auth-Token: {}' "
-                        "'https://api.equinix.com/metal/v1/projects/{}/ips' "
-                        "-d '{}' | yq e -P - > {}".format(
-                            os.environ.get('METAL_AUTH_TOKEN'),
-                            os.environ.get('METAL_PROJECT_ID'),
-                            json.dumps(payload),
-                            ip_reservations_file_name
-                        ), echo=True)
+                register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name)
             else:
                 print("Unsupported address_type: " + address_type)
 
