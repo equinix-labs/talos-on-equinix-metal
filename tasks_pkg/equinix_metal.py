@@ -143,7 +143,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
     # else:
     cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
 
-    if os.path.isfile(ip_reservations_file_name) and address_type != 'global_ipv4':
+    if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
         return
 
