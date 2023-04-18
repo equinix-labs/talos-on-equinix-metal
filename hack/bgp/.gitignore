@@ -1,5 +1,0 @@
-*
-!manifest.yaml
-!Readme.md
-!talos-control-plane-patch.template.yaml
-!talos-worker-patch.template.yaml

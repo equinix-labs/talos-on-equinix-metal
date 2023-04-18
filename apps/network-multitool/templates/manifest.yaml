@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: debug
-  namespace: network-services
+  namespace: {{ .Release.Namespace }}
   labels:
     k8s-app: debug
 spec:
@@ -22,7 +22,7 @@ spec:
           operator: Exists
           effect: NoSchedule
       containers:
-        - image: praqma/network-multitool:fedora #https://github.com/wbitt/Network-MultiTool
+        - image: praqma/network-multitool:fedora # https://github.com/wbitt/Network-MultiTool
           command:
             - "sleep"
             - "604800"

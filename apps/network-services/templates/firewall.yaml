@@ -11,9 +11,9 @@ spec:
         - world
     - toPorts:
         - ports:
-            - port: "80"
+            - port: "80" # pigeons
               protocol: TCP
-            - port: "443"
+            - port: "443" # same old, same old...
               protocol: TCP
             - port: "6443" # KubeAPI
               protocol: TCP
@@ -21,6 +21,8 @@ spec:
               protocol: TCP
             - port: "50001" # Talos
               protocol: TCP
-            - port: 51820 @ wireguard
+            - port: 51820 # wireguard
               protocol: TCP
+            - port: 8472 # https://docs.cilium.io/en/v1.13/network/concepts/routing/#arch-overlay
+              protocol: UDP
 {{- end }}

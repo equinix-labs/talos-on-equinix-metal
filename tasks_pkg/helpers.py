@@ -27,6 +27,21 @@ def get_constellation_spec(ctx):
     return clusters
 
 
+def get_cluster_spec(ctx, name):
+    for cluster_spec in get_constellation_spec(ctx):
+        if cluster_spec['name'] == name:
+            return cluster_spec
+
+
+def get_cluster_spec_from_context(ctx):
+    context = ctx.run("kubectl config current-context", hide='stdout', echo=True).stdout
+    for cluster_spec in get_constellation_spec(ctx):
+        if cluster_spec['name'] in context:
+            return cluster_spec
+        else:
+            print("Incorrect k8s context")
+
+
 def get_secrets_dir():
     return os.path.join(
         os.environ.get('TOEM_PROJECT_ROOT'),

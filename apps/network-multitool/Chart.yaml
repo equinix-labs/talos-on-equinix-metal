@@ -1,0 +1,7 @@
+apiVersion: v2
+name: network-multitool
+description: Network-multitool DaemonSet for BGP fix and debugging
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"

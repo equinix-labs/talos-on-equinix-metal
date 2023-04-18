@@ -8,12 +8,15 @@ from invoke import task
 
 from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec
+    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec
 from tasks_pkg.k8s_context import use_kind_cluster_context
 from tasks_pkg.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
+
+_cluster_manifest_file_name = "cluster-manifest.yaml"
+_cluster_manifest_static_file_name = "cluster-manifest.static-config.yaml"
 
 
 @task(build_network_service_dependencies_manifest)
@@ -56,7 +59,7 @@ def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template
         ctx.run("clusterctl generate cluster {} --from {} > {}".format(
             cluster_spec['name'],
             os.path.join(templates_dir, cluster_template_name),
-            os.path.join(get_secrets_dir(), cluster_spec['name'], "cluster-manifest.yaml")
+            os.path.join(get_secrets_dir(), cluster_spec['name'], _cluster_manifest_file_name)
         ),
             echo=True,
             env={
@@ -97,9 +100,9 @@ def add_talos_hashbang(filename):
 
 
 def _talos_apply_config_patch(ctx, cluster_spec):
-    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], 'cluster-manifest.yaml')
+    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], _cluster_manifest_file_name)
     cluster_manifest_static_file_name = os.path.join(
-        get_secrets_dir(), cluster_spec['name'], 'cluster-manifest.static-config.yaml')
+        get_secrets_dir(), cluster_spec['name'], _cluster_manifest_static_file_name)
     config_dir_name = os.path.join(get_secrets_dir(), cluster_spec['name'])
 
     with open(cluster_manifest_file_name) as cluster_manifest_file:
@@ -174,60 +177,68 @@ def talos_apply_config_patches(ctx):
 
 
 @task(use_kind_cluster_context)
-def get_cluster_secrets(ctx, talosconfig='talosconfig'):
+def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     """
     Produces [secrets_dir]/[cluster_name].kubeconfig
     """
+    if cluster_name is None:
+        print("Can't continue without a cluster name, check {} for available options.".format(
+            ctx.core.secrets_dir
+        ))
+        return
+
     device_list_file_name = os.path.join(
-        get_secrets_dir(),
+        ctx.core.secrets_dir,
         "device-list.yaml"
     )
+
     ctx.run("metal device get -o yaml > {}".format(device_list_file_name))
     ip_addresses = dict()
     role_control_plane = 'control-plane'
     role_worker = 'worker'
     with open(device_list_file_name, 'r') as device_list_file:
         for element in yaml.safe_load(device_list_file):
-            if get_cluster_name() in element['hostname']:
+            if cluster_name in element['hostname']:
                 for ip_address in element['ip_addresses']:
-                    if ip_address['address_family'] == 4 and ip_address['public'] == True:
+                    if ip_address['address_family'] == 4 and ip_address['public'] is True:
                         if role_control_plane in element['hostname']:
                             ip_addresses[ip_address['address']] = role_control_plane
                         else:
                             ip_addresses[ip_address['address']] = role_worker
 
     if len(ip_addresses) == 0:
-        print("No devices found for cluster {}, setup failed.".format(get_cluster_name()))
+        print("No devices found for cluster {}, setup failed.".format(cluster_name))
         return
 
-    with open(os.path.join(get_secrets_dir(), talosconfig), 'r') as talos_config_file:
+    cluster_config_dir = os.path.join(ctx.core.secrets_dir, cluster_name)
+    with open(os.path.join(cluster_config_dir, talosconfig), 'r') as talos_config_file:
         talos_config_data = yaml.safe_load(talos_config_file)
-        talos_config_data['contexts'][get_cluster_name()]['nodes'] = list()
-        talos_config_data['contexts'][get_cluster_name()]['endpoints'] = list()
+        talos_config_data['contexts'][cluster_name]['nodes'] = list()
+        talos_config_data['contexts'][cluster_name]['endpoints'] = list()
 
     control_plane_node = None
     for key in ip_addresses:
-        talos_config_data['contexts'][get_cluster_name()]['nodes'].append(key)
+        talos_config_data['contexts'][cluster_name]['nodes'].append(key)
 
         if ip_addresses[key] == role_control_plane:
-            talos_config_data['contexts'][get_cluster_name()]['endpoints'].append(key)
+            talos_config_data['contexts'][cluster_name]['endpoints'].append(key)
             control_plane_node = key
 
-    with open(os.path.join(get_secrets_dir(), talosconfig), 'w') as talos_config_file:
+    with open(os.path.join(cluster_config_dir, talosconfig), 'w') as talos_config_file:
         yaml.dump(talos_config_data, talos_config_file)
 
     if control_plane_node is None:
-        print('Could not produce ' + os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig"))
+        print('Could not produce ' + os.path.join(cluster_config_dir, cluster_name + ".kubeconfig"))
         return
 
-    ctx.run("talosctl --talosconfig {} bootstrap --nodes {}".format(
-        os.path.join(get_secrets_dir(), talosconfig),
+    ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
+        os.path.join(cluster_config_dir, talosconfig),
         control_plane_node), echo=True)
 
     ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
-        os.path.join(get_secrets_dir(), talosconfig),
-        get_cp_vip_address(),
-        os.path.join(get_secrets_dir(), get_cluster_name() + ".kubeconfig")
+        os.path.join(cluster_config_dir, talosconfig),
+        get_cp_vip_address(get_cluster_spec(ctx, cluster_name)),
+        os.path.join(cluster_config_dir, cluster_name + ".kubeconfig")
     ), echo=True)
 
 
@@ -293,3 +304,17 @@ def build_manifests(ctx):
     """
     Produces cluster manifests
     """
+
+
+@task(use_kind_cluster_context)
+def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_cluster_manifest_static_file_name):
+    """
+    Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
+    """
+    ctx.run("kubectl apply -f {}".format(
+        os.path.join(
+            ctx.core.secrets_dir,
+            ctx.constellation.bary.name,
+            cluster_manifest_static_file_name
+        )
+    ), echo=True)

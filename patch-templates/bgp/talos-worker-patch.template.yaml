@@ -8,6 +8,6 @@
     interface: bond0
     routes:
       - network: 169.254.255.1/32
-        gateway: ToDo
+        gateway: Computed by invoke task - network.hack-fix-bgp-peer-routs
       - network: 169.254.255.2/32
-        gateway: ToDo
+        gateway: Computed by invoke task - network.hack-fix-bgp-peer-routs
