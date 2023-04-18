@@ -79,7 +79,7 @@ def talosctl_gen_config(ctx):
         cluster_spec_dir = os.path.join(get_secrets_dir(), cluster_spec['name'])
         with ctx.cd(cluster_spec_dir):
             ctx.run(
-                "talosctl gen config {} https://{}:6443".format(
+                "talosctl gen config {} https://{}:6443 | true".format(
                     cluster_spec['name'],
                     get_cp_vip_address(cluster_spec)
                 ),
