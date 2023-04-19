@@ -1,11 +1,9 @@
-import json
 import os
-from pprint import pprint
 
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cluster_name, get_cp_vip_address, \
+from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
     get_cluster_spec_from_context, get_constellation_spec
 
 yaml.add_representer(str, str_presenter)
@@ -96,14 +94,14 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
             if 'control-plane' in hostname:
                 with open(os.path.join(
                         templates_directory,
-                        'talos-control-plane-patch.template.yaml'), 'r') as talos_cp_patch_file:
+                        'control-plane.pt.yaml'), 'r') as talos_cp_patch_file:
                     talos_patch = yaml.safe_load(talos_cp_patch_file)
                     for route in talos_patch[0]['value']['routes']:
                         route['gateway'] = node_patch_data[hostname]['gateway']
             elif 'worker' in hostname:
                 with open(os.path.join(
                         templates_directory,
-                        'talos-worker-patch.template.yaml'), 'r') as talos_cp_patch_file:
+                        'worker.pt.yaml'), 'r') as talos_cp_patch_file:
                     talos_patch = yaml.safe_load(talos_cp_patch_file)
                     for route in talos_patch[1]['value']['routes']:
                         route['gateway'] = node_patch_data[hostname]['gateway']
@@ -130,7 +128,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
 @task()
 def build_network_service_dependencies_manifest(ctx, manifest_name='network-services-dependencies'):
     """
-    Produces [secrets_dir]/network-services-dependencies.yaml cilium manifest to be used
+    Produces [secrets_dir]/network-services-dependencies.yaml - Helm cilium manifest to be used
     as inlineManifest is Talos machine specification (Helm manifests inline install).
     https://www.talos.dev/v1.4/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
     """
@@ -210,6 +208,8 @@ def install_network_service_dependencies(ctx):
 
 @task(hack_fix_bgp_peer_routs)
 def install_network_services(ctx):
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    
     chart_directory = os.path.join('apps', 'network-services')
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
