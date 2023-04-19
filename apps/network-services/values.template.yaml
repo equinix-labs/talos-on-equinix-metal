@@ -1,7 +1,7 @@
 metallb:
-  clusterName: # ToDo
+  clusterName: # Populated by task: network.install-network-services
   pools:
-    - name: # ToDo
-      addresses: # ToDo
+    - name: # Populated by task: network.install-network-services
+      addresses: # Populated by task: network.install-network-services
 firewall:
   enabled: false

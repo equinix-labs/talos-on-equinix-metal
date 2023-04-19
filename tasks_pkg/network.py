@@ -4,7 +4,7 @@ import yaml
 from invoke import task
 
 from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_spec
+    get_cluster_spec_from_context, get_constellation_spec, get_vips
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -207,10 +207,38 @@ def install_network_service_dependencies(ctx):
 
 
 @task(hack_fix_bgp_peer_routs)
-def install_network_services(ctx):
+def install_network_service(ctx):
+    """
+    Deploys apps/network-services chart, with BGP VIP pool configuration, based on
+    VIPs registered in EquinixMetal. As of now the assumption is 1 GlobalIPv4 for ingress,
+    1 PublicIPv4 for Cilium Mesh API server.
+    """
     cluster_spec = get_cluster_spec_from_context(ctx)
-    
+    cluster_cfg_dir = os.path.join(ctx.core.secrets_dir, cluster_spec['name'])
+    mesh_vips = get_vips(cluster_spec, 'mesh')
+    ingress_vips = get_vips(cluster_spec, 'ingress')
     chart_directory = os.path.join('apps', 'network-services')
+    with open(os.path.join(chart_directory, 'values.template.yaml'), 'r') as value_template_file:
+        chart_values = dict(yaml.safe_load(value_template_file))
+        chart_values['metallb']['clusterName'] = cluster_spec['name']
+        chart_values['metallb']['pools'] = list()
+        chart_values['metallb']['pools'].append({
+            'name': 'mesh',
+            'addresses': ["{}/32".format(mesh_vips[0])]
+        })
+        chart_values['metallb']['pools'].append({
+            'name': 'ingress',
+            'addresses': ["{}/32".format(ingress_vips[0])]
+        })
+
+    network_services_values_file_name = os.path.join(
+        os.environ.get('TOEM_PROJECT_ROOT'),
+        cluster_cfg_dir,
+        'values.network-services.yaml')
+    with open(network_services_values_file_name, 'w') as value_template_file:
+        yaml.safe_dump(chart_values, value_template_file)
+
     with ctx.cd(chart_directory):
-        ctx.run("helm dependencies update", echo=True)
-        ctx.run("helm upgrade --install --namespace network-services network-services ./", echo=True)
+        ctx.run("helm upgrade --install --values {} --namespace network-services network-services ./".format(
+            network_services_values_file_name
+        ), echo=True)
