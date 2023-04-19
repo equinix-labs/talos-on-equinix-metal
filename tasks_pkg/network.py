@@ -234,10 +234,13 @@ def install_network_service_dependencies(ctx):
     cluster_spec = get_cluster_spec_from_context(ctx)
     constellation_spec = get_constellation_spec(ctx)
 
-    cluster_id = 0
+    # We have to count form one
+    # Error: Unable to connect cluster:
+    #   local cluster has the default name (cluster name: jupiter) and/or ID 0 (cluster ID: 0)
+    cluster_id = 1
     for index, value in enumerate(constellation_spec):
         if value == cluster_spec:
-            cluster_id = index
+            cluster_id = cluster_id + index
 
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)

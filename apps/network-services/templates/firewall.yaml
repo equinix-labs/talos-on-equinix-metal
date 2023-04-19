@@ -25,4 +25,6 @@ spec:
               protocol: TCP
             - port: 8472 # https://docs.cilium.io/en/v1.13/network/concepts/routing/#arch-overlay
               protocol: UDP
+            - port: 2379 # clustermesh-apiserver
+              protocol: TCP
 {{- end }}
