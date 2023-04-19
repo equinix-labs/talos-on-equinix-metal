@@ -12,6 +12,11 @@ def get_gcp_token_file_name():
 
 
 def get_google_dns_token(ctx):
+    gcp_token_file_name = get_gcp_token_file_name()
+    if os.path.isfile(gcp_token_file_name):
+        print("File {} already exists, skipping".format(gcp_token_file_name))
+        return
+
     ctx.run("gcloud iam service-accounts keys create {} --iam-account {}@{}.iam.gserviceaccount.com".format(
         get_gcp_token_file_name(),
         os.environ.get('GCP_SA_NAME'),
@@ -36,11 +41,11 @@ def gcloud_login(ctx):
     """
     If you rae using gcp and your DNS provider, you can use this to log in to the console.
     """
-    ctx.run("gcloud login", echo=True)
+    ctx.run("gcloud auth login", echo=True)
 
 
 @task(create_dns_tls_namespace)
-def get_dns_management_token(ctx, provider='google'):
+def deploy_dns_management_token(ctx, provider='google'):
     """
     Creates the DNS token secret to be used by external-dns and cert-manager
     """

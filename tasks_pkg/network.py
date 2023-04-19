@@ -27,7 +27,6 @@ def setup_dockerhub_pull_secret(ctx, namespace="network-services"):
             }
         }
     }
-    print(docker_config)
 
     docker_config_file_name = os.path.join(ctx.core.secrets_dir, "docker.config.json")
     with open(docker_config_file_name, 'w') as docker_config_file:
@@ -124,6 +123,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                 node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node_addresses
             node_patch_addresses.extend(node_addresses)
 
+        # from pprint import pprint
         # print("#### node_patch_data")
         # pprint(node_patch_addresses)
         # print("#### talosconfig")
