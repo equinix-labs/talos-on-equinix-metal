@@ -34,7 +34,7 @@ def setup_dockerhub_pull_secret(ctx, namespace="network-services"):
         json.dump(docker_config, docker_config_file)
 
     secret_name = "dockerhub"
-    ctx.run("kubectl -n {} create secret docker-registry --from-file=.dockerconfigjson=\"{}\" {}".format(
+    ctx.run("kubectl -n {} create secret docker-registry --from-file=.dockerconfigjson=\"{}\" {} | true".format(
         namespace,
         docker_config_file_name,
         secret_name
@@ -47,13 +47,13 @@ def setup_dockerhub_pull_secret(ctx, namespace="network-services"):
             }
         ]
     }
-    ctx.run("kubectl patch sa default -n {} -p '{}'".format(
+    ctx.run("kubectl patch sa default -n {} -p '{}' | true".format(
         namespace,
         json.dumps(payload)
     ), echo=True)
 
 
-@task()
+@task(setup_dockerhub_pull_secret)
 def deploy_network_multitool(ctx, namespace="network-services"):
     """
     Deploys Network-multitool DaemonSet to enable BGP fix and debugging
