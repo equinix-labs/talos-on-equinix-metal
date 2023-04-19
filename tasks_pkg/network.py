@@ -123,13 +123,18 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                 node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node_addresses
             node_patch_addresses.extend(node_addresses)
 
+        cp_vip = get_cp_vip_address(cluster_spec)
+        node_patch_addresses.remove(cp_vip)
+        talosconfig_addresses = talosconfig['contexts'][cluster_spec['name']]['nodes']
+        talosconfig_addresses.remove(cp_vip)
+
         # from pprint import pprint
         # print("#### node_patch_data")
         # pprint(node_patch_addresses)
         # print("#### talosconfig")
-        # pprint(talosconfig['contexts'][cluster_spec['name']]['nodes'])
+        # pprint(talosconfig_addresses)
 
-        if len(set(node_patch_addresses) - set(talosconfig['contexts'][cluster_spec['name']]['nodes'])) > 0:
+        if len(set(node_patch_addresses) - set(talosconfig_addresses)) > 0:
             print("Node list returned by kubectl is out of sync with your talosconfig! Fix before patching.")
             return
 
