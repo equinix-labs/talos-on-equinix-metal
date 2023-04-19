@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 
 import yaml
@@ -11,13 +13,56 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 @task()
-def deploy_network_multitool(ctx):
+def setup_dockerhub_pull_secret(ctx, namespace="network-services"):
+    """
+    Network-multitool container image is stored in docker hub. It might happen that it won't deploy due to
+    `You have reached your pull rate limit. You may increase the limit by authenticating and upgrading: https://www.docker.com/increase-rate-limit`
+    This task sets up the docker pull secret on the default Service Account in a given namespace.
+    """
+    auth_bytes = "{}:{}".format(os.environ.get('DOCKERHUB_USER'), os.environ.get('DOCKERHUB_TOKEN')).encode('utf-8')
+    docker_config = {
+        "auths": {
+            'https://registry-1.docker.io': {
+                'auth': base64.b64encode(auth_bytes).decode('utf-8')
+            }
+        }
+    }
+    print(docker_config)
+
+    docker_config_file_name = os.path.join(ctx.core.secrets_dir, "docker.config.json")
+    with open(docker_config_file_name, 'w') as docker_config_file:
+        json.dump(docker_config, docker_config_file)
+
+    secret_name = "dockerhub"
+    ctx.run("kubectl -n {} create secret docker-registry --from-file=.dockerconfigjson=\"{}\" {}".format(
+        namespace,
+        docker_config_file_name,
+        secret_name
+    ), echo=True)
+
+    payload = {
+        'imagePullSecrets': [
+            {
+                "name": secret_name
+            }
+        ]
+    }
+    ctx.run("kubectl patch sa default -n {} -p '{}'".format(
+        namespace,
+        json.dumps(payload)
+    ), echo=True)
+
+
+@task()
+def deploy_network_multitool(ctx, namespace="network-services"):
     """
     Deploys Network-multitool DaemonSet to enable BGP fix and debugging
     """
     chart_directory = os.path.join('apps', 'network-multitool')
     with ctx.cd(chart_directory):
-        ctx.run("helm upgrade --install --wait --namespace network-services network-multitool ./", echo=True)
+        ctx.run("helm upgrade --install --wait --namespace {} network-multitool ./".format(
+            namespace
+        ), echo=True)
 
 
 @task(deploy_network_multitool)

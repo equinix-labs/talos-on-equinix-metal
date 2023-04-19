@@ -9,7 +9,7 @@ from invoke import task
 from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec
-from tasks_pkg.k8s_context import use_kind_cluster_context
+from tasks_pkg.k8s_context import use_kind_cluster_context, use_bary_cluster_context
 from tasks_pkg.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -242,13 +242,17 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     ), echo=True)
 
 
+def _clusterctl_init(ctx):
+    ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
+
+
 @task()
 def kind_clusterctl_init(ctx):
     """
     Produces local management(kind) k8s cluster and inits it with ClusterAPI
     """
     ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
-    ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
+    _clusterctl_init(ctx)
 
 
 @task()
@@ -318,3 +322,17 @@ def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_cluster_manifest
             cluster_manifest_static_file_name
         )
     ), echo=True)
+
+
+@task()
+def clusterctl_move(ctx):
+    """
+    Move CAPI objects from local kind cluster to the management(bary) cluster
+    """
+    use_bary_cluster_context(ctx)
+    _clusterctl_init(ctx)
+    use_kind_cluster_context(ctx)
+
+    bary_kubeconfig = os.path.join(
+        ctx.core.secrets_dir, ctx.constellation.bary.name, ctx.constellation.bary.name + '.kubeconfig')
+    ctx.run("clusterctl move --to-kubeconfig=" + bary_kubeconfig, echo=True)
