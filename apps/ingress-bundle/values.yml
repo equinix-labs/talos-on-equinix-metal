@@ -1,6 +1,0 @@
-ingress-nginx:
-  controller:
-    image:
-      allowPrivilegeEscalation: false
-    config:
-      proxy-buffer-size: 512k
