@@ -229,7 +229,23 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
 
 
 @task()
+def apply_kubespan_patch(ctx):
+    """
+    For some reason, Kubespan turns off once cilium is deployed.
+    https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/
+    Once the patch is applied kubespan is back up.
+    """
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    ctx.run("talosctl --context {} patch mc -p @patch-templates/kubespan/common.pt.yaml".format(
+        cluster_spec['name']
+    ), echo=True)
+
+
+@task(post=[apply_kubespan_patch])
 def install_network_service_dependencies(ctx):
+    """
+    Deploy chart apps/network-services-dependencies containing Cilium and MetalLB
+    """
     chart_directory = os.path.join('apps', 'network-services-dependencies')
     cluster_spec = get_cluster_spec_from_context(ctx)
     constellation_spec = get_constellation_spec(ctx)
@@ -241,6 +257,12 @@ def install_network_service_dependencies(ctx):
     for index, value in enumerate(constellation_spec):
         if value == cluster_spec:
             cluster_id = cluster_id + index
+
+    # ToDo: If bary cluster is up, thus this runs on a worker cluster, copy its cilium-ca and pass it to the chart:
+    # {{- $crt := .Values.tls.ca.cert -}}
+    # {{- $key := .Values.tls.ca.key -}}
+    # https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#shared-certificate-authority
+    # kubectl --context admin@jupiter -n network-services get secret cilium-ca -o yaml
 
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
