@@ -58,29 +58,29 @@ def template_cluster_template(ctx, cluster_template_name='default.yaml'):
     As a result of a bug? settings in Cluster.spec.clusterNetwork do not affect the running cluster.
     Those changes need to be put in the Talos config.
     """
-    cluster_spec = get_cluster_spec_from_context(ctx)
-    with open(os.path.join('templates', cluster_template_name), 'r') as cluster_template_file:
-        cluster_template = list(yaml.safe_load_all(cluster_template_file))
+    for cluster_spec in get_constellation_spec(ctx):
+        with open(os.path.join('templates', cluster_template_name), 'r') as cluster_template_file:
+            cluster_template = list(yaml.safe_load_all(cluster_template_file))
 
-        for document in cluster_template:
-            if document['kind'] == 'TalosControlPlane':
-                patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
-                for patch in patches:
-                    if patch['path'] == '/cluster/network':
-                        patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                        patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
-                        patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
-            if document['kind'] == 'TalosConfigTemplate':
-                patches = document['spec']['template']['spec']['configPatches']
-                for patch in patches:
-                    if patch['path'] == '/cluster/network':
-                        patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                        patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
-                        patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+            for document in cluster_template:
+                if document['kind'] == 'TalosControlPlane':
+                    patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
+                    for patch in patches:
+                        if patch['path'] == '/cluster/network':
+                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
+                            patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
+                            patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+                if document['kind'] == 'TalosConfigTemplate':
+                    patches = document['spec']['template']['spec']['configPatches']
+                    for patch in patches:
+                        if patch['path'] == '/cluster/network':
+                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
+                            patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
+                            patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
 
-    with open(os.path.join(
-            ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name), 'w') as cluster_template_file:
-        yaml.safe_dump_all(cluster_template, cluster_template_file)
+        with open(os.path.join(
+                ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name), 'w') as cluster_template_file:
+            yaml.safe_dump_all(cluster_template, cluster_template_file)
 
 
 @task(register_vips, use_kind_cluster_context, template_cluster_template)

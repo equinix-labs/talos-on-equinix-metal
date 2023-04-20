@@ -64,7 +64,20 @@ def deploy_network_multitool(ctx, namespace="network-services"):
         ), echo=True)
 
 
-@task(deploy_network_multitool)
+@task()
+def apply_kubespan_patch(ctx):
+    """
+    For some reason, Kubespan turns off once cilium is deployed.
+    https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/
+    Once the patch is applied kubespan is back up.
+    """
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    ctx.run("talosctl --context {} patch mc -p @patch-templates/kubespan/common.pt.yaml".format(
+        cluster_spec['name']
+    ), echo=True)
+
+
+@task(deploy_network_multitool, post=[apply_kubespan_patch])
 def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='network-services'):
     """
     Adds a static route to the node configuration, so that BGP peers could connect.
@@ -124,9 +137,16 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
             node_patch_addresses.extend(node_addresses)
 
         cp_vip = get_cp_vip_address(cluster_spec)
-        node_patch_addresses.remove(cp_vip)
+        try:
+            node_patch_addresses.remove(cp_vip)
+        except ValueError:
+            pass
+
         talosconfig_addresses = talosconfig['contexts'][cluster_spec['name']]['nodes']
-        talosconfig_addresses.remove(cp_vip)
+        try:
+            talosconfig_addresses.remove(cp_vip)
+        except ValueError:
+            pass
 
         # from pprint import pprint
         # print("#### node_patch_data")
@@ -226,19 +246,6 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
 
     with open(manifest_file_name, 'w') as manifest_file:
         yaml.safe_dump_all(manifest, manifest_file)
-
-
-@task()
-def apply_kubespan_patch(ctx):
-    """
-    For some reason, Kubespan turns off once cilium is deployed.
-    https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/
-    Once the patch is applied kubespan is back up.
-    """
-    cluster_spec = get_cluster_spec_from_context(ctx)
-    ctx.run("talosctl --context {} patch mc -p @patch-templates/kubespan/common.pt.yaml".format(
-        cluster_spec['name']
-    ), echo=True)
 
 
 @task(post=[apply_kubespan_patch])

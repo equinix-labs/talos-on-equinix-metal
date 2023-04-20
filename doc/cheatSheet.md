@@ -19,3 +19,6 @@ https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/#enabling-for-an-e
 ```shell
 talosctl get kubespanpeerstatus
 ```
+```shell
+talosctl config remove -y ganymede
+```
