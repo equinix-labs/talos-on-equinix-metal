@@ -5,13 +5,14 @@ metadata:
   name: "${CLUSTER_NAME}"
 spec:
   clusterNetwork:
+    # ToDo: clusterNetwork settings do not affect running cluster.
     pods:
       cidrBlocks:
         - ${POD_CIDR}
     services:
       cidrBlocks:
         - ${SERVICE_CIDR}
-    serviceDomain: ${SERVICE_DOMAIN:=cluster.local}
+    serviceDomain: ${SERVICE_DOMAIN}
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: PacketCluster
@@ -98,10 +99,6 @@ spec:
           value:
             cloud-provider: external
         - op: add
-          path: /cluster/network/cni
-          value:
-            name: none
-        - op: add
           path: /cluster/proxy
           value:
             disabled: true
@@ -111,6 +108,16 @@ spec:
             enabled: true
             manifests:
               - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/${CPEM_VERSION}/deployment.yaml
+        - op: add
+          path: /cluster/network
+          value:
+            cni:
+              name: none
+            dnsDomain: # Populated by task cluster.template-cluster-template
+            podSubnets:
+              - # Populated by task cluster.template-cluster-template
+            serviceSubnets:
+              - # Populated by task cluster.template-cluster-template
 
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -154,11 +161,13 @@ spec:
         - op: add
           path: /cluster/network
           value:
-            cni: {}
-        - op: add
-          path: /cluster/network/cni
-          value:
-            name: none
+            cni:
+              name: none
+            dnsDomain: # Populated by task cluster.template-cluster-template
+            podSubnets:
+              - # Populated by task cluster.template-cluster-template
+            serviceSubnets:
+              - # Populated by task cluster.template-cluster-template
         - op: add
           path: /cluster/proxy
           value:

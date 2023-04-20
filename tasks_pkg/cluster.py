@@ -8,15 +8,15 @@ from invoke import task
 
 from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
 from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec
+    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec, get_cluster_spec_from_context
 from tasks_pkg.k8s_context import use_kind_cluster_context, use_bary_cluster_context
 from tasks_pkg.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
-_cluster_manifest_file_name = "cluster-manifest.yaml"
-_cluster_manifest_static_file_name = "cluster-manifest.static-config.yaml"
+_CLUSTER_MANIFEST_FILE_NAME = "cluster-manifest.yaml"
+_CLUSTER_MANIFEST_STATIC_FILE_NAME = "cluster-manifest.static-config.yaml"
 
 
 @task(build_network_service_dependencies_manifest)
@@ -50,16 +50,49 @@ def patch_template_with_cilium_manifest(
             yaml.safe_dump_all(_cluster_template, target)
 
 
-@task(register_vips, use_kind_cluster_context)
-def clusterctl_generate_cluster(ctx, templates_dir='templates', cluster_template_name='default.yaml'):
+@task()
+def template_cluster_template(ctx, cluster_template_name='default.yaml'):
+    """
+    Produces [secrets_dir]/[Cluster_name]/default.yaml CAPi cluster template with
+    corrected dnsDomain,podSubnets,serviceSubnets
+    As a result of a bug? settings in Cluster.spec.clusterNetwork do not affect the running cluster.
+    Those changes need to be put in the Talos config.
+    """
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    with open(os.path.join('templates', cluster_template_name), 'r') as cluster_template_file:
+        cluster_template = list(yaml.safe_load_all(cluster_template_file))
+
+        for document in cluster_template:
+            if document['kind'] == 'TalosControlPlane':
+                patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
+                for patch in patches:
+                    if patch['path'] == '/cluster/network':
+                        patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
+                        patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
+                        patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+            if document['kind'] == 'TalosConfigTemplate':
+                patches = document['spec']['template']['spec']['configPatches']
+                for patch in patches:
+                    if patch['path'] == '/cluster/network':
+                        patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
+                        patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
+                        patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+
+    with open(os.path.join(
+            ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name), 'w') as cluster_template_file:
+        yaml.safe_dump_all(cluster_template, cluster_template_file)
+
+
+@task(register_vips, use_kind_cluster_context, template_cluster_template)
+def clusterctl_generate_cluster(ctx, cluster_template_name='default.yaml'):
     """
     Produces ClusterAPI manifest, to be applied on the management cluster.
     """
     for cluster_spec in get_constellation_spec(ctx):
         ctx.run("clusterctl generate cluster {} --from {} > {}".format(
             cluster_spec['name'],
-            os.path.join(templates_dir, cluster_template_name),
-            os.path.join(get_secrets_dir(), cluster_spec['name'], _cluster_manifest_file_name)
+            os.path.join(ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name),
+            os.path.join(get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_FILE_NAME)
         ),
             echo=True,
             env={
@@ -100,9 +133,9 @@ def add_talos_hashbang(filename):
 
 
 def _talos_apply_config_patch(ctx, cluster_spec):
-    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], _cluster_manifest_file_name)
+    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_FILE_NAME)
     cluster_manifest_static_file_name = os.path.join(
-        get_secrets_dir(), cluster_spec['name'], _cluster_manifest_static_file_name)
+        get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_STATIC_FILE_NAME)
     config_dir_name = os.path.join(get_secrets_dir(), cluster_spec['name'])
 
     with open(cluster_manifest_file_name) as cluster_manifest_file:
@@ -311,7 +344,7 @@ def build_manifests(ctx):
 
 
 @task(use_kind_cluster_context)
-def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_cluster_manifest_static_file_name):
+def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_CLUSTER_MANIFEST_STATIC_FILE_NAME):
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
     """
