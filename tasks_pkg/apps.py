@@ -1,7 +1,7 @@
 import os
 
 from invoke import task
-from tasks_pkg.helpers import get_secrets_dir
+from tasks_pkg.helpers import get_secrets_dir, get_cluster_spec_from_context
 
 
 def get_gcp_token_file_name():
@@ -91,14 +91,18 @@ def install_dns_and_tls(ctx):
 @task()
 def install_whoami_app(ctx):
     dns_tls_directory = os.path.join('apps', 'whoami')
+    cluster_spec = get_cluster_spec_from_context(ctx)
     with ctx.cd(dns_tls_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
         ctx.run("helm upgrade --install --namespace test-application "
                 "--set test_app.fqdn={} "
-                "whoami-test-app ./".format("whoami.{}.{}".format(
-                    os.environ.get('TOEM_TEST_SUBDOMAIN'),
-                    os.environ.get('GCP_DOMAIN')
-                )), echo=True)
+                "--set test_app.name={} "                
+                "whoami-test-app ./".format(
+                    "whoami.{}.{}".format(
+                        os.environ.get('TOEM_TEST_SUBDOMAIN'),
+                        os.environ.get('GCP_DOMAIN')
+                    ), cluster_spec['name']
+                ), echo=True)
 
 
 @task()

@@ -28,6 +28,6 @@ spec:
             - "604800"
           imagePullPolicy: IfNotPresent
           name: debug
-      hostNetwork: true
+      hostNetwork: {{ .Values.hostNetwork }}
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
