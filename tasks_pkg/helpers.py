@@ -38,8 +38,8 @@ def get_cluster_spec_from_context(ctx):
     for cluster_spec in get_constellation_spec(ctx):
         if cluster_spec['name'] in context:
             return cluster_spec
-        else:
-            print("Incorrect k8s context")
+
+    print("k8s context: '{}' not in constellation".format(context))
 
 
 def get_secrets_dir():

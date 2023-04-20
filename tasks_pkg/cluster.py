@@ -275,17 +275,20 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     ), echo=True)
 
 
-def _clusterctl_init(ctx):
+@task()
+def clusterctl_init(ctx):
+    """
+    Runs clusterctl init with our favourite provider set.
+    """
     ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
 
 
-@task()
+@task(post=[clusterctl_init])
 def kind_clusterctl_init(ctx):
     """
     Produces local management(kind) k8s cluster and inits it with ClusterAPI
     """
     ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
-    _clusterctl_init(ctx)
 
 
 @task()
@@ -363,7 +366,7 @@ def clusterctl_move(ctx):
     Move CAPI objects from local kind cluster to the management(bary) cluster
     """
     use_bary_cluster_context(ctx)
-    _clusterctl_init(ctx)
+    clusterctl_init(ctx)
     use_kind_cluster_context(ctx)
 
     bary_kubeconfig = os.path.join(
