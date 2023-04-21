@@ -5,6 +5,7 @@ import os
 import yaml
 from invoke import task
 
+from tasks_pkg.apps import install_ingress_controller
 from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
     get_cluster_spec_from_context, get_constellation_spec, get_vips
 
@@ -324,3 +325,24 @@ def install_network_service(ctx):
         ctx.run("helm upgrade --install --values {} --namespace network-services network-services ./".format(
             network_services_values_file_name
         ), echo=True)
+
+
+@task()
+def enable_cluster_mesh(ctx, namespace='network-services'):
+    """
+    Enables Cilium ClusterMesh
+    https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
+    """
+    for cluster_spec in get_constellation_spec(ctx):
+        ctx.run("cilium --namespace {} --context {} clustermesh enable --service-type LoadBalancer".format(
+            namespace,
+            "admin@" + cluster_spec['name']
+        ), echo=True)
+
+    for cluster_spec in get_constellation_spec(ctx):
+        if cluster_spec['name'] != ctx.constellation.bary.name:
+            ctx.run("cilium --namespace {} --context {} clustermesh connect --destination-context {}".format(
+                namespace,
+                'admin@' + ctx.constellation.bary.name,
+                'admin@' + cluster_spec['name']
+            ), echo=True)

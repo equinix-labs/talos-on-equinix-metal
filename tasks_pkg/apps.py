@@ -52,14 +52,17 @@ def deploy_dns_management_token(ctx, provider='google'):
     if provider == 'google':
         get_google_dns_token(ctx)
 
-    ctx.run("kubectl -n {} create secret generic '{}' --from-file=credentials.json={}".format(
-        get_dns_tls_namespace_name(),
-        os.environ.get('GCP_SA_NAME'),
-        get_gcp_token_file_name()
-    ), echo=True)
+        ctx.run("kubectl -n {} create secret generic '{}' --from-file=credentials.json={}".format(
+            get_dns_tls_namespace_name(),
+            os.environ.get('GCP_SA_NAME'),
+            get_gcp_token_file_name()
+        ), echo=True)
+
+    else:
+        print("Unsupported DNS provider: " + provider)
 
 
-@task()
+@task(deploy_dns_management_token)
 def install_dns_and_tls_dependencies(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
     with ctx.cd(dns_tls_directory):
