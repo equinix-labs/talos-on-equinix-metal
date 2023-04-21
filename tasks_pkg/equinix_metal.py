@@ -144,10 +144,13 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
 
     ip_reservations_file_name = get_ip_reservation_file_name(cluster_spec, address_role)
     ip_addresses_file_name = get_ip_addresses_file_name(cluster_spec, address_role)
-    # if address_role == 'cp':
-    #     cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(get_cluster_name())]  # ToDo! CPEM bug?
-    # else:
-    cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
+    # ToDo: Most likely, despite all the efforts to disable it
+    #   https://github.com/kubernetes-sigs/cluster-api-provider-packet registers a VIP
+    #   We need one so we will use it...
+    if address_role == 'cp':
+        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster_spec['name'])]
+    else:
+        cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
 
     if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)

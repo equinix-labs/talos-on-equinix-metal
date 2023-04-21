@@ -25,7 +25,7 @@ constellation:
     - name: ganymede
       pod_cidr_blocks: 10.3.0.0/16
       service_cidr_blocks: 10.4.0.0/16
-      facility: am6
+      facility: md2
       vips:
         - role: cp
           count: 1

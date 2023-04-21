@@ -280,7 +280,12 @@ def clusterctl_init(ctx):
     """
     Runs clusterctl init with our favourite provider set.
     """
-    ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    if cluster_spec['name'] == ctx.constellation.bary.name:
+        user_input = input('Is cert-manager present ? '
+                           '- did you run "invoke apps.install-dns-and-tls-dependencies" [y/N] ?')
+        if user_input.strip().lower() == 'y':
+            ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
 
 
 @task(post=[clusterctl_init])
