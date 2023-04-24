@@ -8,10 +8,10 @@ spec:
     # ToDo: clusterNetwork settings do not affect running cluster.
     pods:
       cidrBlocks:
-        - ${POD_CIDR}
+        - # Populated by task cluster.template-cluster-template
     services:
       cidrBlocks:
-        - ${SERVICE_CIDR}
+        - # Populated by task cluster.template-cluster-template
     serviceDomain: ${SERVICE_DOMAIN}
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1

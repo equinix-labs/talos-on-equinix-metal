@@ -68,15 +68,18 @@ def template_cluster_template(ctx, cluster_template_name='default.yaml'):
                     for patch in patches:
                         if patch['path'] == '/cluster/network':
                             patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                            patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
-                            patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+                            patch['value']['podSubnets'] = cluster_spec['pod_cidr_blocks']
+                            patch['value']['serviceSubnets'] = cluster_spec['service_cidr_blocks']
                 if document['kind'] == 'TalosConfigTemplate':
                     patches = document['spec']['template']['spec']['configPatches']
                     for patch in patches:
                         if patch['path'] == '/cluster/network':
                             patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                            patch['value']['podSubnets'] = [cluster_spec['pod_cidr_blocks']]
-                            patch['value']['serviceSubnets'] = [cluster_spec['service_cidr_blocks']]
+                            patch['value']['podSubnets'] = cluster_spec['pod_cidr_blocks']
+                            patch['value']['serviceSubnets'] = cluster_spec['service_cidr_blocks']
+                if document['kind'] == 'Cluster':
+                    document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_spec['pod_cidr_blocks']
+                    document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_spec['service_cidr_blocks']
 
         with open(os.path.join(
                 ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name), 'w') as cluster_template_file:
@@ -98,8 +101,6 @@ def clusterctl_generate_cluster(ctx, cluster_template_name='default.yaml'):
             env={
                 'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
                 'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_spec),
-                'POD_CIDR': cluster_spec['pod_cidr_blocks'],
-                'SERVICE_CIDR': cluster_spec['service_cidr_blocks'],
                 'SERVICE_DOMAIN': "{}.local".format(cluster_spec['name']),
                 'CLUSTER_NAME': cluster_spec['name'],
                 'FACILITY': cluster_spec['facility']
@@ -281,11 +282,13 @@ def clusterctl_init(ctx):
     Runs clusterctl init with our favourite provider set.
     """
     cluster_spec = get_cluster_spec_from_context(ctx)
-    if cluster_spec['name'] == ctx.constellation.bary.name:
+    if cluster_spec is not None and 'name' in cluster_spec and cluster_spec['name'] == ctx.constellation.bary.name:
         user_input = input('Is cert-manager present ? '
                            '- did you run "invoke apps.install-dns-and-tls-dependencies" [y/N] ?')
-        if user_input.strip().lower() == 'y':
-            ctx.run("clusterctl init -b talos -c talos -i packet", echo=True)
+        if user_input.strip().lower() == 'n':
+            return
+
+    ctx.run("clusterctl init -b talos -c talos --infrastructure=packet:v0.6.2", echo=True)
 
 
 @task(post=[clusterctl_init])
