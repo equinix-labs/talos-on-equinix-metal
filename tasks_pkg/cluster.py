@@ -285,7 +285,7 @@ def clusterctl_init(ctx):
     if cluster_spec is not None and 'name' in cluster_spec and cluster_spec['name'] == ctx.constellation.bary.name:
         user_input = input('Is cert-manager present ? '
                            '- did you run "invoke apps.install-dns-and-tls-dependencies" [y/N] ?')
-        if user_input.strip().lower() == 'n':
+        if user_input.strip().lower() != 'y':
             return
 
     ctx.run("clusterctl init -b talos -c talos --infrastructure=packet:v0.6.2", echo=True)

@@ -5,7 +5,6 @@ import os
 import yaml
 from invoke import task
 
-from tasks_pkg.apps import install_ingress_controller
 from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
     get_cluster_spec_from_context, get_constellation_spec, get_vips
 
@@ -78,7 +77,8 @@ def apply_kubespan_patch(ctx):
     ), echo=True)
 
 
-@task(deploy_network_multitool, post=[apply_kubespan_patch])
+# @task(deploy_network_multitool, post=[apply_kubespan_patch])
+@task(deploy_network_multitool)
 def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace='network-services'):
     """
     Adds a static route to the node configuration, so that BGP peers could connect.
@@ -154,6 +154,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
         # pprint(node_patch_addresses)
         # print("#### talosconfig")
         # pprint(talosconfig_addresses)
+        # return
 
         if len(set(node_patch_addresses) - set(talosconfig_addresses)) > 0:
             print("Node list returned by kubectl is out of sync with your talosconfig! Fix before patching.")
@@ -249,7 +250,7 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
         yaml.safe_dump_all(manifest, manifest_file)
 
 
-@task(post=[apply_kubespan_patch])
+@task()
 def install_network_service_dependencies(ctx):
     """
     Deploy chart apps/network-services-dependencies containing Cilium and MetalLB

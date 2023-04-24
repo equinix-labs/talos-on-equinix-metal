@@ -52,7 +52,7 @@ def deploy_dns_management_token(ctx, provider='google'):
     if provider == 'google':
         get_google_dns_token(ctx)
 
-        ctx.run("kubectl -n {} create secret generic '{}' --from-file=credentials.json={}".format(
+        ctx.run("kubectl -n {} create secret generic '{}' --from-file=credentials.json={} | true".format(
             get_dns_tls_namespace_name(),
             os.environ.get('GCP_SA_NAME'),
             get_gcp_token_file_name()
