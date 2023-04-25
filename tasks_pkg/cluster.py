@@ -334,7 +334,7 @@ def clean(ctx):
                 else:
                     shutil.rmtree(name)
             except OSError:
-                print("{} already gone".format(name))
+                pass
 
 
 # ToDo: Fix or remove ?

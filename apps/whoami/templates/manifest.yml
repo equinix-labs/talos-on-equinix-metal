@@ -37,6 +37,8 @@ kind: Service
 metadata:
   name: whoami-service
   namespace: {{ .Release.Namespace }}
+  annotations:
+    io.cilium/global-service: 'true'
 spec:
   type: ClusterIP
   ports:

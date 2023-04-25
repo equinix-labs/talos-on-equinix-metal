@@ -6,7 +6,7 @@ import yaml
 from invoke import task
 
 from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_spec, get_vips
+    get_cluster_spec_from_context, get_constellation_spec, get_vips, get_file_content_as_b64
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -251,6 +251,23 @@ def build_network_service_dependencies_manifest(ctx, manifest_name='network-serv
 
 
 @task()
+def generate_ca(ctx):
+    """
+    Generate root CA, to be used by cilium and others
+    """
+    if os.path.isdir(ctx.core.ca_dir):
+        print("Directory already exists: " + ctx.core.ca_dir)
+        return
+
+    ctx.run("mkdir -p " + ctx.core.ca_dir)
+    ctx.run("cp -n templates/openssl.cnf " + ctx.core.ca_dir)
+    with ctx.cd(ctx.core.ca_dir):
+        ctx.run("openssl req -days 3560 -config openssl.cnf "
+                "-subj '/CN={} CA' -nodes -new -x509 -keyout ca.key -out ca.crt".format(
+                    os.environ.get('GCP_DOMAIN')))
+
+
+@task(generate_ca)
 def install_network_service_dependencies(ctx):
     """
     Deploy chart apps/network-services-dependencies containing Cilium and MetalLB
@@ -267,11 +284,8 @@ def install_network_service_dependencies(ctx):
         if value == cluster_spec:
             cluster_id = cluster_id + index
 
-    # ToDo: If bary cluster is up, thus this runs on a worker cluster, copy its cilium-ca and pass it to the chart:
-    # {{- $crt := .Values.tls.ca.cert -}}
-    # {{- $key := .Values.tls.ca.key -}}
-    # https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#shared-certificate-authority
-    # kubectl --context admin@jupiter -n network-services get secret cilium-ca -o yaml
+    ca_crt = get_file_content_as_b64(os.path.join(ctx.core.ca_dir, 'ca.crt'))
+    ca_key = get_file_content_as_b64(os.path.join(ctx.core.ca_dir, 'ca.key'))
 
     with ctx.cd(chart_directory):
         ctx.run("helm dependencies update", echo=True)
@@ -281,11 +295,17 @@ def install_network_service_dependencies(ctx):
                 "--set cilium.k8sServicePort={} "
                 "--set cilium.cluster.name={} "
                 "--set cilium.cluster.id={} "
+                "--set cilium.hubble.peerService.clusterDomain={} "
+                "--set cilium.tls.ca.cert={} "
+                "--set cilium.tls.ca.key={} "
                 "--namespace network-services network-services-dependencies ./".format(
                     get_cp_vip_address(get_cluster_spec_from_context(ctx)),
                     '6443',
                     cluster_spec['name'],
-                    cluster_id
+                    cluster_id,
+                    cluster_spec['name'] + '.local',
+                    ca_crt,
+                    ca_key
                 ),
                 echo=True)
 
@@ -334,11 +354,6 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
     Enables Cilium ClusterMesh
     https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
     """
-    for cluster_spec in get_constellation_spec(ctx):
-        ctx.run("cilium --namespace {} --context {} clustermesh enable --service-type LoadBalancer".format(
-            namespace,
-            "admin@" + cluster_spec['name']
-        ), echo=True)
 
     for cluster_spec in get_constellation_spec(ctx):
         if cluster_spec['name'] != ctx.constellation.bary.name:
@@ -347,3 +362,5 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
                 'admin@' + ctx.constellation.bary.name,
                 'admin@' + cluster_spec['name']
             ), echo=True)
+        else:
+            print("Switch k8s context to {} and try again".format(ctx.constellation.bary.name))

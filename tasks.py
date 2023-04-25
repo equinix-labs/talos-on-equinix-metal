@@ -18,7 +18,11 @@ ns.configure({
         'search_root': os.environ.get('TOEM_PROJECT_ROOT')
     },
     'core': {
-        'secrets_dir': get_secrets_dir()
+        'secrets_dir': get_secrets_dir(),
+        'ca_dir': os.path.join(
+            get_secrets_dir(),
+            'ca'
+        )
     },
     'equinix_metal': {
         'project_ips_file_name': os.path.join(get_secrets_dir(), 'project-ips.yaml')

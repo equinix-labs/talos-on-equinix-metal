@@ -6,7 +6,7 @@ cilium:
     mode: kubernetes
   kubeProxyReplacement: strict
   securityContext:
-    privileged: true
+    privileged: true # ToDo: false | https://github.com/cilium/cilium/issues/21603#issuecomment-1453753820
   cgroup:
     autoMount:
       enabled: false
@@ -15,6 +15,8 @@ cilium:
   MTU: 1500
   hubble:
     enabled: true
+    peerService:
+      clusterDomain: # Set by task network.install-network-service-dependencies
     metrics:
       enabled:
       - dns:query;ignoreAAAA
@@ -34,34 +36,15 @@ cilium:
   hostFirewall:
     enabled: true
   policyEnforcementMode: always
-  policyAuditMode: true
-  ipv4NativeRoutingCIDR: 172.16.0.0/12
-#  ipv4:
-#    enabled: true
-#  ipv6:
-#    enabled: false # ToDo: true | https://yolops.net/k8s-dualstack-cilium.html
-#  kubeProxyReplacement: partial # strict - run without KubeProxy
-#  policyAuditMode: true
-#  policyEnforcementMode: default # ToDo: always | https://docs.cilium.io/en/stable/security/policy/intro/#policy-enforcement-modes
-#  cgroup:
-#    hostRoot: /sys/fs/cgroup
-#    autoMount:
-#      enabled: false
-#  securityContext:
-#    capabilities:
-#      ciliumAgent:
-#        - CHOWN
-#        - KILL
-#        - NET_ADMIN
-#        - NET_RAW
-#        - IPC_LOCK
-#        - SYS_ADMIN
-#        - SYS_RESOURCE
-#        - DAC_OVERRIDE
-#        - FOWNER
-#        - SETGID
-#        - SETUID
-#      cleanCiliumState:
-#        - NET_ADMIN
-#        - SYS_ADMIN
-#        - SYS_RESOURCE
+  policyAuditMode: true # ToDo: Set to false
+  ipv4NativeRoutingCIDR: 10.0.0.0/8
+  externalWorkloads:
+    enabled: true
+  clustermesh:
+    useAPIServer: true
+    apiserver:
+      service:
+        type: LoadBalancer
+        annotations:
+          metallb.universe.tf/address-pool: mesh
+      replicas: 2

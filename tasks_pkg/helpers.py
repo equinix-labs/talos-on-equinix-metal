@@ -63,6 +63,11 @@ def get_cpem_config_yaml():
         json.dumps(get_cpem_config()).encode('ascii'))
 
 
+def get_file_content_as_b64(filename):
+    with open(filename, 'rb') as file:
+        return base64.b64encode(file.read()).decode('utf-8')
+
+
 def get_vips(cluster_spec, role):
     with open(os.path.join(
             get_secrets_dir(),

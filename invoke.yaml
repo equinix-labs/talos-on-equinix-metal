@@ -2,9 +2,9 @@ constellation:
   bary:
     name: jupiter
     pod_cidr_blocks:
-      - 172.20.0.0/17
+      - 172.16.0.0/17
     service_cidr_blocks:
-      - 172.20.128.0/17
+      - 172.16.128.0/17
     facility: pa4
     vips:
       - role: cp
@@ -26,9 +26,9 @@ constellation:
   satellites:
     - name: ganymede
       pod_cidr_blocks:
-        - 172.21.0.0/17
+        - 172.17.0.0/17
       service_cidr_blocks:
-        - 172.21.128.0/17
+        - 172.17.128.0/17
       facility: md2
       vips:
         - role: cp
@@ -49,9 +49,9 @@ constellation:
             count: 2
     - name: callisto
       pod_cidr_blocks:
-        - 172.22.0.0/17
+        - 172.18.0.0/17
       service_cidr_blocks:
-        - 172.22.128.0/17
+        - 172.18.128.0/17
       facility: fr2
       vips:
         - role: cp

@@ -4,9 +4,13 @@ Following project in an attempt to formulate the best practices for running
 [Talos Linux](https://www.talos.dev/) on [Equinix Metal](https://deploy.equinix.com/metal/),
 via [Kubernetes Cluster API](https://cluster-api.sigs.k8s.io/).
 
-The goal is to run a setup with one management cluster, and two workload clusters. The management cluster will have the
-Cluster API installed. We will have load balancing with anycast for the workload clusters.
-Load balancing on cluster endpoints and full cilium mesh, between the clusters.
+We will consider a basic model of 3 clusters. One management cluster, dedicated to Cluster API and other administrative 
+tools. Two workload clusters deployed in different geographical locations. Workload clusters will advertise a
+[Global Anycast IP Address](https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/) as their
+Ingress Controller Load Balancer. This will allow us to operate a little bit like [cloudflare](https://blog.cloudflare.com/cloudflare-servers-dont-own-ips-anymore/)
+
+We will have encrypted traffic between the nodes, thanks to [KubeSpan](https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/),
+as well as Pod2Pod communication across clusters thanks to [cilium Cluster Mesh](https://docs.cilium.io/en/stable/network/clustermesh/clustermesh/)
 
 ```mermaid
 graph LR    
@@ -100,7 +104,6 @@ graph LR
 - An account on [Equinix Metal](https://deploy.equinix.com/metal/)
 - [zsh env](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) plugin or equivalent
 - [colima](https://github.com/abiosoft/colima) for MacOS users
-- [gfind](https://formulae.brew.sh/formula/findutils) for MacOS users, or just GNU find for everyone else
 - [kconf](https://github.com/particledecay/kconf)
 - [kind](https://kind.sigs.k8s.io/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)

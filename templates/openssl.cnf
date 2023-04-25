@@ -1,0 +1,24 @@
+[req]
+days                   = 3650
+serial                 = 1
+distinguished_name     = req_distinguished_name
+x509_extensions        = v3_ca
+
+
+[req_distinguished_name]
+countryName            = US
+stateOrProvinceName    = NY
+localityName           = POK
+organizationName       = IBM
+organizationalUnitName = TPF
+commonName             = SSL_SERVER
+0.emailAddress         = moe@curlyshouse.org
+1.emailAddress         = moe@larryshouse.org
+2.emailAddress         = moe@moeshouse.org
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical,CA:true
+keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign
+extendedKeyUsage = serverAuth, clientAuth
