@@ -92,24 +92,26 @@ graph LR
 
 ```
 
-- [user setup](#user-setup)
+- [quick setup](#quick-setup)
 - [development setup](#developer-setup)
 - [benchmark](#benchmark)
 - [static config](#static-config)
 - [todo](#todo)
 
-## user setup
-### user prerequisites
+## quick setup
+### prerequisites
 
-- An account on [Equinix Metal](https://deploy.equinix.com/metal/)
+- Account on [Equinix Metal](https://deploy.equinix.com/metal/)
+- Account on [GCP](https://cloud.google.com/gcp) together with access to domain managed by GCP
 - [zsh env](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) plugin or equivalent
-- [colima](https://github.com/abiosoft/colima) for MacOS users
+- MacOS users should consider [colima](https://github.com/abiosoft/colima) 
 - [kconf](https://github.com/particledecay/kconf)
 - [kind](https://kind.sigs.k8s.io/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [clusterctl](https://cluster-api.sigs.k8s.io/clusterctl/overview.html)
 - [Metal CLI](https://github.com/equinix/metal-cli/#installation)
 - [talosctl](https://github.com/siderolabs/talos)
+- about 60 min of your time
 
 
 ### setup
@@ -122,18 +124,30 @@ graph LR
   ```shell
   pip install -r resources.txt
   ```
-- Examine and adjust [.env](.env). Create `secrets/metal` and populate with required `ENV`.
-- Create a temporary local cluster, this setup uses [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
+- Examine and adjust [.env](.env). Create `secrets/secrets` and populate with required `ENV`
+- Setup uses [invoke](https://www.pyinvoke.org/) to automate most of the actions needed to boot our model. Consider listing available tasks.
+  ```shell
+  invoke --list
+  ```
+  If you never worked with `invoke`, this library is kind of like `make`. It allows one to invoke shell commands and 
+  at the same time conveniently(with python) convert different data structures(files)  
+- Create a temporary local cluster. Setup uses [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
   [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop.
   In the context of the `kind` cluster mix [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet):
   ```sh
-  invoke kind-clusterctl-init
+  invoke cluster.kind-clusterctl-init
   ```
-- Register a VIP to be used by Talos as the control plane endpoint. This is a workaround for the [issue with
-  CPEM EIP management](https://github.com/KrystianMarek/talos-on-equinix-metal/issues/5). Generate cluster manifest with:
+- Register VIPs to be used
+  - by Talos as the control plane endpoint.
+  - by the Ingress Controller LoadBalancer
+  - by the Cluster Mesh API server LoadBalancer  
+
+  Generate CAPI cluster manifest from template
   ```shell
-  invoke build_manifests
+  invoke cluster.build-manifests
   ```
+  `cluster.build-manifests` task, by default, reads its config from [invoke.yaml](invoke.yaml). Produces a bunch of files
+  in the `screts` directory. Take some time to check out those files. 
 - Apply the cluster manifest  
   ```sh
   kubectl apply -f "secrets/${CLUSTER_NAME}.static-config.yaml"

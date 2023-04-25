@@ -37,3 +37,12 @@ k9s --context admin@jupiter
 k9s --context admin@callisto
 k9s --context admin@ganymede
 ```
+
+```shell
+kubectl --context admin@ganymede --namespace network-services exec debug-mtzhv -- bash -c 'curl -L whoami.v4...'
+kubectl --context admin@ganymede --namespace network-services exec debug-mtzhv -- bash -c 'curl -sL whoami-service.test-application'
+```
+
+```shell
+kubectl get machinedeployments.cluster.x-k8s.io,taloscontrolplanes.controlplane.cluster.x-k8s.io
+```
