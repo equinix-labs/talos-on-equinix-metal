@@ -1,0 +1,89 @@
+{{ if .Values.external_dns.provider.google.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns-gcp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: external-dns-gcp
+    app.kubernetes.io/instance: external-dns-gcp
+    app.kubernetes.io/version: {{ .Values.external_dns.version }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns-gcp
+      app.kubernetes.io/instance: external-dns-gcp
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns-gcp
+        app.kubernetes.io/instance: external-dns-gcp
+    spec:
+      serviceAccountName: external-dns-gcp
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: external-dns
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+          image: "registry.k8s.io/external-dns/external-dns:{{ .Values.external_dns.version }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --log-level=info
+            - --log-format=text
+            - --interval=1m
+            - --source=service
+            - --source=ingress
+            - --policy=upsert-only
+            - --registry=txt
+            - --txt-owner-id=external-dns
+            - --domain-filter={{ .Values.external_dns.provider.google.domain_filter }}
+            - --provider=google
+            - --google-project={{ .Values.external_dns.provider.google.google_project }}
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 7979
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 6
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /etc/secrets/service-account/credentials.json
+          volumeMounts:
+            - name: gke-dns-token
+              mountPath: /etc/secrets/service-account/
+          resources:
+            limits:
+              memory: 50Mi
+            requests:
+              cpu: 10m
+              memory: 50Mi
+      volumes:
+        - name: gke-dns-token
+          secret:
+            secretName: external-dns
+{{ end }}

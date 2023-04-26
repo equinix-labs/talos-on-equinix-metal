@@ -1,0 +1,6 @@
+letsencrypt:
+  enabled: true
+  email: # ToDo: Admin email address
+  google:
+    enabled: true
+    project_id: # ToDo: GCP project ID

@@ -1,0 +1,117 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: whoami-deployment
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whoami-app
+  template:
+    metadata:
+      labels:
+        app: whoami-app
+    spec:
+      containers:
+        - name: whoami
+          image: traefik/whoami:v1.9.0
+          env:
+            - name: WHOAMI_NAME
+              value: {{ .Values.test_app.name }}
+#          securityContext: {}
+#            allowPrivilegeEscalation: false
+##            runAsNonRoot: true
+#            capabilities:
+#              drop:
+#               - "ALL"
+#            seccompProfile:
+#              type: RuntimeDefault
+          ports:
+            - containerPort: 80
+              name: whoami-app-port
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami-service
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    io.cilium/global-service: 'true'
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: whoami-app-port
+  selector:
+    app: whoami-app
+
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: ingress-whoami-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEntities:
+        - cluster
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+  egress:
+    - toEntities:
+        - world
+    - toEntities:
+        - cluster
+    - toEndpoints:
+      - matchLabels:
+          io.kubernetes.pod.namespace: kube-system
+          k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+          rules:
+            dns:
+              - matchPattern: "*"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-gcp
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.test_app.fqdn }}
+  name: whoami-test-app
+  namespace: {{ .Release.Namespace }}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.test_app.fqdn }}
+      http:
+        paths:
+          - backend:
+              service:
+                name: whoami-service
+                port:
+                  name: http
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - {{ .Values.test_app.fqdn }}
+      secretName: tls.{{ .Values.test_app.fqdn }}
+

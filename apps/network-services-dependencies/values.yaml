@@ -1,0 +1,50 @@
+metallb:
+  crds:
+    enabled: true
+cilium:
+  ipam:
+    mode: kubernetes
+  kubeProxyReplacement: strict
+  securityContext:
+    privileged: true # ToDo: false | https://github.com/cilium/cilium/issues/21603#issuecomment-1453753820
+  cgroup:
+    autoMount:
+      enabled: false
+      hostRoot: /sys/fs/cgroup
+  enableXTSocketFallback: false
+  MTU: 1500
+  hubble:
+    enabled: true
+    peerService:
+      clusterDomain: # Set by task network.install-network-service-dependencies
+    metrics:
+      enabled:
+      - dns:query;ignoreAAAA
+      - drop
+      - tcp
+      - flow
+      - icmp
+      - http
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  bpf:
+    masquerade: true
+  encryption:
+    enabled: false # secret "cilium-ipsec-keys" not found
+  hostFirewall:
+    enabled: true
+  policyEnforcementMode: always
+  policyAuditMode: true # ToDo: Set to false
+  ipv4NativeRoutingCIDR: 10.0.0.0/8
+  externalWorkloads:
+    enabled: true
+  clustermesh:
+    useAPIServer: true
+    apiserver:
+      service:
+        type: LoadBalancer
+        annotations:
+          metallb.universe.tf/address-pool: mesh
+      replicas: 2

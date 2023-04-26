@@ -1,0 +1,7 @@
+metallb:
+  clusterName: # Populated by task: network.install-network-service
+  pools:
+    - name: # Populated by task: network.install-network-service
+      addresses: # Populated by task: network.install-network-service
+firewall:
+  enabled: false

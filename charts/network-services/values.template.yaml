@@ -1,5 +1,0 @@
-metallb:
-  clusterName: # ToDo
-  pools:
-    - name: # ToDo
-      addresses: # ToDo

@@ -16,3 +16,6 @@ kubectl -n kube-system exec kube-apiserver-talos-alloy-102-control-plane-kccvj -
   ServiceAccount, StorageObjectInUseProtection, TaintNodesByCondition, ValidatingAdmissionPolicy, 
   ValidatingAdmissionWebhook. The order of plugins in this flag does not matter.
 ```
+# debugging envoy
+- https://superorbital.io/blog/debugging-cilium-envoy-connection-failures/#enabling-cilium-envoy-debug-logs
+- https://layer5.io/blog/envoy/debug-envoy-proxy

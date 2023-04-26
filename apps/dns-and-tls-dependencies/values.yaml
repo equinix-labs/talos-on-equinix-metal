@@ -1,0 +1,11 @@
+cert-manager:
+  installCRDs: true
+  serviceAccount:
+    name: cert-manager
+external_dns:
+  version: v0.13.4
+  provider:
+    google:
+      enabled: true
+      google_project: passed via CLI
+      domain_filter: passed via CLI
