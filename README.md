@@ -1,10 +1,10 @@
 # Talos on Equinix Metal with Cluster API
 
-Following project in an attempt to formulate the best practices for running
+Following project in an attempt to run
 [Talos Linux](https://www.talos.dev/) on [Equinix Metal](https://deploy.equinix.com/metal/),
 via [Kubernetes Cluster API](https://cluster-api.sigs.k8s.io/).
 
-We will consider a basic model of 3 clusters. One management cluster, dedicated to Cluster API and other administrative 
+We will consider a basic model of 3 clusters. One management cluster, dedicated to Cluster API and other administrative
 tools. Two workload clusters deployed in different geographical locations. Workload clusters will advertise a
 [Global Anycast IP Address](https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/) as their
 Ingress Controller Load Balancer. This will allow us to operate a little bit like [cloudflare](https://blog.cloudflare.com/cloudflare-servers-dont-own-ips-anymore/)
@@ -104,7 +104,7 @@ graph LR
 ## Quick setup
 
 We will consider a simple model, consisting of 3 clusters as described above. Configuration input for the model is
-located in [invoke.yaml](invoke.yaml). In this document and code, I will refer to the model as `constellation`. Consisting 
+located in [invoke.yaml](invoke.yaml). In this document and code, I will refer to the model as `constellation`. Consisting
 of the management cluster named `jupiter` - the [barycenter](https://en.wikipedia.org/wiki/Barycenter)
 Together with two satellites - workload clusters: `ganymede` and `callisto`.
 
@@ -113,9 +113,9 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 - Account on [Equinix Metal](https://deploy.equinix.com/metal/)
 - Account on [GCP](https://cloud.google.com/gcp) together with access to domain managed by GCP  
   ( Feel free to open a PR extending support to other providers like AWS.)
-- Account on https://hub.docker.com 
+- Account on https://hub.docker.com
 - [zsh env](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) plugin or equivalent
-- MacOS users should consider [colima](https://github.com/abiosoft/colima) 
+- MacOS users should consider [colima](https://github.com/abiosoft/colima)
 - [kconf](https://github.com/particledecay/kconf)
 - [kind](https://kind.sigs.k8s.io/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
@@ -126,7 +126,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 
 ### environment
 
-- Once you clone this repository, `cd` into it and create a python [virtual environment](https://docs.python.org/3/library/venv.html) 
+- Once you clone this repository, `cd` into it and create a python [virtual environment](https://docs.python.org/3/library/venv.html)
   ```shell
   python -m venv
   ```
@@ -141,9 +141,9 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```shell
   invoke --list
   ```
-  If you never worked with `invoke`, this library is kind of like `make`. It allows one to invoke shell commands and 
+  If you never worked with `invoke`, this library is kind of like `make`. It allows one to invoke shell commands and
   at the same time conveniently(with python) convert different data structures(files)  
-  Most of the shell commands are echoed into the console, so that you can see what is happening behind the scene. 
+  Most of the shell commands are echoed into the console, so that you can see what is happening behind the scene.
 
 ### local cluster
 
@@ -151,27 +151,27 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   [colima](https://github.com/abiosoft/colima). At the time of writing, this setup did not work on Docker Desktop.
   This task will create a temporary local cluster k8s. It will provision it with  
   [CAPI](https://cluster-api.sigs.k8s.io/) and other providers:
-  [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos), 
-  [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos), 
+  [CABPT](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos),
+  [CACPPT](https://github.com/siderolabs/cluster-api-control-plane-provider-talos),
   [CAPP](https://github.com/kubernetes-sigs/cluster-api-provider-packet)
   ```sh
   invoke cluster.kind-clusterctl-init
   ```
-- Next, we will bundle few tasks together:  
+- Next, we will bundle few tasks together:
   - Register VIPs to be used
     - by Talos as the control plane endpoint.
     - by the Ingress Controller LoadBalancer
-    - by the Cluster Mesh API server LoadBalancer  
+    - by the Cluster Mesh API server LoadBalancer
   - Generate CAPI cluster manifest from template
-  
+
   `cluster.build-manifests` task, by default, reads its config from [invoke.yaml](invoke.yaml). Produces a bunch of files
   in the `screts` directory. Take some time to check out those files.
   ```shell
   invoke cluster.build-manifests
   ``` 
 ### barycenter
-- We are ready to boot our first cluster. It will become our new management cluster. Once it is ready 
-  we will transfer CAPI state from the local kind cluster onto it. Apply the cluster manifest 
+- We are ready to boot our first cluster. It will become our new management cluster. Once it is ready
+  we will transfer CAPI state from the local kind cluster onto it. Apply the cluster manifest
   ```sh
   kubectl apply -f secrets/jupiter/cluster-manifest.static-config.yaml
   ```
@@ -220,14 +220,14 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```
   We want all pods in `Running` state and all nodes in `Ready` state. If any of the pods has issues becoming operational.
   You can give it a gentle `kubectl delete pod`. If any of the nodes is not in the `Ready` state, take a break.
-- Will everything up and running we can proceed with setting up BGP. This step will path the cluster nodes with static 
+- Will everything up and running we can proceed with setting up BGP. This step will path the cluster nodes with static
   routes so that MetalLB speakers can reach their BGP peers
   ```shell
   invoke network.install-network-service
   ```
   At this point the `clustermesh-apiserver` service should get its LoadBalancer IP address.
 - Normally we would go straight to task `apps.install-dns-and-tls`, however this task expects a dedicated ServiceAccount
-  to be present in GCP, used for DNS management. Take a look at the methods `deploy_dns_management_token` 
+  to be present in GCP, used for DNS management. Take a look at the methods `deploy_dns_management_token`
   and `deploy_dns_management_token`. If you have access to the GCP console and a domain managed by it,
   you can create an account like that. By following [instructions](https://cert-manager.io/v1.6-docs/configuration/acme/dns01/google/).
   Once you have the account run
@@ -273,7 +273,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```shell
   invoke cluster.clusterctl-move
   ```
-  Switch context to `jupiter`   
+  Switch context to `jupiter`
   ```shell
   kconf use admin@jupiter
   ```
@@ -294,14 +294,14 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```shell
   talosctl get kubespanpeerstatus
   ```
-  
+
 ### satellites
 
 If you made it this far, and everything works, **congratulations !!!**  
 We have the management cluster in place, but in order to complete the constellation we need to deploy
 `ganymede` and `callisto`.  
 This should be easier this time, because the flow is mostly the same as in the case of management cluster.
-At this state it is a good idea to open another terminal and with each cluster complete open a tab with
+At this state it is a good idea to open another terminal and with each cluster complete open a tab with  
 `k9s --context admin@CONSTELLATION_MEMBER`.
 - Pick the one satellite you would like to go first and stick to it. Once the process is complete repeat it for remaining
   cluster.
@@ -365,7 +365,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   ```shell
   kubectl get services -n ingress-bundle ingress-bundle-ingress-nginx-controller
   ```
-  This IP address should be the same in all satellite clusters ([Anycast](https://en.wikipedia.org/wiki/Anycast)). 
+  This IP address should be the same in all satellite clusters ([Anycast](https://en.wikipedia.org/wiki/Anycast)).
 - If everything is OK proceed with demo app
   ```shell
   invoke apps.install-whoami-app
@@ -416,7 +416,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   ```shell
   invoke network.enable-cluster-mesh
   ```
-  Once complete you should get 
+  Once complete you should get
   ```shell
   ❯ cilium --namespace network-services clustermesh status
   ✅ Cluster access information is available:
@@ -429,7 +429,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   🔀 Global services: [ min:14 / avg:14.0 / max:14 ]
   ```
 - Now you can play with Cilium [Load-balancing & Service Discovery](https://docs.cilium.io/en/stable/network/clustermesh/services/)
-- And with already present `whoami` app
+- And with already present `whoami` app.  
   Grap the name of a running debug pod
   ```shell
   kubectl get pods -n network-services | grep debug
@@ -440,7 +440,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   You should be getting responses randomly from `ganymede` and `callisto`
 ## developer setup
 
-Consider this only if you need to dig deep into how individual providers work. 
+Consider this only if you need to dig deep into how individual providers work.
 
 ### prerequisites
 On top of [user prerequisites](#prerequisites)
@@ -476,6 +476,6 @@ On top of [user prerequisites](#prerequisites)
   - For additional instructions consider:
     - [Cluster Management API provider for Packet](https://github.com/kubernetes-sigs/cluster-api-provider-packet)
     - [Kubernetes Cloud Provider for Equinix Metal](https://github.com/equinix/cloud-provider-equinix-metal)
-    - [Collection of templates for CAPI + Talos](https://github.com/siderolabs/cluster-api-templates) 
+    - [Collection of templates for CAPI + Talos](https://github.com/siderolabs/cluster-api-templates)
     - [Control plane provider for CAPI + Talos](https://github.com/siderolabs/cluster-api-control-plane-provider-talos)
     - [Cluster-api bootstrap provider for deploying Talos clusters.](https://github.com/siderolabs/cluster-api-bootstrap-provider-talos)
