@@ -2,8 +2,14 @@ import os
 
 from invoke import Collection
 
-from tasks_pkg import apps, network, cluster, equinix_metal, k8s_context
-from tasks_pkg.helpers import get_secrets_dir
+from . import apps
+from . import helpers
+from . import metal
+from . import network
+from . import cluster
+from . import k8s_context
+from . import equinix_metal
+from .helpers import get_project_root, get_secrets_dir
 
 ns = Collection()
 ns.add_collection(cluster)
@@ -15,7 +21,7 @@ ns.add_collection(k8s_context)
 
 ns.configure({
     'tasks': {
-        'search_root': os.environ.get('TOEM_PROJECT_ROOT')
+        'search_root': get_project_root()
     },
     'core': {
         'secrets_dir': get_secrets_dir(),

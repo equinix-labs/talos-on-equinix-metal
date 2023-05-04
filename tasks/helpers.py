@@ -2,6 +2,7 @@ import base64
 import json
 import os
 
+import git
 import yaml
 
 
@@ -40,6 +41,18 @@ def get_cluster_spec_from_context(ctx):
             return cluster_spec
 
     print("k8s context: '{}' not in constellation".format(context.strip()))
+
+
+def get_project_root():
+    git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
+    return git_repo.git.rev_parse("--show-toplevel")
+
+
+def get_config_dir(default_config_dir_name=".gocy"):
+    return os.path.join(
+        os.path.expanduser('~'),
+        default_config_dir_name
+    )
 
 
 def get_secrets_dir():

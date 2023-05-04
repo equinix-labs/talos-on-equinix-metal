@@ -1,7 +1,7 @@
 import os
 
 from invoke import task
-from tasks_pkg.helpers import get_secrets_dir, get_cluster_spec_from_context
+from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context
 
 
 def get_gcp_token_file_name():

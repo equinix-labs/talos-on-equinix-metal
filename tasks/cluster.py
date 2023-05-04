@@ -6,11 +6,11 @@ import shutil
 import yaml
 from invoke import task
 
-from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
-from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
+from tasks.equinix_metal import generate_cpem_config, register_vips
+from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec, get_cluster_spec_from_context
-from tasks_pkg.k8s_context import use_kind_cluster_context, use_bary_cluster_context
-from tasks_pkg.network import build_network_service_dependencies_manifest
+from tasks.k8s_context import use_kind_cluster_context, use_bary_cluster_context
+from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump

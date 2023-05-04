@@ -2,7 +2,7 @@ from pprint import pprint
 
 from invoke import task
 
-from tasks_pkg.helpers import get_constellation_spec
+from tasks.helpers import get_constellation_spec
 
 
 def _use_cluster_context(ctx, cluster_data, kind_cluster_name="kind-toem-capi-local"):

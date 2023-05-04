@@ -6,7 +6,7 @@ import ipcalc
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_secrets_dir, \
+from tasks.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_cfg, get_constellation_spec
 
 yaml.add_representer(str, str_presenter)
