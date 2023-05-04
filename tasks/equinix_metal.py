@@ -30,7 +30,7 @@ def generate_cpem_config(ctx, cpem_config_file_name="cpem/cpem.yaml"):
     --dry-run='client' secret generic -n kube-system metal-cloud-config \
     --from-literal='cloud-sa.json={}'"
 
-    print("In background ran something similar to: \n{}".format(command))
+    print(command.format('[REDACTED]'))
     k8s_secret = ctx.run(command.format(
         json.dumps(cpem_config)
     ), hide='stdout', echo=False)

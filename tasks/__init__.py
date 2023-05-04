@@ -3,12 +3,12 @@ import os
 from invoke import Collection
 
 from . import apps
-from . import helpers
-from . import metal
-from . import network
 from . import cluster
-from . import k8s_context
 from . import equinix_metal
+from . import gocy
+from . import helpers
+from . import k8s_context
+from . import network
 from .helpers import get_project_root, get_secrets_dir
 
 ns = Collection()
@@ -17,6 +17,7 @@ ns.add_collection(network)
 ns.add_collection(apps)
 ns.add_collection(equinix_metal)
 ns.add_collection(k8s_context)
+ns.add_collection(gocy)
 
 
 ns.configure({

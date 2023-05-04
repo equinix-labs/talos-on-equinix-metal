@@ -3,5 +3,6 @@
 
 *log*
 *secret*
-*test*
+!templates/secrets.yaml
 
+*cache*

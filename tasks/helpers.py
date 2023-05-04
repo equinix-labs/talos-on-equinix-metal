@@ -49,6 +49,10 @@ def get_project_root():
 
 
 def get_config_dir(default_config_dir_name=".gocy"):
+    default_root = os.environ.get('GOCY_DEFAULT_ROOT', None)
+    if default_root is not None:
+        return default_root
+
     return os.path.join(
         os.path.expanduser('~'),
         default_config_dir_name
