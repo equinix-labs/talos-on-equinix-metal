@@ -1,4 +1,5 @@
 constellation:
+  name: demo
   bary:
     name: jupiter
     pod_cidr_blocks:

@@ -60,10 +60,15 @@ def get_config_dir(default_config_dir_name=".gocy"):
 
 
 def get_secrets_dir():
-    return os.path.join(
-        os.environ.get('TOEM_PROJECT_ROOT'),
-        os.environ.get('TOEM_SECRETS_DIR')
-    )
+    return get_config_dir()
+
+
+def get_secrets_file_name():
+    return os.path.join(get_config_dir(), 'secrets.yaml')
+
+
+def get_config_file_name():
+    return os.path.join(get_config_dir(), 'config.yaml')
 
 
 def get_cpem_config():
