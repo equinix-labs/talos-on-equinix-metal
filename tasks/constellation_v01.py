@@ -1,76 +1,47 @@
-from yamlable import yaml_info, YamlAble
+from pydantic import BaseModel
+from pydantic_yaml import YamlStrEnum, YamlModel
 
 
-@yaml_info(yaml_tag_ns='v01')
-class VipType(YamlAble):
+class VipType(YamlStrEnum):
     public_ipv4 = 'public_ipv4'
     global_ipv4 = 'global_ipv4'
 
 
-@yaml_info(yaml_tag_ns='v01')
-class VipRole(YamlAble):
+class VipRole(YamlStrEnum):
     cp = 'cp'
     ingress = 'ingress'
     mesh = 'mesh'
 
 
-@yaml_info(yaml_tag_ns='v01')
-class Vip(YamlAble):
-    def __init__(self, role: VipRole, count: int, vip: VipType):
-        self.role = role
-        self.count = count
-        self.vip = vip
+class Vip(BaseModel):
+    role: VipRole = None
+    count: int = 0
+    vipType: VipType = None
 
 
-@yaml_info(yaml_tag_ns='v01')
-class Node(YamlAble):
-    def __init__(self, count: int, plan: str):
-        self.count = count
-        self.plan = plan
+class Node(BaseModel):
+    count: int = 0
+    plan: str = ''
 
 
-@yaml_info(yaml_tag_ns='v01')
-class Cluster(YamlAble):
-    def __init__(
-            self,
-            name: str,
-            metro: str,
-            cpem: str,
-            pod_cidr_blocks: list[str],
-            service_cidr_blocks: list[str],
-            vips: list[Vip],
-            control_nodes: list[Node],
-            worker_nodes: list[Node]
-    ):
-        self.name = name
-        self.pod_cidr_blocks = pod_cidr_blocks
-        self.service_cidr_blocks = service_cidr_blocks
-        self.metro = metro
-        self.cpem = cpem
-        self.vips = vips
-        self.control_nodes = control_nodes
-        self.worker_nodes = worker_nodes
+class Cluster(BaseModel):
+    name: str = ''
+    metro: str = ''
+    cpem: str = ''
+    pod_cidr_blocks: list[str] = []
+    service_cidr_blocks: list[str] = []
+    vips: list[Vip] = []
+    control_nodes: list[Node] = []
+    worker_nodes: list[Node] = []
 
 
-@yaml_info(yaml_tag_ns='v01')
-class Constellation(YamlAble):
-    def __init__(
-            self,
-            name: str,
-            capi: str,
-            cabpt: str,
-            cacppt: str,
-            capp: str,
-            version: str,
-            bary: Cluster,
-            satellites: [Cluster]
-    ):
-        self.name = name
-        self.capi = capi
-        self.cabpt = cabpt
-        self.cacppt = cacppt
-        self.capp = capp
-        self.bary = bary
-        self.version = version
-        self.satellites = satellites
+class Constellation(YamlModel):
+    name: str = 'name'
+    capi: str = 'capi'
+    cabpt: str = 'cabpt'
+    cacppt: str = 'cacppt'
+    capp: str = 'capp'
+    version: str = 'version'
+    bary: Cluster = None
+    satellites: list[Cluster] = []
 
