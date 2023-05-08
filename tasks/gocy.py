@@ -1,9 +1,11 @@
+import glob
 import os
 
 import yaml
 from invoke import task
 
-from tasks.helpers import get_config_dir, get_config_file_name, get_secrets_file_name
+from tasks.constellation_v01 import Constellation
+from tasks.helpers import get_config_dir, get_secrets_file_name
 
 
 @task()
@@ -19,11 +21,11 @@ def init(ctx):
 
     ctx.run("mkdir {}".format(get_config_dir()), echo=True)
     ctx.run("cp {} {}".format(
-        get_config_file_name(),
+        os.path.join('templates', 'secrets.yaml'),
         os.path.join(get_config_dir())
     ), echo=True)
     ctx.run("cp {} {}".format(
-        get_secrets_file_name(),
+        os.path.join('templates', 'demo.constellation.yaml'),
         os.path.join(get_config_dir())
     ), echo=True)
 
@@ -42,3 +44,26 @@ def secret_source(ctx):
             source.append('export {}={}'.format(name, value))
 
     print("\n".join(source))
+
+
+@task()
+def list_constellations(ctx):
+    """
+    List available constellation config specs (local)
+    """
+    available_constellation_config_file_names = glob.glob(
+        os.path.join(
+            get_config_dir(),
+            '*.constellation.yaml')
+        )
+
+    for available_constellation_config_file_name in available_constellation_config_file_names:
+        print(available_constellation_config_file_name)
+
+
+@task()
+def dump_config(ctx):
+    test = Constellation(name='test')
+    with open(os.path.join(get_config_dir(), 'test.yaml'), 'w') as test_config_file:
+        test.dump_yaml(test_config_file, default_flow_style=False, tags=None)
+

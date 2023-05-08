@@ -1,12 +1,13 @@
 constellation:
   name: demo
+  version: 0.1.0
   bary:
     name: jupiter
     pod_cidr_blocks:
       - 172.16.0.0/17
     service_cidr_blocks:
       - 172.16.128.0/17
-    facility: pa4
+    metro: pa
     vips:
       - role: cp
         count: 1
@@ -30,7 +31,7 @@ constellation:
         - 172.17.0.0/17
       service_cidr_blocks:
         - 172.17.128.0/17
-      facility: md2
+      metro: md
       vips:
         - role: cp
           count: 1
@@ -53,7 +54,7 @@ constellation:
         - 172.18.0.0/17
       service_cidr_blocks:
         - 172.18.128.0/17
-      facility: fr2
+      metro: md
       vips:
         - role: cp
           count: 1
