@@ -6,6 +6,11 @@ import os
 import git
 import yaml
 
+from tasks.constellation_v01 import Constellation, Cluster
+
+
+CONSTELLATION_FILE_SUFFIX = '.constellation.yaml'
+
 
 def str_presenter(dumper, data):
     """configures yaml for dumping multiline strings
@@ -22,23 +27,16 @@ def get_cfg(value, default):
     return value
 
 
-def get_constellation_spec(ctx):
-    clusters = list()
-    clusters.append(ctx.constellation.bary)
-    clusters.extend(ctx.constellation.satellites)
-    return clusters
-
-
 def get_cluster_spec(ctx, name):
-    for cluster_spec in get_constellation_spec(ctx):
-        if cluster_spec['name'] == name:
+    for cluster_spec in get_constellation_clusters():
+        if cluster_spec.name == name:
             return cluster_spec
 
 
-def get_cluster_spec_from_context(ctx):
+def get_cluster_spec_from_context(ctx) -> Cluster:
     context = ctx.run("kubectl config current-context", hide='stdout', echo=True).stdout
-    for cluster_spec in get_constellation_spec(ctx):
-        if cluster_spec['name'] in context:
+    for cluster_spec in get_constellation_clusters():
+        if cluster_spec.name in context:
             return cluster_spec
 
     print("k8s context: '{}' not in constellation".format(context.strip()))
@@ -58,10 +56,6 @@ def get_config_dir(default_config_dir_name=".gocy"):
         os.path.expanduser('~'),
         default_config_dir_name
     )
-
-
-def get_secrets_dir():
-    return get_config_dir()
 
 
 def get_secrets_file_name():
@@ -90,7 +84,7 @@ def get_file_content_as_b64(filename):
 def get_vips(cluster_spec, role):
     with open(os.path.join(
             get_secrets_dir(),
-            cluster_spec['name'],
+            cluster_spec.name,
             'ip-{}-addresses.yaml'.format(role)
     ), 'r') as cp_address:
         return yaml.safe_load(cp_address)
@@ -104,7 +98,7 @@ def get_cluster_name():
     return os.environ.get('CLUSTER_NAME')
 
 
-def available_constellation_specs(constellation_wildcard='*.constellation.yaml'):
+def available_constellation_specs(constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
     available_constellation_config_file_names = glob.glob(
         os.path.join(
             get_config_dir(),
@@ -120,7 +114,7 @@ def get_constellation_context_file_name(name="ccontext"):
     return os.path.join(get_config_dir(), name)
 
 
-def _get_ccontext(default_ccontext='jupiter'):
+def get_ccontext(default_ccontext='jupiter'):
     try:
         with open(get_constellation_context_file_name()) as cc_file:
             ccontext = cc_file.read()
@@ -129,3 +123,26 @@ def _get_ccontext(default_ccontext='jupiter'):
             return ccontext
     except OSError:
         return default_ccontext
+
+
+def get_secrets_dir():
+    return os.path.join(
+        get_config_dir(),
+        get_ccontext()
+    )
+
+
+def get_constellation(name=None) -> Constellation:
+    if name is None:
+        name = get_ccontext()
+
+    with open(os.path.join(get_config_dir(), name + CONSTELLATION_FILE_SUFFIX)) as constellation_file:
+        return Constellation.parse_raw(constellation_file.read())
+
+
+def get_constellation_clusters() -> list[Cluster]:
+    clusters = list()
+    constellation = get_constellation()
+    clusters.append(constellation.bary)
+    clusters.extend(constellation.satellites)
+    return clusters

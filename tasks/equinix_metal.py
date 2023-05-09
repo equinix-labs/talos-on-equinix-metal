@@ -6,8 +6,9 @@ import ipcalc
 import yaml
 from invoke import task
 
+from tasks.constellation_v01 import Cluster, VipRole, VipType
 from tasks.helpers import str_presenter, get_secrets_dir, \
-    get_cpem_config, get_cfg, get_constellation_spec
+    get_cpem_config, get_cfg, get_constellation_clusters, get_constellation
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -47,11 +48,11 @@ def create_config_dirs(ctx):
     """
     Produces [secrets_dir]/[cluster_name...] config directories based of spec defined in invoke.yaml
     """
-    cluster_spec = get_constellation_spec(ctx)
+    cluster_spec = get_constellation_clusters()
     for cluster in cluster_spec:
         ctx.run("mkdir -p {}".format(os.path.join(
             get_secrets_dir(),
-            cluster['name']
+            cluster.name
         )), echo=True)
 
 
@@ -78,45 +79,48 @@ def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
         _render_ip_addresses_file(yaml.safe_load(ip_reservations_file), addresses, ip_addresses_file_name)
 
 
-def get_ip_addresses_file_name(cluster_spec, address_role):
+def get_ip_addresses_file_name(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
-        cluster_spec['name'],
+        cluster_spec.name,
         "ip-{}-addresses.yaml".format(address_role)
     )
 
 
-def get_ip_reservation_file_name(cluster_spec, address_role):
+def get_ip_reservation_file_name(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
-        cluster_spec['name'],
+        cluster_spec.name,
         "ip-{}-reservation.yaml".format(address_role)
     )
 
 
-def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
+def register_global_vip(ctx, cluster: Cluster, cp_tags, ip_reservations_file_name):
     """
     We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
     affect the management cluster (bary).
     """
-    if cluster_spec['name'] != ctx.constellation.bary.name:
+    constellation = get_constellation()
+    if cluster.name != constellation.bary.name:
         existing_ip_reservation_file_names = glob.glob(
             os.path.join(
-                ctx.core.secrets_dir,
+                get_secrets_dir(),
                 '**',
                 os.path.basename(ip_reservations_file_name)
             ),
             recursive=True)
         for existing_ip_reservation_file_name in existing_ip_reservation_file_names:
-            if ctx.constellation.bary.name not in existing_ip_reservation_file_name:
-                if cluster_spec['name'] not in existing_ip_reservation_file_name:
-                    print('Global IP reservation file already exists. Copying config for satellite: '
-                          + cluster_spec['name'])
-                    ctx.run('cp {} {}'.format(
-                        existing_ip_reservation_file_name,
-                        ip_reservations_file_name
-                    ), echo=True)
-                    return
+            if cluster.name not in existing_ip_reservation_file_name:
+                with open(existing_ip_reservation_file_name) as existing_ip_reservation_file:
+                    existing_ip_reservation = yaml.safe_load(existing_ip_reservation_file)
+                    if existing_ip_reservation['type'] == 'global_ipv4':
+                        print('Global IP reservation file already exists. Copying config for satellite: '
+                              + cluster.name)
+                        ctx.run('cp {} {}'.format(
+                            existing_ip_reservation_file_name,
+                            ip_reservations_file_name
+                        ), echo=True)
+                        return
 
     # Todo: There is a bug in Metal CLI that prevents us from using the CLI in this case.
     #       Thankfully API endpoint works.
@@ -139,18 +143,19 @@ def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
             ), echo=True)
 
 
-def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address_type, address_count):
-    cluster_facility = cluster_spec['facility']
+def register_vip(ctx, cluster: Cluster, project_ips_file_name,
+                 address_role: VipRole, address_type: VipType, address_count: int):
+    cluster_metro = cluster.metro
 
-    ip_reservations_file_name = get_ip_reservation_file_name(cluster_spec, address_role)
-    ip_addresses_file_name = get_ip_addresses_file_name(cluster_spec, address_role)
+    ip_reservations_file_name = get_ip_reservation_file_name(cluster, address_role)
+    ip_addresses_file_name = get_ip_addresses_file_name(cluster, address_role)
     # ToDo: Most likely, despite all the efforts to disable it
     #   https://github.com/kubernetes-sigs/cluster-api-provider-packet registers a VIP
     #   We need one so we will use it...
     if address_role == 'cp':
-        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster_spec['name'])]
+        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
     else:
-        cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
+        cp_tags = ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
 
     if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
@@ -161,7 +166,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
         addresses = list()
         # ToDo: OMG FIX or DELETE ME!
         for ip_spec in yaml.safe_load(all_ips_file):
-            if (ip_spec['global_ip'] or ('facility' in ip_spec and ip_spec['facility']['code'] == cluster_facility))\
+            if (ip_spec['global_ip'] or ('metro' in ip_spec and ip_spec['metro']['code'] == cluster_metro))\
                     and 'tags' in ip_spec and len(ip_spec.get('tags')) > 0 and ip_spec.get('tags')[0] == cp_tags[0]:
                 _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
                 no_reservations = False
@@ -171,16 +176,16 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
 
         if no_reservations:
             if address_type == 'public_ipv4':
-                ctx.run("metal ip request -p {} -t {} -q {} -f {} --tags '{}' -o yaml > {}".format(
+                ctx.run("metal ip request --project-id {} --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
                     "${METAL_PROJECT_ID}",
                     address_type,
                     address_count,
-                    cluster_facility,
+                    cluster_metro,
                     ",".join(cp_tags),
                     ip_reservations_file_name
                 ), echo=True)
             elif address_type == 'global_ipv4':
-                register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name)
+                register_global_vip(ctx, cluster, cp_tags, ip_reservations_file_name)
             else:
                 print("Unsupported address_type: " + address_type)
 
@@ -193,10 +198,10 @@ def register_vips(ctx, project_ips_file_name=None):
     Registers VIPs as per constellation spec in invoke.yaml
     """
     project_ips_file_name = get_cfg(project_ips_file_name, ctx.equinix_metal.project_ips_file_name)
-    constellation_spec = get_constellation_spec(ctx)
+    constellation_spec = get_constellation_clusters()
     for cluster_spec in constellation_spec:
-        for vip in cluster_spec['vips']:
-            register_vip(ctx, cluster_spec, project_ips_file_name, vip['role'], vip['type'], vip['count'])
+        for vip in cluster_spec.vips:
+            register_vip(ctx, cluster_spec, project_ips_file_name, vip.role, vip.vipType, vip.count)
 
 
 @task()

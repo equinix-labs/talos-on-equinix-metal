@@ -2,7 +2,7 @@ from pprint import pprint
 
 from invoke import task
 
-from tasks.helpers import get_constellation_spec
+from tasks.helpers import get_constellation_clusters
 
 
 def _use_cluster_context(ctx, cluster_data, kind_cluster_name="kind-toem-capi-local"):
@@ -14,10 +14,10 @@ def _use_cluster_context(ctx, cluster_data, kind_cluster_name="kind-toem-capi-lo
     else:
         cluster_name = ""
 
-    constellation_spec = get_constellation_spec(ctx)
+    constellation_spec = get_constellation_clusters()
     known_cluster_context = False
     for cluster_spec in constellation_spec:
-        if cluster_name == kind_cluster_name or cluster_name == cluster_spec['name']:
+        if cluster_name == kind_cluster_name or cluster_name == cluster_spec.name:
             known_cluster_context = True
 
     if not known_cluster_context:

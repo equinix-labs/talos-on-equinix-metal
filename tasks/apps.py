@@ -104,7 +104,7 @@ def install_whoami_app(ctx):
                     "whoami.{}.{}".format(
                         os.environ.get('TOEM_TEST_SUBDOMAIN'),
                         os.environ.get('GCP_DOMAIN')
-                    ), cluster_spec['name']
+                    ), cluster_spec.name
                 ), echo=True)
 
 

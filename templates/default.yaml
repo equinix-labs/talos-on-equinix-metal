@@ -29,7 +29,7 @@ metadata:
   name: "${CLUSTER_NAME}"
 spec:
   projectID: ${PROJECT_ID}
-  facility: ${FACILITY}
+  metro: ${METRO}
   vipManager: "KUBE_VIP"
   controlPlaneEndpoint:
     host: ${TOEM_CP_ENDPOINT}

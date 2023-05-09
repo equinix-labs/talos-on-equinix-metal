@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 from tasks.constellation_v01 import Constellation
 from tasks.helpers import get_config_dir, get_secrets_file_name, available_constellation_specs, \
-    get_constellation_context_file_name, _get_ccontext
+    get_constellation_context_file_name, get_ccontext
 
 
 @task()
@@ -50,7 +50,7 @@ def secret_source(ctx):
 
 
 @task()
-def set_ccontext(ctx, ccontext: str):
+def ccontext_set(ctx, ccontext: str):
     """
     Set default Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
@@ -71,12 +71,12 @@ def set_ccontext(ctx, ccontext: str):
 
 
 @task()
-def get_ccontext(ctx):
+def ccontext_get(ctx):
     """
     Get default Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
     default - jupiter
     """
-    print(_get_ccontext())
+    print(get_ccontext())
 
 
 @task()
@@ -84,9 +84,8 @@ def list_constellations(ctx):
     """
     List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
     """
-
     table = [['file', 'valid', 'name', 'version', 'ccontext']]
-    ccontext = _get_ccontext()
+    ccontext = get_ccontext()
     for available_constellation in available_constellation_specs():
         row = [available_constellation.name]
         try:
