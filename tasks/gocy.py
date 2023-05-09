@@ -3,9 +3,12 @@ import os
 
 import yaml
 from invoke import task
+from pydantic import ValidationError
+from tabulate import tabulate
 
 from tasks.constellation_v01 import Constellation
-from tasks.helpers import get_config_dir, get_secrets_file_name
+from tasks.helpers import get_config_dir, get_secrets_file_name, available_constellation_specs, \
+    get_constellation_context_file_name, _get_ccontext
 
 
 @task()
@@ -47,23 +50,57 @@ def secret_source(ctx):
 
 
 @task()
-def list_constellations(ctx):
+def set_ccontext(ctx, ccontext: str):
     """
-    List available constellation config specs (local)
+    Set default Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
-    available_constellation_config_file_names = glob.glob(
-        os.path.join(
-            get_config_dir(),
-            '*.constellation.yaml')
-        )
+    written = False
+    for available_constellation in available_constellation_specs():
+        try:
+            constellation = Constellation.parse_raw(available_constellation.read())
+            if constellation.name == ccontext:
+                with open(get_constellation_context_file_name(), 'w') as cc_file:
+                    cc_file.write(ccontext)
+                    written = True
+        except ValidationError:
+            pass
 
-    for available_constellation_config_file_name in available_constellation_config_file_names:
-        print(available_constellation_config_file_name)
+    if not written:
+        print("Context not set, make sure the name is correct,"
+              " and matches those defined in ~/[GOCY_DIR]/*.constellation.yaml")
 
 
 @task()
-def dump_config(ctx):
-    test = Constellation(name='test')
-    with open(os.path.join(get_config_dir(), 'test.yaml'), 'w') as test_config_file:
-        test.dump_yaml(test_config_file, default_flow_style=False, tags=None)
+def get_ccontext(ctx):
+    """
+    Get default Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
+    default - jupiter
+    """
+    print(_get_ccontext())
 
+
+@task()
+def list_constellations(ctx):
+    """
+    List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
+    """
+
+    table = [['file', 'valid', 'name', 'version', 'ccontext']]
+    ccontext = _get_ccontext()
+    for available_constellation in available_constellation_specs():
+        row = [available_constellation.name]
+        try:
+            constellation = Constellation.parse_raw(available_constellation.read())
+            row.append(True)
+            row.append(constellation.name)
+            row.append(constellation.version)
+            if ccontext == constellation.name:
+                row.append(True)
+            else:
+                row.append(False)
+        except ValidationError:
+            row.append(False)
+        finally:
+            table.append(row)
+
+    print(tabulate(table))

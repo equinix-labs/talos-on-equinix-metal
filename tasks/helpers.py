@@ -1,4 +1,5 @@
 import base64
+import glob
 import json
 import os
 
@@ -101,3 +102,30 @@ def get_cp_vip_address(cluster_spec):
 
 def get_cluster_name():
     return os.environ.get('CLUSTER_NAME')
+
+
+def available_constellation_specs(constellation_wildcard='*.constellation.yaml'):
+    available_constellation_config_file_names = glob.glob(
+        os.path.join(
+            get_config_dir(),
+            constellation_wildcard)
+    )
+
+    for available_constellation_config_file_name in available_constellation_config_file_names:
+        with open(available_constellation_config_file_name) as available_constellation_config_file:
+            yield available_constellation_config_file
+
+
+def get_constellation_context_file_name(name="ccontext"):
+    return os.path.join(get_config_dir(), name)
+
+
+def _get_ccontext(default_ccontext='jupiter'):
+    try:
+        with open(get_constellation_context_file_name()) as cc_file:
+            ccontext = cc_file.read()
+            if ccontext == '':
+                raise OSError
+            return ccontext
+    except OSError:
+        return default_ccontext

@@ -71,6 +71,7 @@ def get_demo_constellation():
 
 
 def test_constellation_is_writeable(tmp_path):
+    # https://github.com/NowanIlfideme/pydantic-yaml/tree/v0.11.2
     demo = get_demo_constellation()
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as cfg_file:
         cfg_file.write(demo.yaml())

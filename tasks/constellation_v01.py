@@ -36,6 +36,7 @@ class Cluster(BaseModel):
 
 
 class Constellation(YamlModel):
+    # https://docs.pydantic.dev/latest/
     name: str = 'name'
     capi: str = 'capi'
     cabpt: str = 'cabpt'
