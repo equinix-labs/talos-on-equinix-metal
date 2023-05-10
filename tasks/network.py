@@ -5,9 +5,9 @@ import os
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_spec, get_vips, get_file_content_as_b64
-from tasks_pkg.k8s_context import use_bary_cluster_context
+from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
+    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation
+from tasks.k8s_context import use_bary_cluster_context
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -29,7 +29,7 @@ def setup_dockerhub_pull_secret(ctx, namespace="network-services"):
         }
     }
 
-    docker_config_file_name = os.path.join(ctx.core.secrets_dir, "docker.config.json")
+    docker_config_file_name = os.path.join(get_secrets_dir(), "docker.config.json")
     with open(docker_config_file_name, 'w') as docker_config_file:
         json.dump(docker_config, docker_config_file)
 
@@ -74,7 +74,7 @@ def apply_kubespan_patch(ctx):
     """
     cluster_spec = get_cluster_spec_from_context(ctx)
     ctx.run("talosctl --context {} patch mc -p @patch-templates/kubespan/common.pt.yaml".format(
-        cluster_spec['name']
+        cluster_spec.name
     ), echo=True)
 
 
@@ -86,13 +86,13 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
     Something like https://github.com/kubernetes-sigs/cluster-api-provider-packet/blob/main/templates/cluster-template-kube-vip.yaml#L195
     """
     cluster_spec = get_cluster_spec_from_context(ctx)
-    cluster_cfg_dir = os.path.join(ctx.core.secrets_dir, cluster_spec['name'])
+    cluster_cfg_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
 
     with open(os.path.join(cluster_cfg_dir, talosconfig_file_name), 'r') as talosconfig_file:
         talosconfig = yaml.safe_load(talosconfig_file)
 
     templates_directory = os.path.join('patch-templates', 'bgp')
-    patches_directory = os.path.join(ctx.core.secrets_dir, 'patch', 'bgp')
+    patches_directory = os.path.join(get_secrets_dir(), 'patch', 'bgp')
     ctx.run("mkdir -p " + patches_directory, echo=True)
 
     with ctx.cd(templates_directory):
@@ -144,7 +144,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
         except ValueError:
             pass
 
-        talosconfig_addresses = talosconfig['contexts'][cluster_spec['name']]['nodes']
+        talosconfig_addresses = talosconfig['contexts'][cluster_spec.name]['nodes']
         try:
             talosconfig_addresses.remove(cp_vip)
         except ValueError:
@@ -275,7 +275,7 @@ def install_network_service_dependencies(ctx):
     """
     chart_directory = os.path.join('apps', 'network-services-dependencies')
     cluster_spec = get_cluster_spec_from_context(ctx)
-    constellation_spec = get_constellation_spec(ctx)
+    constellation_spec = get_constellation_clusters()
 
     # We have to count form one
     # Error: Unable to connect cluster:
@@ -302,9 +302,9 @@ def install_network_service_dependencies(ctx):
                 "--namespace network-services network-services-dependencies ./".format(
                     get_cp_vip_address(get_cluster_spec_from_context(ctx)),
                     '6443',
-                    cluster_spec['name'],
+                    cluster_spec.name,
                     cluster_id,
-                    cluster_spec['name'] + '.local',
+                    cluster_spec.name + '.local',
                     ca_crt,
                     ca_key
                 ),
@@ -319,13 +319,13 @@ def install_network_service(ctx):
     1 PublicIPv4 for Cilium Mesh API server.
     """
     cluster_spec = get_cluster_spec_from_context(ctx)
-    cluster_cfg_dir = os.path.join(ctx.core.secrets_dir, cluster_spec['name'])
+    cluster_cfg_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
     mesh_vips = get_vips(cluster_spec, 'mesh')
     ingress_vips = get_vips(cluster_spec, 'ingress')
     chart_directory = os.path.join('apps', 'network-services')
     with open(os.path.join(chart_directory, 'values.template.yaml'), 'r') as value_template_file:
         chart_values = dict(yaml.safe_load(value_template_file))
-        chart_values['metallb']['clusterName'] = cluster_spec['name']
+        chart_values['metallb']['clusterName'] = cluster_spec.name
         chart_values['metallb']['pools'] = list()
         chart_values['metallb']['pools'].append({
             'name': 'mesh',
@@ -356,12 +356,13 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
     https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
     """
     use_bary_cluster_context(ctx)
-    for cluster_spec in get_constellation_spec(ctx):
-        if cluster_spec['name'] != ctx.constellation.bary.name:
+    constellation = get_constellation()
+    for cluster in get_constellation_clusters():
+        if cluster.name != constellation.bary.name:
             ctx.run("cilium --namespace {} --context {} clustermesh connect --destination-context {}".format(
                 namespace,
-                'admin@' + ctx.constellation.bary.name,
-                'admin@' + cluster_spec['name']
+                'admin@' + constellation.bary.name,
+                'admin@' + cluster.name
             ), echo=True)
         else:
-            print("Switch k8s context to {} and try again".format(ctx.constellation.bary.name))
+            print("Switch k8s context to {} and try again".format(constellation.bary.name))

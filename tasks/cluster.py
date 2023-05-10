@@ -6,11 +6,12 @@ import shutil
 import yaml
 from invoke import task
 
-from tasks_pkg.equinix_metal import generate_cpem_config, register_vips
-from tasks_pkg.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address, get_constellation_spec, get_cluster_spec, get_cluster_spec_from_context
-from tasks_pkg.k8s_context import use_kind_cluster_context, use_bary_cluster_context
-from tasks_pkg.network import build_network_service_dependencies_manifest
+from tasks.equinix_metal import generate_cpem_config, register_vips
+from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
+    get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
+    get_cluster_spec_from_context, get_constellation
+from tasks.k8s_context import use_kind_cluster_context, use_bary_cluster_context
+from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -58,7 +59,7 @@ def template_cluster_template(ctx, cluster_template_name='default.yaml'):
     As a result of a bug? settings in Cluster.spec.clusterNetwork do not affect the running cluster.
     Those changes need to be put in the Talos config.
     """
-    for cluster_spec in get_constellation_spec(ctx):
+    for cluster_spec in get_constellation_clusters():
         with open(os.path.join('templates', cluster_template_name), 'r') as cluster_template_file:
             cluster_template = list(yaml.safe_load_all(cluster_template_file))
 
@@ -67,22 +68,22 @@ def template_cluster_template(ctx, cluster_template_name='default.yaml'):
                     patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
                     for patch in patches:
                         if patch['path'] == '/cluster/network':
-                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                            patch['value']['podSubnets'] = cluster_spec['pod_cidr_blocks']
-                            patch['value']['serviceSubnets'] = cluster_spec['service_cidr_blocks']
+                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec.name)
+                            patch['value']['podSubnets'] = cluster_spec.pod_cidr_blocks
+                            patch['value']['serviceSubnets'] = cluster_spec.service_cidr_blocks
                 if document['kind'] == 'TalosConfigTemplate':
                     patches = document['spec']['template']['spec']['configPatches']
                     for patch in patches:
                         if patch['path'] == '/cluster/network':
-                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec['name'])
-                            patch['value']['podSubnets'] = cluster_spec['pod_cidr_blocks']
-                            patch['value']['serviceSubnets'] = cluster_spec['service_cidr_blocks']
+                            patch['value']['dnsDomain'] = "{}.local".format(cluster_spec.name)
+                            patch['value']['podSubnets'] = cluster_spec.pod_cidr_blocks
+                            patch['value']['serviceSubnets'] = cluster_spec.service_cidr_blocks
                 if document['kind'] == 'Cluster':
-                    document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_spec['pod_cidr_blocks']
-                    document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_spec['service_cidr_blocks']
+                    document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_spec.pod_cidr_blocks
+                    document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_spec.service_cidr_blocks
 
         with open(os.path.join(
-                ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name), 'w') as cluster_template_file:
+                get_secrets_dir(), cluster_spec.name, cluster_template_name), 'w') as cluster_template_file:
             yaml.safe_dump_all(cluster_template, cluster_template_file)
 
 
@@ -91,19 +92,19 @@ def clusterctl_generate_cluster(ctx, cluster_template_name='default.yaml'):
     """
     Produces ClusterAPI manifest, to be applied on the management cluster.
     """
-    for cluster_spec in get_constellation_spec(ctx):
+    for cluster_spec in get_constellation_clusters():
         ctx.run("clusterctl generate cluster {} --from {} > {}".format(
-            cluster_spec['name'],
-            os.path.join(ctx.core.secrets_dir, cluster_spec['name'], cluster_template_name),
-            os.path.join(get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_FILE_NAME)
+            cluster_spec.name,
+            os.path.join(get_secrets_dir(), cluster_spec.name, cluster_template_name),
+            os.path.join(get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_FILE_NAME)
         ),
             echo=True,
             env={
                 'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
                 'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_spec),
-                'SERVICE_DOMAIN': "{}.local".format(cluster_spec['name']),
-                'CLUSTER_NAME': cluster_spec['name'],
-                'FACILITY': cluster_spec['facility']
+                'SERVICE_DOMAIN': "{}.local".format(cluster_spec.name),
+                'CLUSTER_NAME': cluster_spec.name,
+                'METRO': cluster_spec.metro
             }
         )
 
@@ -113,12 +114,12 @@ def talosctl_gen_config(ctx):
     """
     Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
     """
-    for cluster_spec in get_constellation_spec(ctx):
-        cluster_spec_dir = os.path.join(get_secrets_dir(), cluster_spec['name'])
+    for cluster_spec in get_constellation_clusters():
+        cluster_spec_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
         with ctx.cd(cluster_spec_dir):
             ctx.run(
                 "talosctl gen config {} https://{}:6443 | true".format(
-                    cluster_spec['name'],
+                    cluster_spec.name,
                     get_cp_vip_address(cluster_spec)
                 ),
                 echo=True
@@ -134,10 +135,10 @@ def add_talos_hashbang(filename):
 
 
 def _talos_apply_config_patch(ctx, cluster_spec):
-    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_FILE_NAME)
+    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_FILE_NAME)
     cluster_manifest_static_file_name = os.path.join(
-        get_secrets_dir(), cluster_spec['name'], _CLUSTER_MANIFEST_STATIC_FILE_NAME)
-    config_dir_name = os.path.join(get_secrets_dir(), cluster_spec['name'])
+        get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_STATIC_FILE_NAME)
+    config_dir_name = os.path.join(get_secrets_dir(), cluster_spec.name)
 
     with open(cluster_manifest_file_name) as cluster_manifest_file:
         for document in yaml.safe_load_all(cluster_manifest_file):
@@ -206,7 +207,7 @@ def talos_apply_config_patches(ctx):
     Prepend #!talos as per
     https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
     """
-    for cluster_spec in get_constellation_spec(ctx):
+    for cluster_spec in get_constellation_clusters():
         _talos_apply_config_patch(ctx, cluster_spec)
 
 
@@ -217,12 +218,12 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     """
     if cluster_name is None:
         print("Can't continue without a cluster name, check {} for available options.".format(
-            ctx.core.secrets_dir
+            get_secrets_dir()
         ))
         return
 
     device_list_file_name = os.path.join(
-        ctx.core.secrets_dir,
+        get_secrets_dir(),
         "device-list.yaml"
     )
 
@@ -244,7 +245,7 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
         print("No devices found for cluster {}, setup failed.".format(cluster_name))
         return
 
-    cluster_config_dir = os.path.join(ctx.core.secrets_dir, cluster_name)
+    cluster_config_dir = os.path.join(get_secrets_dir(), cluster_name)
     with open(os.path.join(cluster_config_dir, talosconfig), 'r') as talos_config_file:
         talos_config_data = yaml.safe_load(talos_config_file)
         talos_config_data['contexts'][cluster_name]['nodes'] = list()
@@ -281,22 +282,32 @@ def clusterctl_init(ctx):
     """
     Runs clusterctl init with our favourite provider set.
     """
+    constellation = get_constellation()
     cluster_spec = get_cluster_spec_from_context(ctx)
-    if cluster_spec is not None and 'name' in cluster_spec and cluster_spec['name'] == ctx.constellation.bary.name:
+    if cluster_spec is not None and cluster_spec.name == constellation.bary.name:
         user_input = input('Is cert-manager present ? '
                            '- did you run "invoke apps.install-dns-and-tls-dependencies" [y/N] ?')
         if user_input.strip().lower() != 'y':
             return
 
-    ctx.run("clusterctl init -b talos -c talos --infrastructure=packet:v0.6.2", echo=True)
+    ctx.run("clusterctl init "
+            "--core=cluster-api:{} "
+            "--bootstrap=talos:{} "
+            "--control-plane=talos:{} "
+            "--infrastructure=packet:{}".format(
+                    constellation.capi,
+                    constellation.cabpt,
+                    constellation.cacppt,
+                    constellation.capp
+                ), echo=True)
 
 
 @task(post=[clusterctl_init])
-def kind_clusterctl_init(ctx):
+def kind_clusterctl_init(ctx, name='toem-capi-local'):
     """
     Produces local management(kind) k8s cluster and inits it with ClusterAPI
     """
-    ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
+    ctx.run("kind create cluster --name {}".format(name), echo=True)
 
 
 @task()
@@ -306,14 +317,14 @@ def clean(ctx):
     """
     files_to_remove = glob.glob(
         os.path.join(
-            ctx.core.secrets_dir,
+            get_secrets_dir(),
             '**'),
         recursive=True)
     files_to_remove = list(map(lambda fname: re.sub("/$", "", fname), files_to_remove))
 
     whitelisted_files = [
-        ctx.core.secrets_dir,
-        os.path.join(ctx.core.secrets_dir, 'secrets')
+        get_secrets_dir(),
+        os.path.join(get_secrets_dir(), 'secrets')
     ]
     whitelisted_files = list(map(lambda fname: re.sub("/$", "", fname), whitelisted_files))
 
@@ -359,10 +370,11 @@ def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_CLUSTER_MANIFEST
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
     """
+    constellation = get_constellation()
     ctx.run("kubectl apply -f {}".format(
         os.path.join(
-            ctx.core.secrets_dir,
-            ctx.constellation.bary.name,
+            get_secrets_dir(),
+            constellation.bary.name,
             cluster_manifest_static_file_name
         )
     ), echo=True)
@@ -377,6 +389,7 @@ def clusterctl_move(ctx):
     clusterctl_init(ctx)
     use_kind_cluster_context(ctx)
 
+    constellation = get_constellation()
     bary_kubeconfig = os.path.join(
-        ctx.core.secrets_dir, ctx.constellation.bary.name, ctx.constellation.bary.name + '.kubeconfig')
+        get_secrets_dir(), constellation.bary.name, constellation.bary.name + '.kubeconfig')
     ctx.run("clusterctl move --to-kubeconfig=" + bary_kubeconfig, echo=True)

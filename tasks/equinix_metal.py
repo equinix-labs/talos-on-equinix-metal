@@ -6,8 +6,9 @@ import ipcalc
 import yaml
 from invoke import task
 
-from tasks_pkg.helpers import str_presenter, get_secrets_dir, \
-    get_cpem_config, get_cfg, get_constellation_spec
+from tasks.constellation_v01 import Cluster, VipRole, VipType
+from tasks.helpers import str_presenter, get_secrets_dir, \
+    get_cpem_config, get_cfg, get_constellation_clusters, get_constellation
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -30,7 +31,7 @@ def generate_cpem_config(ctx, cpem_config_file_name="cpem/cpem.yaml"):
     --dry-run='client' secret generic -n kube-system metal-cloud-config \
     --from-literal='cloud-sa.json={}'"
 
-    print("In background ran something similar to: \n{}".format(command))
+    print(command.format('[REDACTED]'))
     k8s_secret = ctx.run(command.format(
         json.dumps(cpem_config)
     ), hide='stdout', echo=False)
@@ -47,11 +48,11 @@ def create_config_dirs(ctx):
     """
     Produces [secrets_dir]/[cluster_name...] config directories based of spec defined in invoke.yaml
     """
-    cluster_spec = get_constellation_spec(ctx)
+    cluster_spec = get_constellation_clusters()
     for cluster in cluster_spec:
         ctx.run("mkdir -p {}".format(os.path.join(
             get_secrets_dir(),
-            cluster['name']
+            cluster.name
         )), echo=True)
 
 
@@ -78,45 +79,48 @@ def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
         _render_ip_addresses_file(yaml.safe_load(ip_reservations_file), addresses, ip_addresses_file_name)
 
 
-def get_ip_addresses_file_name(cluster_spec, address_role):
+def get_ip_addresses_file_name(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
-        cluster_spec['name'],
+        cluster_spec.name,
         "ip-{}-addresses.yaml".format(address_role)
     )
 
 
-def get_ip_reservation_file_name(cluster_spec, address_role):
+def get_ip_reservation_file_name(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
-        cluster_spec['name'],
+        cluster_spec.name,
         "ip-{}-reservation.yaml".format(address_role)
     )
 
 
-def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
+def register_global_vip(ctx, cluster: Cluster, cp_tags, ip_reservations_file_name):
     """
     We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
     affect the management cluster (bary).
     """
-    if cluster_spec['name'] != ctx.constellation.bary.name:
+    constellation = get_constellation()
+    if cluster.name != constellation.bary.name:
         existing_ip_reservation_file_names = glob.glob(
             os.path.join(
-                ctx.core.secrets_dir,
+                get_secrets_dir(),
                 '**',
                 os.path.basename(ip_reservations_file_name)
             ),
             recursive=True)
         for existing_ip_reservation_file_name in existing_ip_reservation_file_names:
-            if ctx.constellation.bary.name not in existing_ip_reservation_file_name:
-                if cluster_spec['name'] not in existing_ip_reservation_file_name:
-                    print('Global IP reservation file already exists. Copying config for satellite: '
-                          + cluster_spec['name'])
-                    ctx.run('cp {} {}'.format(
-                        existing_ip_reservation_file_name,
-                        ip_reservations_file_name
-                    ), echo=True)
-                    return
+            if cluster.name not in existing_ip_reservation_file_name:
+                with open(existing_ip_reservation_file_name) as existing_ip_reservation_file:
+                    existing_ip_reservation = yaml.safe_load(existing_ip_reservation_file)
+                    if existing_ip_reservation['type'] == 'global_ipv4':
+                        print('Global IP reservation file already exists. Copying config for satellite: '
+                              + cluster.name)
+                        ctx.run('cp {} {}'.format(
+                            existing_ip_reservation_file_name,
+                            ip_reservations_file_name
+                        ), echo=True)
+                        return
 
     # Todo: There is a bug in Metal CLI that prevents us from using the CLI in this case.
     #       Thankfully API endpoint works.
@@ -139,18 +143,19 @@ def register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name):
             ), echo=True)
 
 
-def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address_type, address_count):
-    cluster_facility = cluster_spec['facility']
+def register_vip(ctx, cluster: Cluster, project_ips_file_name,
+                 address_role: VipRole, address_type: VipType, address_count: int):
+    cluster_metro = cluster.metro
 
-    ip_reservations_file_name = get_ip_reservation_file_name(cluster_spec, address_role)
-    ip_addresses_file_name = get_ip_addresses_file_name(cluster_spec, address_role)
+    ip_reservations_file_name = get_ip_reservation_file_name(cluster, address_role)
+    ip_addresses_file_name = get_ip_addresses_file_name(cluster, address_role)
     # ToDo: Most likely, despite all the efforts to disable it
     #   https://github.com/kubernetes-sigs/cluster-api-provider-packet registers a VIP
     #   We need one so we will use it...
     if address_role == 'cp':
-        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster_spec['name'])]
+        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
     else:
-        cp_tags = ["gocy:vip:{}".format(address_role), "gocy:cluster:{}".format(cluster_spec['name'])]
+        cp_tags = ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
 
     if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
@@ -161,7 +166,7 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
         addresses = list()
         # ToDo: OMG FIX or DELETE ME!
         for ip_spec in yaml.safe_load(all_ips_file):
-            if (ip_spec['global_ip'] or ('facility' in ip_spec and ip_spec['facility']['code'] == cluster_facility))\
+            if (ip_spec['global_ip'] or ('metro' in ip_spec and ip_spec['metro']['code'] == cluster_metro))\
                     and 'tags' in ip_spec and len(ip_spec.get('tags')) > 0 and ip_spec.get('tags')[0] == cp_tags[0]:
                 _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
                 no_reservations = False
@@ -171,16 +176,15 @@ def register_vip(ctx, cluster_spec, project_ips_file_name, address_role, address
 
         if no_reservations:
             if address_type == 'public_ipv4':
-                ctx.run("metal ip request -p {} -t {} -q {} -f {} --tags '{}' -o yaml > {}".format(
-                    "${METAL_PROJECT_ID}",
+                ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
                     address_type,
                     address_count,
-                    cluster_facility,
+                    cluster_metro,
                     ",".join(cp_tags),
                     ip_reservations_file_name
                 ), echo=True)
             elif address_type == 'global_ipv4':
-                register_global_vip(ctx, cluster_spec, cp_tags, ip_reservations_file_name)
+                register_global_vip(ctx, cluster, cp_tags, ip_reservations_file_name)
             else:
                 print("Unsupported address_type: " + address_type)
 
@@ -193,10 +197,10 @@ def register_vips(ctx, project_ips_file_name=None):
     Registers VIPs as per constellation spec in invoke.yaml
     """
     project_ips_file_name = get_cfg(project_ips_file_name, ctx.equinix_metal.project_ips_file_name)
-    constellation_spec = get_constellation_spec(ctx)
+    constellation_spec = get_constellation_clusters()
     for cluster_spec in constellation_spec:
-        for vip in cluster_spec['vips']:
-            register_vip(ctx, cluster_spec, project_ips_file_name, vip['role'], vip['type'], vip['count'])
+        for vip in cluster_spec.vips:
+            register_vip(ctx, cluster_spec, project_ips_file_name, vip.role, vip.vipType, vip.count)
 
 
 @task()
@@ -212,36 +216,35 @@ def check_capacity(ctx):
     """
     Check device capacity for clusters specified in invoke.yaml
     """
-    nodes = dict()
-    bary_facility = ctx.constellation.bary.facility
-    nodes[bary_facility] = dict()
-    bary_roles = ctx.constellation.bary.nodes.keys()
-    for role in bary_roles:
-        for node in ctx.constellation.bary.nodes[role]:
-            node_type = node['type']
-            if node_type not in nodes[bary_facility]:
-                nodes[bary_facility][node_type] = node['count']
+    nodes_total = dict()
+    constellation = get_constellation()
+    bary_metro = constellation.bary.metro
+    nodes_total[bary_metro] = dict()
+    bary_nodes = constellation.bary.control_nodes
+    bary_nodes.extend(constellation.bary.worker_nodes)
+
+    for node in bary_nodes:
+        if node.plan not in nodes_total[bary_metro]:
+            nodes_total[bary_metro][node.plan] = node.count
+        else:
+            nodes_total[bary_metro][node.plan] = nodes_total[bary_metro][node.plan] + node.count
+
+    for satellite in constellation.satellites:
+        if satellite.metro not in nodes_total:
+            nodes_total[satellite.metro] = dict()
+
+        satellite_nodes = satellite.worker_nodes
+        satellite_nodes.extend(satellite.control_nodes)
+        for node in satellite_nodes:
+            if node.plan not in nodes_total[satellite.metro]:
+                nodes_total[satellite.metro][node.plan] = node.count
             else:
-                nodes[bary_facility][node_type] = nodes[bary_facility][node_type] + node['count']
+                nodes_total[satellite.metro][node.plan] = nodes_total[satellite.metro][node.plan] + node.count
 
-    for satellite in ctx.constellation.satellites:
-        satellite_facility = satellite['facility']
-        if satellite_facility not in nodes:
-            nodes[satellite_facility] = dict()
-
-        satellite_roles = satellite['nodes'].keys()
-        for role in satellite_roles:
-            for node in satellite['nodes'][role]:
-                satellite_type = node['type']
-                if satellite_type not in nodes[satellite_facility]:
-                    nodes[satellite_facility][satellite_type] = node['count']
-                else:
-                    nodes[satellite_facility][satellite_type] = nodes[satellite_facility][satellite_type] + node['count']
-
-    for facility in nodes:
-        for node_type, count in nodes[facility].items():
-            ctx.run("metal capacity check -f {} -P {} -q {}".format(
-                facility, node_type, count
+    for metro in nodes_total:
+        for node_type, count in nodes_total[metro].items():
+            ctx.run("metal capacity check --metros {} --plans {} --quantity {}".format(
+                metro, node_type, count
             ), echo=True)
 
 
