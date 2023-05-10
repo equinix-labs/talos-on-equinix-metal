@@ -6,7 +6,7 @@ import yaml
 from invoke import task
 
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64
+    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation
 from tasks.k8s_context import use_bary_cluster_context
 
 yaml.add_representer(str, str_presenter)
@@ -356,12 +356,13 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
     https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
     """
     use_bary_cluster_context(ctx)
+    constellation = get_constellation()
     for cluster_spec in get_constellation_clusters():
-        if cluster_spec.name != ctx.constellation.bary.name:
+        if cluster_spec.name != constellation.bary.name:
             ctx.run("cilium --namespace {} --context {} clustermesh connect --destination-context {}".format(
                 namespace,
-                'admin@' + ctx.constellation.bary.name,
+                'admin@' + constellation.bary.name,
                 'admin@' + cluster_spec.name
             ), echo=True)
         else:
-            print("Switch k8s context to {} and try again".format(ctx.constellation.bary.name))
+            print("Switch k8s context to {} and try again".format(constellation.bary.name))

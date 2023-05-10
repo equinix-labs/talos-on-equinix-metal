@@ -2,7 +2,7 @@ from pprint import pprint
 
 from invoke import task
 
-from tasks.helpers import get_constellation_clusters
+from tasks.helpers import get_constellation_clusters, get_constellation
 
 
 def _use_cluster_context(ctx, cluster_data, kind_cluster_name="kind-toem-capi-local"):
@@ -35,7 +35,8 @@ def use_bary_cluster_context(ctx):
     """
     Switch k8s context to management(bary) cluster
     """
-    _use_cluster_context(ctx, ctx.constellation.bary.name)
+    constellation = get_constellation()
+    _use_cluster_context(ctx, constellation.bary.name)
 
 
 @task()

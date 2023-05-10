@@ -217,12 +217,14 @@ def check_capacity(ctx):
     """
     Check device capacity for clusters specified in invoke.yaml
     """
+    # ToDo !!!! FixME:
     nodes = dict()
-    bary_facility = ctx.constellation.bary.facility
+    constellation = get_constellation()
+    bary_facility = constellation.bary.facility
     nodes[bary_facility] = dict()
-    bary_roles = ctx.constellation.bary.nodes.keys()
+    bary_roles = constellation.bary.nodes.keys()
     for role in bary_roles:
-        for node in ctx.constellation.bary.nodes[role]:
+        for node in constellation.bary.nodes[role]:
             node_type = node['type']
             if node_type not in nodes[bary_facility]:
                 nodes[bary_facility][node_type] = node['count']

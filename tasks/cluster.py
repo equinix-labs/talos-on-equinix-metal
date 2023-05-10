@@ -303,11 +303,11 @@ def clusterctl_init(ctx):
 
 
 @task(post=[clusterctl_init])
-def kind_clusterctl_init(ctx):
+def kind_clusterctl_init(ctx, name='toem-capi-local'):
     """
     Produces local management(kind) k8s cluster and inits it with ClusterAPI
     """
-    ctx.run("kind create cluster --name {}".format(os.environ.get('CAPI_KIND_CLUSTER_NAME')), echo=True)
+    ctx.run("kind create cluster --name {}".format(name), echo=True)
 
 
 @task()
@@ -370,10 +370,11 @@ def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_CLUSTER_MANIFEST
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
     """
+    constellation = get_constellation()
     ctx.run("kubectl apply -f {}".format(
         os.path.join(
             get_secrets_dir(),
-            ctx.constellation.bary.name,
+            constellation.bary.name,
             cluster_manifest_static_file_name
         )
     ), echo=True)
@@ -388,6 +389,7 @@ def clusterctl_move(ctx):
     clusterctl_init(ctx)
     use_kind_cluster_context(ctx)
 
+    constellation = get_constellation()
     bary_kubeconfig = os.path.join(
-        get_secrets_dir(), ctx.constellation.bary.name, ctx.constellation.bary.name + '.kubeconfig')
+        get_secrets_dir(), constellation.bary.name, constellation.bary.name + '.kubeconfig')
     ctx.run("clusterctl move --to-kubeconfig=" + bary_kubeconfig, echo=True)

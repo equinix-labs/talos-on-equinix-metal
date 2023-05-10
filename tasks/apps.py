@@ -1,7 +1,7 @@
 import os
 
 from invoke import task
-from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context
+from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secrets
 
 
 def get_gcp_token_file_name():
@@ -17,10 +17,11 @@ def get_google_dns_token(ctx):
         print("File {} already exists, skipping".format(gcp_token_file_name))
         return
 
+    secrets = get_secrets()
     ctx.run("gcloud iam service-accounts keys create {} --iam-account {}@{}.iam.gserviceaccount.com".format(
         get_gcp_token_file_name(),
-        os.environ.get('GCP_SA_NAME'),
-        os.environ.get('GCP_PROJECT_ID')
+        secrets['GCP_SA_NAME'],
+        secrets['GCP_PROJECT_ID']
     ), echo=True)
 
 
@@ -65,6 +66,7 @@ def deploy_dns_management_token(ctx, provider='google'):
 @task(deploy_dns_management_token)
 def install_dns_and_tls_dependencies(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
+    secrets = get_secrets()
     with ctx.cd(dns_tls_directory):
         ctx.run("helm dependency build", echo=True)
         ctx.run("helm upgrade --wait --install --namespace {} "
@@ -72,22 +74,23 @@ def install_dns_and_tls_dependencies(ctx):
                 "--set external_dns.provider.google.domain_filter={} "
                 "dns-and-tls-dependencies ./".format(
                     get_dns_tls_namespace_name(),
-                    os.environ.get('GCP_PROJECT_ID'),
-                    os.environ.get('GCP_DOMAIN')
+                    secrets['GCP_PROJECT_ID'],
+                    secrets['GCP_DOMAIN']
                 ), echo=True)
 
 
 @task(install_dns_and_tls_dependencies)
 def install_dns_and_tls(ctx):
     dns_tls_directory = os.path.join('apps', 'dns-and-tls')
+    secrets = get_secrets()
     with ctx.cd(dns_tls_directory):
         ctx.run("helm upgrade --install --namespace {} "
                 "--set letsencrypt.email={} "
                 "--set letsencrypt.google.project_id={} "
                 "dns-and-tls ./".format(
                     get_dns_tls_namespace_name(),
-                    os.environ.get('TOEM_ADMIN_EMAIL'),
-                    os.environ.get('GCP_PROJECT_ID')
+                    secrets['GOCY_ADMIN_EMAIL'],
+                    secrets['GCP_PROJECT_ID']
                 ), echo=True)
 
 
@@ -95,6 +98,10 @@ def install_dns_and_tls(ctx):
 def install_whoami_app(ctx):
     dns_tls_directory = os.path.join('apps', 'whoami')
     cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    print(secrets)
+
     with ctx.cd(dns_tls_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
         ctx.run("helm upgrade --install --namespace test-application "
@@ -102,8 +109,8 @@ def install_whoami_app(ctx):
                 "--set test_app.name={} "                
                 "whoami-test-app ./".format(
                     "whoami.{}.{}".format(
-                        os.environ.get('TOEM_TEST_SUBDOMAIN'),
-                        os.environ.get('GCP_DOMAIN')
+                        os.environ.get('GOCY_SUBDOMAIN'),
+                        secrets['GCP_DOMAIN']
                     ), cluster_spec.name
                 ), echo=True)
 

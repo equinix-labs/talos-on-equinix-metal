@@ -58,8 +58,13 @@ def get_config_dir(default_config_dir_name=".gocy"):
     )
 
 
-def get_secrets_file_name():
-    return os.path.join(get_config_dir(), 'secrets.yaml')
+def get_secrets_file_name(name='secrets.yaml'):
+    return os.path.join(get_config_dir(), name)
+
+
+def get_secrets():
+    with open(get_secrets_file_name()) as secrets_file:
+        return dict(yaml.safe_load(secrets_file))['env']
 
 
 def get_cpem_config():
