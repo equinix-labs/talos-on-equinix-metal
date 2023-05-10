@@ -104,7 +104,8 @@ graph LR
 ## Quick setup
 
 We will consider a simple model, consisting of 3 clusters as described above. Configuration input for the model is
-located in [invoke.yaml](invoke.yaml). In this document and code, I will refer to the model as `constellation`. Consisting
+located in [jupiter.constellation.yaml](templates/jupiter.constellation.yaml).
+In this document and code, I will refer to the model as `constellation`. Consisting
 of the management cluster named `jupiter` - the [barycenter](https://en.wikipedia.org/wiki/Barycenter)
 Together with two satellites - workload clusters: `ganymede` and `callisto`.
 
@@ -126,16 +127,17 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 
 ### environment
 
-- Once you clone this repository, `cd` into it and create a python [virtual environment](https://docs.python.org/3/library/venv.html)
+- Once you clone this repository, `cd` into it and create a python
+  [virtual environment](https://docs.python.org/3/library/venv.html)
   ```shell
   python -m venv
   ```
-  With [dotenv](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv) the python venv should be automatically activated.  
+  With [dotenv](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dotenv)
+  the python venv should be automatically activated.  
   Install python resources:
   ```shell
   pip install -r resources.txt
   ```
-- Examine and adjust [.env](.env). Create `secrets/secrets` and populate with required `ENV`
 - Setup uses [invoke](https://www.pyinvoke.org/) to automate most of the actions needed to boot our constellation.
   Consider listing available tasks first to make sure everything is ready.
   ```shell
@@ -144,7 +146,24 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   If you never worked with `invoke`, this library is kind of like `make`. It allows one to invoke shell commands and
   at the same time conveniently(with python) convert different data structures(files)  
   Most of the shell commands are echoed into the console, so that you can see what is happening behind the scene.
-
+- Examine [secrets.yaml](templates/secrets.yaml) and [jupiter.constellation.yaml](templates/jupiter.constellation.yaml)  
+  run
+  ```shell
+  invoke gocy.init
+  ```
+  to set up your configuration directory - `${HOME}/.gocy`. The `gocy.init` task will copy the `secrets.yaml`  
+  file template over there. Populate it with required data. This is also the place where you store the constellation spec
+  files. You can have more spec files. For now while naming them remember to match `[name].constellation.yaml` with
+  `.name` value in the same file.
+- If you decide to create your own constellation spec file(s), you can make sure they are correctly parsed by the tool
+  by running
+  ```shell
+  invoke gocy.list-constellations
+  ```
+  You can adjust the constellation context by running
+  ```shell
+  invoke gocy.ccontext-set [constellation_name]
+  ```
 ### local cluster
 
 - Setup uses [kind](https://kind.sigs.k8s.io/), If you are running on Mac, make sure to use
@@ -173,7 +192,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 - We are ready to boot our first cluster. It will become our new management cluster. Once it is ready
   we will transfer CAPI state from the local kind cluster onto it. Apply the cluster manifest
   ```sh
-  kubectl apply -f secrets/jupiter/cluster-manifest.static-config.yaml
+  kubectl apply -f ${HOME}/.gocy/jupiter/jupiter/cluster-manifest.static-config.yaml
   ```
 - Wait for the cluster to come up, there are several ways you can observe the progress. Most reliable indicators are
   ```shell
@@ -194,7 +213,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```
   Once this is done we can add out new `kubeconfig`
   ```shell
-  kconf add secrets/jupiter/jupiter.kubeconfig
+  kconf add ${HOME}/.gocy/jupiter/jupiter/jupiter.kubeconfig
   ```
   then change context to `jupiter`
   ```shell
@@ -202,7 +221,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
   ```
   In the end we merge the `talosconfig`
   ```shell
-  talosctl config merge secrets/jupiter/talosconfig
+  talosctl config merge ${HOME}/.gocy/jupiter/jupiter/talosconfig
   ```
 - At this stage we should start some pods showing up on our cluster. You can `get pods` to verify that.
   ```shell
@@ -310,7 +329,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   ``` 
 - Apply cluster manifest
   ```sh
-  kubectl apply -f secrets/${MY_SATELLITE}/cluster-manifest.static-config.yaml
+  kubectl apply -f ${HOME}/.gocy/jupiter/${MY_SATELLITE}/cluster-manifest.static-config.yaml
   ```
 - Wait for it to come up
   ```shell
@@ -322,7 +341,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   ```
   add `kubeconfig`
   ```shell
-  kconf add secrets/${MY_SATELLITE}/${MY_SATELLITE}.kubeconfig
+  kconf add ${HOME}/.gocy/jupiter/${MY_SATELLITE}/${MY_SATELLITE}.kubeconfig
   ```
   change context to `${MY_SATELLITE}`
   ```shell
@@ -330,7 +349,7 @@ At this state it is a good idea to open another terminal and with each cluster c
   ```
   merge the `talosconfig`
   ```shell
-  talosctl config merge secrets/${MY_SATELLITE}/talosconfig
+  talosctl config merge ${HOME}/.gocy/jupiter/${MY_SATELLITE}/talosconfig
   ```
 - Install Cilium & MetalLB
   ```shell

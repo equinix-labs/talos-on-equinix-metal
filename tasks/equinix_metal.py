@@ -176,8 +176,7 @@ def register_vip(ctx, cluster: Cluster, project_ips_file_name,
 
         if no_reservations:
             if address_type == 'public_ipv4':
-                ctx.run("metal ip request --project-id {} --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
-                    "${METAL_PROJECT_ID}",
+                ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
                     address_type,
                     address_count,
                     cluster_metro,

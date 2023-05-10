@@ -65,6 +65,9 @@ def deploy_dns_management_token(ctx, provider='google'):
 
 @task(deploy_dns_management_token)
 def install_dns_and_tls_dependencies(ctx):
+    """
+    Install Helm chart apps/dns-and-tls-dependencies
+    """
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
     secrets = get_secrets()
     with ctx.cd(dns_tls_directory):
@@ -81,6 +84,9 @@ def install_dns_and_tls_dependencies(ctx):
 
 @task(install_dns_and_tls_dependencies)
 def install_dns_and_tls(ctx):
+    """
+    Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
+    """
     dns_tls_directory = os.path.join('apps', 'dns-and-tls')
     secrets = get_secrets()
     with ctx.cd(dns_tls_directory):
@@ -96,6 +102,9 @@ def install_dns_and_tls(ctx):
 
 @task()
 def install_whoami_app(ctx):
+    """
+    Install Helm chart apps/whoami
+    """
     dns_tls_directory = os.path.join('apps', 'whoami')
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -117,6 +126,9 @@ def install_whoami_app(ctx):
 
 @task()
 def install_ingress_controller(ctx):
+    """
+    Install Helm chart apps/ingress-bundle
+    """
     app_directory = os.path.join('apps', 'ingress-bundle')
     with ctx.cd(app_directory):
         ctx.run("helm dependency update", echo=True)

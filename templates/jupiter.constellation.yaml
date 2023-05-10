@@ -1,4 +1,4 @@
-name: demo
+name: jupiter
 capi: v1.4.2 # https://github.com/kubernetes-sigs/cluster-api
 cabpt: v0.6.0 # https://github.com/siderolabs/cluster-api-bootstrap-provider-talos
 cacppt: v0.5.0 # https://github.com/siderolabs/cluster-api-control-plane-provider-talos

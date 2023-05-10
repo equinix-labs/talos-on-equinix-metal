@@ -357,12 +357,12 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
     """
     use_bary_cluster_context(ctx)
     constellation = get_constellation()
-    for cluster_spec in get_constellation_clusters():
-        if cluster_spec.name != constellation.bary.name:
+    for cluster in get_constellation_clusters():
+        if cluster.name != constellation.bary.name:
             ctx.run("cilium --namespace {} --context {} clustermesh connect --destination-context {}".format(
                 namespace,
                 'admin@' + constellation.bary.name,
-                'admin@' + cluster_spec.name
+                'admin@' + cluster.name
             ), echo=True)
         else:
             print("Switch k8s context to {} and try again".format(constellation.bary.name))
