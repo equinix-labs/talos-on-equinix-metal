@@ -216,38 +216,35 @@ def check_capacity(ctx):
     """
     Check device capacity for clusters specified in invoke.yaml
     """
-    # ToDo !!!! FixME:
-    nodes = dict()
+    nodes_total = dict()
     constellation = get_constellation()
-    bary_facility = constellation.bary.facility
-    nodes[bary_facility] = dict()
-    bary_roles = constellation.bary.nodes.keys()
-    for role in bary_roles:
-        for node in constellation.bary.nodes[role]:
-            node_type = node['type']
-            if node_type not in nodes[bary_facility]:
-                nodes[bary_facility][node_type] = node['count']
+    bary_metro = constellation.bary.metro
+    nodes_total[bary_metro] = dict()
+    bary_nodes = constellation.bary.control_nodes
+    bary_nodes.extend(constellation.bary.worker_nodes)
+
+    for node in bary_nodes:
+        if node.plan not in nodes_total[bary_metro]:
+            nodes_total[bary_metro][node.plan] = node.count
+        else:
+            nodes_total[bary_metro][node.plan] = nodes_total[bary_metro][node.plan] + node.count
+
+    for satellite in constellation.satellites:
+        if satellite.metro not in nodes_total:
+            nodes_total[satellite.metro] = dict()
+
+        satellite_nodes = satellite.worker_nodes
+        satellite_nodes.extend(satellite.control_nodes)
+        for node in satellite_nodes:
+            if node.plan not in nodes_total[satellite.metro]:
+                nodes_total[satellite.metro][node.plan] = node.count
             else:
-                nodes[bary_facility][node_type] = nodes[bary_facility][node_type] + node['count']
+                nodes_total[satellite.metro][node.plan] = nodes_total[satellite.metro][node.plan] + node.count
 
-    for satellite in ctx.constellation.satellites:
-        satellite_facility = satellite['facility']
-        if satellite_facility not in nodes:
-            nodes[satellite_facility] = dict()
-
-        satellite_roles = satellite['nodes'].keys()
-        for role in satellite_roles:
-            for node in satellite['nodes'][role]:
-                satellite_type = node['type']
-                if satellite_type not in nodes[satellite_facility]:
-                    nodes[satellite_facility][satellite_type] = node['count']
-                else:
-                    nodes[satellite_facility][satellite_type] = nodes[satellite_facility][satellite_type] + node['count']
-
-    for facility in nodes:
-        for node_type, count in nodes[facility].items():
-            ctx.run("metal capacity check -f {} -P {} -q {}".format(
-                facility, node_type, count
+    for metro in nodes_total:
+        for node_type, count in nodes_total[metro].items():
+            ctx.run("metal capacity check --metros {} --plans {} --quantity {}".format(
+                metro, node_type, count
             ), echo=True)
 
 
