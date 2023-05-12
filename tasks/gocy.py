@@ -1,4 +1,3 @@
-import glob
 import os
 
 import yaml
@@ -28,7 +27,7 @@ def init(ctx):
         os.path.join(get_config_dir())
     ), echo=True)
     ctx.run("cp {} {}".format(
-        os.path.join('templates', 'demo.constellation.yaml'),
+        os.path.join('templates', 'jupiter.constellation.yaml'),
         os.path.join(get_config_dir())
     ), echo=True)
 

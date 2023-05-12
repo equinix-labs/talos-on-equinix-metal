@@ -6,8 +6,8 @@ capp: v0.7.1 # https://github.com/kubernetes-sigs/cluster-api-provider-packet
 version: 0.1.0
 bary:
   name: jupiter
-  metro: pa
-  cpem: v3.6.1
+  metro: da
+  cpem: v3.6.2
   pod_cidr_blocks:
   - 172.16.0.0/17
   service_cidr_blocks:
@@ -23,15 +23,15 @@ bary:
     count: 1
     vipType: public_ipv4
   control_nodes:
-  - count: 1
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
   worker_nodes:
-  - count: 2
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
 satellites:
 - name: ganymede
-  metro: md
-  cpem: v3.6.1
+  metro: dc
+  cpem: v3.6.2
   pod_cidr_blocks:
   - 172.17.0.0/17
   service_cidr_blocks:
@@ -47,14 +47,16 @@ satellites:
     count: 1
     vipType: public_ipv4
   control_nodes:
-  - count: 1
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
   worker_nodes:
-  - count: 2
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
+  - count: 1
+    plan: c3.medium.x86
 - name: callisto
-  metro: fr
-  cpem: v3.6.1
+  metro: sv
+  cpem: v3.6.2
   pod_cidr_blocks:
   - 172.18.0.0/17
   service_cidr_blocks:
@@ -70,8 +72,10 @@ satellites:
     count: 1
     vipType: public_ipv4
   control_nodes:
-  - count: 1
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
   worker_nodes:
-  - count: 2
-    plan: m3.small.x86
+  - count: 3
+    plan: m3.large.x86
+  - count: 1
+    plan: c3.medium.x86

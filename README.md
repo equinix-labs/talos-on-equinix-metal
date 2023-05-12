@@ -1,4 +1,5 @@
-# Talos on Equinix Metal with Cluster API
+# GOCY
+**Open Source, Globally distributed, scalable, secure and performant Cloud Native Developer Platform for Startups and Enterprises on Equinix Metal**
 
 Following project in an attempt to run
 [Talos Linux](https://www.talos.dev/) on [Equinix Metal](https://deploy.equinix.com/metal/),

@@ -1,0 +1,40 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: {{ CLUSTER_NAME }}
+  labels:
+    cluster: {{ CLUSTER_NAME }}
+spec:
+  clusterNetwork:
+    # ToDo: clusterNetwork settings do not affect running cluster.
+    pods:
+      cidrBlocks:
+        - # Populated by task cluster.generate-cluster-spec
+    services:
+      cidrBlocks:
+        - # Populated by task cluster.generate-cluster-spec
+    serviceDomain: {{ SERVICE_DOMAIN }}
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: PacketCluster
+    name: {{ CLUSTER_NAME }}
+  controlPlaneRef:
+    kind: TalosControlPlane
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    name: {{ CLUSTER_NAME }}-control-plane
+
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: PacketCluster
+metadata:
+  name: {{ CLUSTER_NAME }}
+  labels:
+    cluster: {{ CLUSTER_NAME }}
+spec:
+  projectID: {{ PROJECT_ID }}
+  metro: {{ METRO }}
+  vipManager: "KUBE_VIP"
+  controlPlaneEndpoint:
+    host: {{ TOEM_CP_ENDPOINT }}
+    port: 6443
