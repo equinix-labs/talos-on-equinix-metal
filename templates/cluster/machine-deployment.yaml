@@ -10,53 +10,7 @@ spec:
     spec:
       os: talos_v1
       billingCycle: hourly
-      machineType: "${WORKER_NODE_TYPE}"
-
----
-apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
-kind: TalosConfigTemplate
-metadata:
-  name: machine-{{ WORKER_NODE_TYPE }}
-  labels:
-    cluster: {{ CLUSTER_NAME }}
-spec:
-  template:
-    spec:
-      generateType: worker
-      talosVersion: ${TALOS_VERSION}
-      configPatches:
-        - op: replace
-          path: /cluster/controlPlane
-          value:
-            endpoint: https://{{ TOEM_CP_ENDPOINT }}:6443
-        - op: add
-          path: /cluster/network
-          value:
-            cni:
-              name: none
-            dnsDomain: # Populated by task cluster.generate-cluster-spec
-            podSubnets:
-              - # Populated by task cluster.generate-cluster-spec
-            serviceSubnets:
-              - # Populated by task cluster.generate-cluster-spec
-        - op: add
-          path: /cluster/proxy
-          value:
-            disabled: true
-        - op: add
-          path: /cluster/externalCloudProvider
-          value:
-            enabled: true
-            manifests:
-              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/{{ CPEM_VERSION }}/deployment.yaml
-        - op: add
-          path: /machine/kubelet/extraArgs
-          value:
-            cloud-provider: "external"
-        - op: add
-          path: /machine/network/kubespan
-          value:
-            enabled: true
+      machineType: {{ WORKER_NODE_TYPE }}
 
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
@@ -68,7 +22,7 @@ metadata:
     pool: pool-{{ WORKER_NODE_TYPE }}
     cluster: {{ CLUSTER_NAME }}
 spec:
-  replicas: ${WORKER_MACHINE_COUNT}
+  replicas: {{ WORKER_MACHINE_COUNT }}
   clusterName: {{ CLUSTER_NAME }}
   selector:
     matchLabels:
@@ -80,11 +34,11 @@ spec:
         cluster.x-k8s.io/cluster-name: {{ CLUSTER_NAME }}
         pool: pool-{{ WORKER_NODE_TYPE }}
     spec:
-      version: ${KUBERNETES_VERSION}
+      version: {{ KUBERNETES_VERSION }}
       clusterName: {{ CLUSTER_NAME }}
       bootstrap:
         configRef:
-          name: machine-{{ WORKER_NODE_TYPE }}
+          name: {{ CLUSTER_NAME }}-machine-talos
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
           kind: TalosConfigTemplate
       infrastructureRef:

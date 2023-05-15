@@ -72,7 +72,7 @@ spec:
           value:
             enabled: true
             manifests:
-              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/${CPEM_VERSION}/deployment.yaml
+              - https://github.com/equinix/cloud-provider-equinix-metal/releases/download/{{ CPEM_VERSION }}/deployment.yaml
         - op: add
           path: /cluster/network
           value:
@@ -83,7 +83,6 @@ spec:
               - # Populated by task cluster.generate-cluster-spec
             serviceSubnets:
               - # Populated by task cluster.generate-cluster-spec
-
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: PacketMachineTemplate
@@ -96,4 +95,4 @@ spec:
     spec:
       os: talos_v1
       billingCycle: hourly
-      machineType: {{ CONTROLPLANE_NODE_TYPE }}
+      machineType: {{ CONTROL_PLANE_NODE_TYPE }}

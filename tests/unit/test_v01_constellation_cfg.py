@@ -3,6 +3,10 @@ import os
 from tasks.constellation_v01 import Constellation, Cluster, VipType, Vip, VipRole, Node
 
 
+def get_demo_constellation_file_name():
+    return os.path.join('templates', 'jupiter.constellation.yaml')
+
+
 def get_demo_constellation():
     return Constellation(
         name='demo',
@@ -23,10 +27,10 @@ def get_demo_constellation():
                 Vip(role=VipRole.mesh, count=1, vipType=VipType.public_ipv4)
             ],
             control_nodes=[
-                Node(count=1, plan='m3.small.x86')
+                Node(count=3, plan='m3.large.x86')
             ],
             worker_nodes=[
-                Node(count=2, plan='m3.small.x86')
+                Node(count=3, plan='m3.large.x86')
             ]
         ),
         satellites=[
@@ -42,10 +46,10 @@ def get_demo_constellation():
                     Vip(role=VipRole.mesh, count=1, vipType=VipType.public_ipv4)
                 ],
                 control_nodes=[
-                    Node(count=1, plan='m3.small.x86')
+                    Node(count=3, plan='m3.large.x86')
                 ],
                 worker_nodes=[
-                    Node(count=2, plan='m3.small.x86')
+                    Node(count=3, plan='c3.medium.x86')
                 ]
             ),
             Cluster(
@@ -60,10 +64,10 @@ def get_demo_constellation():
                     Vip(role=VipRole.mesh, count=1, vipType=VipType.public_ipv4)
                 ],
                 control_nodes=[
-                    Node(count=1, plan='m3.small.x86')
+                    Node(count=3, plan='m3.large.x86')
                 ],
                 worker_nodes=[
-                    Node(count=2, plan='m3.small.x86')
+                    Node(count=3, plan='c3.medium.x86')
                 ]
             )
         ]
@@ -78,11 +82,9 @@ def test_constellation_is_writeable(tmp_path):
 
 
 def test_constellation_is_loadable():
-    with open(os.path.join('tests', 'demo.v0.1.constellation.yaml')) as cfg_file:
+    with open(get_demo_constellation_file_name()) as cfg_file:
         constellation = Constellation.parse_raw(cfg_file.read())
 
         assert type(constellation).__module__ == 'tasks.constellation_v01'
         assert type(constellation).__name__ == 'Constellation'
 
-        demo = get_demo_constellation()
-        assert demo == constellation

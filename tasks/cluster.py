@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 
+import jinja2
 import yaml
 from invoke import task
 
@@ -10,7 +11,7 @@ from tasks.constellation_v01 import Cluster
 from tasks.equinix_metal import generate_cpem_config, register_vips
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_cluster_spec_from_context, get_constellation
+    get_cluster_spec_from_context, get_constellation, get_secrets
 from tasks.k8s_context import use_kind_cluster_context, use_bary_cluster_context
 from tasks.network import build_network_service_dependencies_manifest
 
@@ -49,10 +50,10 @@ def patch_template_with_cilium_manifest(
                         patch['value']['contents'] = network_manifest_yaml
 
         with open(os.path.join(templates_dir, get_cluster_name() + '.yaml'), 'w') as target:
-            yaml.safe_dump_all(_cluster_template, target)
+            yaml.dump_all(_cluster_template, target)
 
 
-def patch_cluster_spec_network(cluster_spec: Cluster, cluster_template: list):
+def patch_cluster_spec_network(cluster_cfg: Cluster, cluster_template: list):
     """
     Patches cluster template with corrected dnsDomain,podSubnets,serviceSubnets
     As a result of a bug? settings in Cluster.spec.clusterNetwork do not affect the running cluster.
@@ -63,19 +64,19 @@ def patch_cluster_spec_network(cluster_spec: Cluster, cluster_template: list):
             patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
             for patch in patches:
                 if patch['path'] == '/cluster/network':
-                    patch['value']['dnsDomain'] = "{}.local".format(cluster_spec.name)
-                    patch['value']['podSubnets'] = cluster_spec.pod_cidr_blocks
-                    patch['value']['serviceSubnets'] = cluster_spec.service_cidr_blocks
+                    patch['value']['dnsDomain'] = "{}.local".format(cluster_cfg.name)
+                    patch['value']['podSubnets'] = cluster_cfg.pod_cidr_blocks
+                    patch['value']['serviceSubnets'] = cluster_cfg.service_cidr_blocks
         if document['kind'] == 'TalosConfigTemplate':
             patches = document['spec']['template']['spec']['configPatches']
             for patch in patches:
                 if patch['path'] == '/cluster/network':
-                    patch['value']['dnsDomain'] = "{}.local".format(cluster_spec.name)
-                    patch['value']['podSubnets'] = cluster_spec.pod_cidr_blocks
-                    patch['value']['serviceSubnets'] = cluster_spec.service_cidr_blocks
+                    patch['value']['dnsDomain'] = "{}.local".format(cluster_cfg.name)
+                    patch['value']['podSubnets'] = cluster_cfg.pod_cidr_blocks
+                    patch['value']['serviceSubnets'] = cluster_cfg.service_cidr_blocks
         if document['kind'] == 'Cluster':
-            document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_spec.pod_cidr_blocks
-            document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_spec.service_cidr_blocks
+            document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_cfg.pod_cidr_blocks
+            document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_cfg.service_cidr_blocks
 
     return cluster_template
 
@@ -90,8 +91,10 @@ def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: li
 
 @task(register_vips, use_kind_cluster_context)
 def generate_cluster_spec(ctx, dev_mode=False,
-                          cluster_spec_template_file_name='cluster_spec_template.yaml',
-                          cluster_spec_file_name='cluster_spec.yaml'):
+                          templates_dir=os.path.join('templates', 'cluster'),
+                          cluster_file_name='capi.yaml',
+                          cp_file_name='control-plane.yaml',
+                          md_file_name='machine-deployment.yaml'):
     """
     Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
     In this particular case we are dealing with two kind of config specifications. Cluster API one
@@ -99,28 +102,53 @@ def generate_cluster_spec(ctx, dev_mode=False,
     this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
     This is why we go with some custom python + jinja template solution.
     """
-    for cluster in get_constellation_clusters():
-        with open(os.path.join('templates', cluster_spec_template_file_name), 'r') as cluster_spec_template_file:
-            cluster_spec = list(yaml.safe_load_all(cluster_spec_template_file))
+    with open(os.path.join(templates_dir, cluster_file_name), 'r') as cluster_file:
+        _cluster_yaml = cluster_file.read()
 
-            cluster_spec = patch_cluster_spec_network(cluster, cluster_spec)
-        # ctx.run("clusterctl generate cluster {} --from {} > {}".format(
-        #     cluster_spec.name,
-        #     os.path.join(get_secrets_dir(), cluster_spec.name, cluster_spec_template_file_name),
-        #     os.path.join(get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_FILE_NAME)
-        # ),
-        #     echo=True,
-        #     env={
-        #         'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
-        #         'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_spec),
-        #         'SERVICE_DOMAIN': "{}.local".format(cluster_spec.name),
-        #         'CLUSTER_NAME': cluster_spec.name,
-        #         'METRO': cluster_spec.metro
-        #     }
-        # )
+    with open(os.path.join(templates_dir, cp_file_name), 'r') as cp_file:
+        _cp_yaml = cp_file.read()
+
+    with open(os.path.join(templates_dir, md_file_name), 'r') as md_file:
+        _md_yaml = md_file.read()
+
+    _cluster_yaml = "{}\n{}".format(_cluster_yaml, _cp_yaml)
+    secrets = get_secrets()
+    constellation = get_constellation()
+    jinja2.is_undefined(True)
+
+    for cluster_cfg in get_constellation_clusters(constellation):
+        data = {
+                'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
+                'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_cfg),
+                'SERVICE_DOMAIN': "{}.local".format(cluster_cfg.name),
+                'CLUSTER_NAME': cluster_cfg.name,
+                'METRO': cluster_cfg.metro,
+                'CONTROL_PLANE_NODE_TYPE': cluster_cfg.control_nodes[0].plan,
+                'CONTROL_PLANE_MACHINE_COUNT': cluster_cfg.control_nodes[0].count,
+                'TALOS_VERSION': 'v1.4',
+                'CPEM_VERSION': cluster_cfg.cpem,
+                'KUBERNETES_VERSION': 'v1.27.1'
+            }
+        data.update(secrets)
+
+        cluster_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+        cluster_yaml_tpl = cluster_env.from_string(_cluster_yaml)
+        cluster_yaml = cluster_yaml_tpl.render(data)
+
+        for worker_node in cluster_cfg.worker_nodes:
+            worker_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
+            worker_yaml_tpl = worker_env.from_string(_md_yaml)
+            data['WORKER_NODE_TYPE'] = worker_node.plan
+            data['WORKER_MACHINE_COUNT'] = worker_node.count
+            cluster_yaml = "{}\n{}".format(cluster_yaml, worker_yaml_tpl.render(data))
+
+        cluster_spec = list(yaml.safe_load_all(cluster_yaml))
+
+        patch_cluster_spec_network(cluster_cfg, cluster_spec)
+
         with open(os.path.join(
-                get_secrets_dir(), cluster.name, cluster_spec_file_name), 'w') as cluster_template_file:
-            yaml.safe_dump_all(cluster_spec, cluster_template_file)
+                get_secrets_dir(), cluster_cfg.name, _CLUSTER_MANIFEST_FILE_NAME), 'w') as cluster_template_file:
+            yaml.dump_all(cluster_spec, cluster_template_file)
 
 
 @task(register_vips)
@@ -204,12 +232,21 @@ def _talos_apply_config_patch(ctx, cluster_spec):
                 del (document['spec']['template']['spec']['configPatches'])
                 document['spec']['template']['spec']['generateType'] = 'none'
                 with open(os.path.join(config_dir_name, worker_capi_file_name), 'r') as talos_worker_config_file:
-                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read().strip()
+                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
 
             documents.append(document)
 
     with open(cluster_manifest_static_file_name, 'w') as static_manifest:
-        yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
+        # yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
+        # ToDo: pyyaml for some reason when used with safe_dump_all dumps the inner multiline string as
+        # single line long string
+        # spec:
+        #   template:
+        #     spec:
+        #       data: "#!talos\ncluster:\n  ca:\n
+        #
+        # instead of a multiline string
+        yaml.dump_all(documents, static_manifest, sort_keys=True)
 
 
 @task(talosctl_gen_config)

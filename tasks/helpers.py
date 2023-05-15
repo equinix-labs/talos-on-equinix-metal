@@ -2,6 +2,7 @@ import base64
 import glob
 import json
 import os
+from pprint import pprint
 
 import git
 import yaml
@@ -13,8 +14,10 @@ CONSTELLATION_FILE_SUFFIX = '.constellation.yaml'
 
 
 def str_presenter(dumper, data):
-    """configures yaml for dumping multiline strings
-    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
+    """
+    configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
     lines = data.splitlines()
     if len(lines) > 1:  # check for multiline string
         return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
@@ -76,9 +79,9 @@ def get_cpem_config():
     }
 
 
-def get_cpem_config_yaml():
+def get_cpem_config_yaml() -> str:
     return base64.b64encode(
-        json.dumps(get_cpem_config()).encode('ascii'))
+        json.dumps(get_cpem_config()).encode('utf-8')).decode('utf-8')
 
 
 def get_file_content_as_b64(filename):
@@ -145,9 +148,11 @@ def get_constellation(name=None) -> Constellation:
         return Constellation.parse_raw(constellation_file.read())
 
 
-def get_constellation_clusters() -> list[Cluster]:
+def get_constellation_clusters(constellation: Constellation = None) -> list[Cluster]:
     clusters = list()
-    constellation = get_constellation()
+    if constellation is None:
+        constellation = get_constellation()
+
     clusters.append(constellation.bary)
     clusters.extend(constellation.satellites)
     return clusters
