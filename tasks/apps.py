@@ -109,8 +109,6 @@ def install_whoami_app(ctx):
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
-    print(secrets)
-
     with ctx.cd(dns_tls_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
         ctx.run("helm upgrade --install --namespace test-application "

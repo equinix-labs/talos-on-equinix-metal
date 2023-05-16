@@ -260,11 +260,12 @@ def talos_apply_config_patches(ctx):
         _talos_apply_config_patch(ctx, cluster_spec)
 
 
-@task(use_kind_cluster_context)
+@task()
 def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     """
     Produces [secrets_dir]/[cluster_name].kubeconfig
     """
+    # ToDo: kubectl create secret generic --from-file ~/.gocy/jupiter/jupiter/talosconfig jupiter-talosconfig
     if cluster_name is None:
         print("Can't continue without a cluster name, check {} for available options.".format(
             get_secrets_dir()
