@@ -131,3 +131,29 @@ def install_ingress_controller(ctx):
     with ctx.cd(app_directory):
         ctx.run("helm dependency update", echo=True)
         ctx.run("helm upgrade --install ingress-bundle --namespace ingress-bundle --create-namespace ./", echo=True)
+
+
+@task()
+def install_persistent_storage(ctx):
+    """
+    Install helm chart apps/persistent-storage
+    """
+    app_directory = os.path.join('apps', 'persistent-storage-dependencies')
+    with ctx.cd(app_directory):
+        ctx.run("kubectl apply -f namespace.yaml", echo=True)
+        ctx.run("helm upgrade "
+                "--dependency-update "                
+                "--install "
+                "--namespace persistent-storage "
+                "--create-namespace "
+                "persistent-storage ./", echo=True)
+
+    app_directory = os.path.join('apps', 'persistent-storage')
+    with ctx.cd(app_directory):
+        ctx.run("helm upgrade "
+                "--install "
+                "--namespace persistent-storage "
+                "--set rook-ceph-cluster.operatorNamespace=persistent-storage "
+                "persistent-storage-cluster ./",
+                echo=True)
+
