@@ -171,7 +171,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                     talos_patch = yaml.safe_load(talos_cp_patch_file)
                     for route in talos_patch[0]['value']['routes']:
                         route['gateway'] = node_patch_data[hostname]['gateway']
-            elif 'worker' in hostname:
+            elif 'machine' in hostname:
                 with open(os.path.join(
                         templates_directory,
                         'worker.pt.yaml'), 'r') as talos_cp_patch_file:
@@ -179,7 +179,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                     for route in talos_patch[1]['value']['routes']:
                         route['gateway'] = node_patch_data[hostname]['gateway']
             else:
-                print('Unrecognised node role: {}, should be "control-plane" OR "worker. '
+                print('Unrecognised node role: {}, should be "control-plane" OR "machine. '
                       'Node will NOT be patched.'.format(hostname))
 
             if talos_patch is not None:
@@ -190,7 +190,7 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                 for address in node_patch_data[hostname]['addresses']:
                     ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
                         os.path.join(
-                            os.environ.get('TOEM_PROJECT_ROOT'),
+                            os.environ.get('GOCY_DEFAULT_ROOT'),
                             cluster_cfg_dir,
                             talosconfig_file_name),
                         address,
@@ -337,7 +337,6 @@ def install_network_service(ctx):
         })
 
     network_services_values_file_name = os.path.join(
-        os.environ.get('TOEM_PROJECT_ROOT'),
         cluster_cfg_dir,
         'values.network-services.yaml')
     with open(network_services_values_file_name, 'w') as value_template_file:
