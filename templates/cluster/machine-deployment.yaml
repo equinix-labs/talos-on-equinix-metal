@@ -2,7 +2,7 @@
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: PacketMachineTemplate
 metadata:
-  name: machine-{{ WORKER_NODE_TYPE }}
+  name: {{ machine_name }}
   labels:
     cluster: {{ CLUSTER_NAME }}
 spec:
@@ -16,7 +16,7 @@ spec:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: machine-{{ WORKER_NODE_TYPE }}
+  name: {{ machine_name }}
   labels:
     cluster.x-k8s.io/cluster-name: {{ CLUSTER_NAME }}
     pool: pool-{{ WORKER_NODE_TYPE }}
@@ -42,6 +42,6 @@ spec:
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
           kind: TalosConfigTemplate
       infrastructureRef:
-        name: machine-{{ WORKER_NODE_TYPE }}
+        name: {{ machine_name }}
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: PacketMachineTemplate

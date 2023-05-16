@@ -90,10 +90,9 @@ def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: li
 
 
 @task(register_vips, use_kind_cluster_context)
-def generate_cluster_spec(ctx, dev_mode=False,
+def generate_cluster_spec(ctx,
                           templates_dir=os.path.join('templates', 'cluster'),
                           cluster_file_name='capi.yaml',
-                          cp_file_name='control-plane.yaml',
                           md_file_name='machine-deployment.yaml'):
     """
     Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
@@ -105,13 +104,9 @@ def generate_cluster_spec(ctx, dev_mode=False,
     with open(os.path.join(templates_dir, cluster_file_name), 'r') as cluster_file:
         _cluster_yaml = cluster_file.read()
 
-    with open(os.path.join(templates_dir, cp_file_name), 'r') as cp_file:
-        _cp_yaml = cp_file.read()
-
     with open(os.path.join(templates_dir, md_file_name), 'r') as md_file:
         _md_yaml = md_file.read()
 
-    _cluster_yaml = "{}\n{}".format(_cluster_yaml, _cp_yaml)
     secrets = get_secrets()
     constellation = get_constellation()
     jinja2.is_undefined(True)
@@ -125,9 +120,9 @@ def generate_cluster_spec(ctx, dev_mode=False,
                 'METRO': cluster_cfg.metro,
                 'CONTROL_PLANE_NODE_TYPE': cluster_cfg.control_nodes[0].plan,
                 'CONTROL_PLANE_MACHINE_COUNT': cluster_cfg.control_nodes[0].count,
-                'TALOS_VERSION': 'v1.4',
+                'TALOS_VERSION': cluster_cfg.talos,
                 'CPEM_VERSION': cluster_cfg.cpem,
-                'KUBERNETES_VERSION': 'v1.27.1'
+                'KUBERNETES_VERSION': cluster_cfg.kubernetes
             }
         data.update(secrets)
 
@@ -138,6 +133,9 @@ def generate_cluster_spec(ctx, dev_mode=False,
         for worker_node in cluster_cfg.worker_nodes:
             worker_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
             worker_yaml_tpl = worker_env.from_string(_md_yaml)
+            data['machine_name'] = "{}-machine-{}".format(
+                cluster_cfg.name,
+                worker_node.plan.replace('.', '-'))  # CPEM blows up if there are dots in machine name
             data['WORKER_NODE_TYPE'] = worker_node.plan
             data['WORKER_MACHINE_COUNT'] = worker_node.count
             cluster_yaml = "{}\n{}".format(cluster_yaml, worker_yaml_tpl.render(data))

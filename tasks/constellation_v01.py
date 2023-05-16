@@ -28,6 +28,8 @@ class Cluster(BaseModel):
     name: str = ''
     metro: str = ''
     cpem: str = ''
+    talos: str = ''
+    kubernetes: str = ''
     pod_cidr_blocks: list[str] = []
     service_cidr_blocks: list[str] = []
     vips: list[Vip] = []
