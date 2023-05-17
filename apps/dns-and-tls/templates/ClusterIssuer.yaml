@@ -2,7 +2,7 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: letsencrypt-gcp
+  name: {{ .Values.letsencrypt.ClusterIssuerName }}
 spec:
   acme:
     email: {{ .Values.letsencrypt.email }}

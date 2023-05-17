@@ -1,5 +1,6 @@
 letsencrypt:
   enabled: true
+  ClusterIssuerName: letsencrypt-gcp
   email: # ToDo: Admin email address
   google:
     enabled: true

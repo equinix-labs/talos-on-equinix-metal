@@ -95,6 +95,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-gcp
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.test_app.fqdn }}
+    {{- if .Values.test_app.oauth.enabled }}
+    nginx.ingress.kubernetes.io/auth-url: {{ .Values.test_app.oauth.fqdn }}/oauth2/auth
+    nginx.ingress.kubernetes.io/auth-signin: {{ .Values.test_app.oauth.fqdn }}/oauth2/start
+    nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+    {{- end }}
   name: whoami-test-app
   namespace: {{ .Release.Namespace }}
 spec:

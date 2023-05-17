@@ -1,0 +1,103 @@
+# Given the number of project specific settings this file has to have, the following file is just a template.
+# Task apps.install-idp-auth uses it to produce ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
+dex:
+  config:
+    issuer: https://bouncer.awesome-domain.com
+    storage:
+      type: memory
+    enablePasswordDB: true
+    logger:
+      level: info
+      format: json
+    oauth2:
+      responseTypes: [ "code", "token", "id_token" ]
+      skipApprovalScreen: true
+    expiry:
+      signingKeys: "4h"
+      idTokens: "1h"
+    staticClients:
+      - id: oauth2-proxy
+        redirectURIs:
+          - 'https://oauth.awesome-domain.com/oauth2/callback'
+        name: "oauth2-proxy"
+        secret: ""
+        public: true
+      - id: argocd
+        name: Argo CD
+        redirectURIs:
+          - 'https://argocd.awesome-domain.com/auth/callback'
+        secret:
+      - id: pinniped
+        name: 'Pinniped Supervisor client'
+        redirectURIs:
+          - 'https://pinniped.awesome-domain.com/callback'
+        secret:
+    staticPasswords:
+      - email: "eric@awesome-domain.com"
+        hash: ""
+        username: "eric"
+        userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+      - email: "kenny@awesome-domain.com"
+        hash: ""
+        username: "kenny"
+        userID: "08a8684b-db88-4b73-90a9-3cd1661f5477"
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID:
+          clientSecret:
+          redirectURI: https://bouncer.awesome-domain.com/callback
+          loadAllGroups: true
+          orgs:
+            - name: #GitHub organisation name
+  commonLabels:
+    team_name: dev
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: bouncer.awesome-domain.com
+    hosts:
+      - host: bouncer.awesome-domain.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: tls.bouncer.awesome-domain.com
+        hosts:
+          - bouncer.awesome-domain.com
+oauth2-proxy:
+  # Oauth client configuration specifics
+  config:
+    clientID: oauth2-proxy
+    clientSecret: ""
+    cookieSecret: ""
+    configFile: |-
+      provider = "oidc"
+      oidc_issuer_url = "https://bouncer.awesome-domain.com" 
+      redirect_url = "https://oauth.awesome-domain.com/oauth2/callback"
+      email_domains = [ "*" ]
+      reverse_proxy = "true"
+      cookie_secure = "true"
+      whitelist_domains = [ ".awesome-domain.com" ]
+      cookie_domains = [ ".awesome-domain.com" ]
+      code_challenge_method = "S256"
+      set_authorization_header = "true"
+      pass_authorization_header = "true"
+
+  ingress:
+    enabled: true
+    className: nginx
+    path: /
+    hosts:
+      - oauth.awesome-domain.com
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: oauth.awesome-domain.com
+    tls:
+      - secretName: tls.oauth.awesome-domain.com
+        hosts:
+          - oauth.awesome-domain.com

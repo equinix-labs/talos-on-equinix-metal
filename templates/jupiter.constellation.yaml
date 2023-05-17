@@ -10,6 +10,7 @@ bary:
   cpem: v3.6.2
   talos: v1.4
   kubernetes: v1.27.1
+  domain_prefix: ''
   pod_cidr_blocks:
   - 172.16.0.0/17
   service_cidr_blocks:
@@ -36,6 +37,7 @@ satellites:
   cpem: v3.6.2
   talos: v1.4
   kubernetes: v1.27.1
+  domain_prefix: ''
   pod_cidr_blocks:
   - 172.17.0.0/17
   service_cidr_blocks:
@@ -63,6 +65,7 @@ satellites:
   cpem: v3.6.2
   talos: v1.4
   kubernetes: v1.27.1
+  domain_prefix: ''
   pod_cidr_blocks:
   - 172.18.0.0/17
   service_cidr_blocks:

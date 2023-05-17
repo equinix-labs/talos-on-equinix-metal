@@ -10,7 +10,7 @@ rook-ceph-cluster:
                 - key: node.kubernetes.io/instance-type
                   operator: In
                   values:
-                    - m3.large.x86
+                    - m3.large.x86 # ToDo: set proper labels on nodes -> nodeLabels - https://www.talos.dev/v1.4/reference/configuration/#machineconfig
         tolerations:
           - key: node-role.kubernetes.io/control-plane
             operator: Exists

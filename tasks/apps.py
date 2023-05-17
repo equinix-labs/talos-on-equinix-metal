@@ -1,5 +1,7 @@
+import configparser
 import os
 
+import yaml
 from invoke import task
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secrets
 
@@ -78,7 +80,7 @@ def install_dns_and_tls_dependencies(ctx):
                 "dns-and-tls-dependencies ./".format(
                     get_dns_tls_namespace_name(),
                     secrets['GCP_PROJECT_ID'],
-                    secrets['GCP_DOMAIN']
+                    secrets['GOCY_DOMAIN']
                 ), echo=True)
 
 
@@ -101,25 +103,45 @@ def install_dns_and_tls(ctx):
 
 
 @task()
-def install_whoami_app(ctx):
+def install_whoami_app(ctx, oauth: bool = False):
     """
     Install Helm chart apps/whoami
     """
     dns_tls_directory = os.path.join('apps', 'whoami')
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
+    
+    if oauth:
+        fqdn = "whoami-oauth.{}".format(
+            secrets['GOCY_DOMAIN']
+        )
+    else:
+        fqdn = "whoami.{}.{}".format(
+            cluster_spec.domain_prefix,
+            secrets['GOCY_DOMAIN']
+        )
 
     with ctx.cd(dns_tls_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade --install --namespace test-application "
-                "--set test_app.fqdn={} "
-                "--set test_app.name={} "                
-                "whoami-test-app ./".format(
-                    "whoami.{}.{}".format(
-                        os.environ.get('GOCY_SUBDOMAIN'),
-                        secrets['GCP_DOMAIN']
-                    ), cluster_spec.name
-                ), echo=True)
+        if fqdn:
+            ctx.run("helm upgrade --install --namespace test-application "
+                    "--set test_app.fqdn={} "
+                    "--set test_app.name={} "
+                    "--set test_app.oauth.enabled=true "
+                    "--set test_app.oauth.fqdn='{}' "
+                    "whoami-test-app ./".format(
+                        fqdn,
+                        cluster_spec.name,
+                        'https://oauth.{}'.format(secrets['GOCY_DOMAIN'])
+                    ), echo=True)
+        else:
+            ctx.run("helm upgrade --install --namespace test-application "
+                    "--set test_app.fqdn={} "
+                    "--set test_app.name={} "
+                    "whoami-test-app ./".format(
+                        fqdn,
+                        cluster_spec.name
+                    ), echo=True)
 
 
 @task()
@@ -136,7 +158,7 @@ def install_ingress_controller(ctx):
 @task()
 def install_persistent_storage(ctx):
     """
-    Install helm chart apps/persistent-storage
+    Install persistent-storage
     """
     app_directory = os.path.join('apps', 'persistent-storage-dependencies')
     with ctx.cd(app_directory):
@@ -145,7 +167,6 @@ def install_persistent_storage(ctx):
                 "--dependency-update "                
                 "--install "
                 "--namespace persistent-storage "
-                "--create-namespace "
                 "persistent-storage ./", echo=True)
 
     app_directory = os.path.join('apps', 'persistent-storage')
@@ -157,3 +178,88 @@ def install_persistent_storage(ctx):
                 "persistent-storage-cluster ./",
                 echo=True)
 
+
+@task()
+def install_idp_auth(ctx):
+    """
+    Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
+    Uses it to install idp-auth. IDP should be installed on bary cluster only.
+    """
+    app_directory = os.path.join('apps', 'idp-auth')
+    secrets = get_secrets()
+    cluster = get_cluster_spec_from_context(ctx)
+
+    with open(os.path.join(app_directory, 'values.yaml')) as values_file:
+        values = dict(yaml.safe_load(values_file))
+
+    domain = secrets['GOCY_DOMAIN']
+    bouncer_fqdn = "bouncer.{}".format(domain)
+    values['dex']['config']['issuer'] = "https://{}".format(bouncer_fqdn)
+    values['dex']['config']['staticClients'][0]['secret'] = secrets['GOCY_OAUTH_CLIENT_SECRET']
+    values['dex']['config']['staticClients'][0]['redirectURIs'][0] = "https://oauth.{}/oauth2/callback".format(domain)
+    values['dex']['config']['staticClients'][1]['secret'] = secrets['GOCY_ARGOCD_SSO_CLIENT_SECRET']
+    values['dex']['config']['staticClients'][1]['redirectURIs'][0] = "https://argocd.{}/auth/callback".format(domain)
+    values['dex']['config']['staticClients'][2]['secret'] = secrets['GOCY_PINNIPED_SSO_CLIENT_SECRET']
+    values['dex']['config']['staticClients'][2]['redirectURIs'][0] = "https://pinniped.{}/callback".format(domain)
+
+    values['dex']['config']['staticPasswords'][0]['email'] = "eric@{}".format(domain)
+    eric_password_hash = ctx.run('echo "{}" | htpasswd -BinC 10 eirc | cut -d: -f2'.format(
+        secrets['ERIC_PASS']), hide='stdout', echo=False).stdout.strip()
+    values['dex']['config']['staticPasswords'][0]['hash'] = eric_password_hash
+
+    values['dex']['config']['staticPasswords'][1]['email'] = "kenny@{}".format(domain)
+    kenny_password_hash = ctx.run('echo "{}" | htpasswd -BinC 10 kenny | cut -d: -f2'.format(
+        secrets['KENNY_PASS']), hide='stdout', echo=False).stdout.strip()
+    values['dex']['config']['staticPasswords'][1]['hash'] = kenny_password_hash
+
+    values['dex']['config']['connectors'][0]['config']['clientID'] = secrets['GOCY_GH_CLIENT_ID']
+    values['dex']['config']['connectors'][0]['config']['clientSecret'] = secrets['GOCY_GH_CLIENT_SECRET']
+    values['dex']['config']['connectors'][0]['config']['redirectURI'] = "https://{}/callback".format(bouncer_fqdn)
+    values['dex']['config']['connectors'][0]['config']['orgs'][0]['name'] = secrets['GCP_PROJECT_ID']
+
+    values['dex']['ingress']['annotations']['external-dns.alpha.kubernetes.io/hostname'] = bouncer_fqdn
+    values['dex']['ingress']['hosts'][0]['host'] = bouncer_fqdn
+    values['dex']['ingress']['tls'][0]['secretName'] = "tls." + bouncer_fqdn
+    values['dex']['ingress']['tls'][0]['hosts'][0] = bouncer_fqdn
+
+    values['oauth2-proxy']['config']['clientSecret'] = secrets['GOCY_OAUTH_CLIENT_SECRET']
+    values['oauth2-proxy']['config']['cookieSecret'] = secrets['GOCY_OAUTH_COOKIE_SECRET']
+
+    oauth_cfg = configparser.ConfigParser()
+    tainted_config = "[gocy]\n{}".format(values['oauth2-proxy']['config']['configFile'])
+    oauth_cfg.read_string(tainted_config)
+
+    oauth_cfg['gocy']['oidc_issuer_url'] = '"https://{}"'.format(bouncer_fqdn)
+    oauth_cfg['gocy']['redirect_url'] = '"https://oauth.{}/oauth2/callback"'.format(domain)
+    oauth_cfg['gocy']['whitelist_domains'] = '[ ".{}" ]'.format(domain)
+    oauth_cfg['gocy']['cookie_domains'] = '[ ".{}" ]'.format(domain)
+
+    tainted_oauth_cfg_ini = os.path.join(
+            get_secrets_dir(),
+            'tainted_oauth_cfg.ini')
+    with open(tainted_oauth_cfg_ini, 'w') as tainted_oauth_cfg_file:
+        oauth_cfg.write(tainted_oauth_cfg_file)
+
+    with open(tainted_oauth_cfg_ini) as tainted_oauth_cfg_file:
+        values['oauth2-proxy']['config']['configFile'] = "\n".join(
+            tainted_oauth_cfg_file.read().splitlines()[1:]
+        )
+
+    oauth_fqdn = "oauth." + domain
+    values['oauth2-proxy']['ingress']['annotations']['external-dns.alpha.kubernetes.io/hostname'] = oauth_fqdn
+    values['oauth2-proxy']['ingress']['hosts'][0] = oauth_fqdn
+    values['oauth2-proxy']['ingress']['tls'][0]['secretName'] = "tls." + oauth_fqdn
+    values['oauth2-proxy']['ingress']['tls'][0]['hosts'][0] = oauth_fqdn
+
+    idp_auth_values_yaml = os.path.join(get_secrets_dir(), 'idp-auth-values.yaml')
+    with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
+        yaml.dump(values, idp_auth_values_yaml_file)
+
+    with ctx.cd(app_directory):
+        ctx.run("kubectl apply -f namespace.yaml", echo=True)
+        ctx.run("helm upgrade "
+                "--dependency-update "
+                "--install "
+                "--namespace idp-auth "
+                "--values {} "
+                "idp-auth ./".format(idp_auth_values_yaml), echo=True)

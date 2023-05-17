@@ -265,7 +265,7 @@ def generate_ca(ctx):
     with ctx.cd(ctx.core.ca_dir):
         ctx.run("openssl req -days 3560 -config openssl.cnf "
                 "-subj '/CN={} CA' -nodes -new -x509 -keyout ca.key -out ca.crt".format(
-                    os.environ.get('GCP_DOMAIN')))
+                    os.environ.get('GOCY_DOMAIN')))
 
 
 @task(generate_ca)
