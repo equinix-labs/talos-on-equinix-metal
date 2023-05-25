@@ -138,6 +138,7 @@ def get_oidc_kubeconfig(ctx, cluster_name=None):
     kubeconfig['users'] = [oidc_user]
     kubeconfig['contexts'][0]['context']['user'] = oidc_user['name']
     kubeconfig['contexts'][0]['name'] = "{}@{}".format('oidc', cluster_name)
+    kubeconfig['current-context'] = kubeconfig['contexts'][0]['name']
 
     oidc_kubeconfig_file_path = os.path.join(
         kubeconfig_dir,
