@@ -4,25 +4,24 @@ role_bindings:
   admins:
     {% for binding in idp_auth['role_bindings'] %}
     - provider: {{ binding.provider }}
-      group_prefix: "{{ binding.group_prefix }}"
-      group_name: "{{ binding.admins.group_name }}"
+      group_prefix: {{ binding.group_prefix }}
+      group_name: {{ binding.admins.group_name }}
     {% endfor %}
   developers:
     {% for binding in idp_auth['role_bindings'] %}
     - provider: {{ binding.provider }}
-      group_prefix: "{{ binding.group_prefix }}"
-      group_name: "{{ binding.developers.group_name }}"
+      group_prefix: {{ binding.group_prefix }}
+      group_name: {{ binding.developers.group_name }}
     {% endfor %}
   audience:
     {% for binding in idp_auth['role_bindings'] %}
     - provider: {{ binding.provider }}
-      group_prefix: "{{ binding.group_prefix }}"
-      group_name: "{{ binding.audience.group_name }}"
+      group_prefix: {{ binding.group_prefix }}
+      group_name: {{ binding.audience.group_name }}
     {% endfor %}
-
 dex:
   config:
-    issuer: {{ idp_auth.dex.bouncer_fqdn }}
+    issuer: https://{{ idp_auth.dex.bouncer_fqdn }}
     storage:
       type: memory
     enablePasswordDB: true
@@ -41,21 +40,21 @@ dex:
     staticClients:
       - id: oauth2-proxy
         redirectURIs:
-          - 'https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback'
+          - https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback
         name: "oauth2-proxy"
         secret: "{{ env.GOCY_OAUTH_CLIENT_SECRET }}"
         public: true
       - id: argocd
         name: Argo CD
         redirectURIs:
-          - 'https://argocd.{{ env.GOCY_DOMAIN }}/auth/callback'
-        secret: '{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}'
+          - https://argocd.{{ env.GOCY_DOMAIN }}/auth/callback
+        secret: "{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}"
       - id: kubelogin
         name: Kubernetes
         redirectURIs:
           - http://localhost:8000
           - http://localhost:18000
-        secret: '{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}'
+        secret: "{{ idp_auth.oidc.issuer_url }}"
     {% if idp_auth.dex.staticPasswords.enabled %}
     staticPasswords:
       {% for user in idp_auth.dex.staticPasswords.users %}
@@ -102,11 +101,11 @@ oauth2-proxy:
       provider = "oidc"
       oidc_issuer_url = "https://{{ idp_auth.dex.bouncer_fqdn }}"
       redirect_url = "https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback"
-      email_env.GOCY_DOMAINs = [ "*" ]
+      email_domains = [ "*" ]
       reverse_proxy = "true"
       cookie_secure = "true"
-      whitelist_env.GOCY_DOMAINs = [ ".{{ env.GOCY_DOMAIN }}" ]
-      cookie_env.GOCY_DOMAINs = [ ".{{ env.GOCY_DOMAIN }}" ]
+      whitelist_domains = [ ".{{ env.GOCY_DOMAIN }}" ]
+      cookie_domains = [ ".{{ env.GOCY_DOMAIN }}" ]
       code_challenge_method = "S256"
       set_authorization_header = "true"
       pass_authorization_header = "true"

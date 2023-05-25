@@ -28,6 +28,15 @@ def _use_cluster_context(ctx, cluster_data, kind_cluster_name="kind-toem-capi-lo
         ctx.run("kconf use " + cluster_name, echo=True)
     else:
         ctx.run("kconf use admin@" + cluster_name, echo=True)
+        ctx.run("talosctl config context " + cluster_name, echo=True)
+
+
+@task()
+def set_cluster_context(ctx, context):
+    """
+    Switch k8s context to [context]
+    """
+    _use_cluster_context(ctx, context)
 
 
 @task()

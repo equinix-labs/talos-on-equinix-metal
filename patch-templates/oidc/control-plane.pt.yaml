@@ -3,9 +3,12 @@
 - op: add
   path: /cluster/apiServer/extraArgs
   value:
-    oidc-client-id: "{{ env.GOCY_OIDC_CLIENT_ID }}"
+    oidc-client-id: "{{ idp_auth.oidc.client_id }}"
     oidc-groups-claim: groups
     oidc-groups-prefix: "oidc:"
-    oidc-issuer-url: "{{ env.GOCY_OIDC_URL }}"
+    oidc-issuer-url: "{{ idp_auth.oidc.issuer_url }}"
     oidc-username-claim: email
     oidc-username-prefix: "oidc:"
+    {% if idp_auth.oidc.client_secret is not none and idp_auth.oidc.client_secret|length %}
+    oidc-client-secret: "{{ idp_auth.oidc.client_secret }}"
+    {% endif %}

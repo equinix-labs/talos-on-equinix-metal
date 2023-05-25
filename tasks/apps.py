@@ -1,11 +1,10 @@
-import configparser
 import os
-from pprint import pprint
 
 import jinja2
-import yaml
 from invoke import task
-from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets
+
+from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
+    get_constellation
 
 
 def get_gcp_token_file_name():
@@ -181,14 +180,8 @@ def install_persistent_storage(ctx):
                 echo=True)
 
 
-@task()
-def install_idp_auth(ctx, values_template_file=None, static_password_enabled=False):
-    """
-    Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
-    Uses it to install idp-auth. IDP should be installed on bary cluster only.
-    """
+def install_idp_auth_chart(ctx, values_template_file, jinja, secrets):
     app_directory = os.path.join('apps', 'idp-auth')
-    secrets = get_secrets()
 
     if values_template_file is None:
         values_template_file = os.path.join(app_directory, 'values.tpl.yaml')
@@ -196,7 +189,6 @@ def install_idp_auth(ctx, values_template_file=None, static_password_enabled=Fal
     with open(values_template_file) as values_file:
         values_yaml = values_file.read()
 
-    jinja = jinja2.Environment(undefined=jinja2.StrictUndefined)
     cluster_yaml_tpl = jinja.from_string(values_yaml)
     values_yaml = cluster_yaml_tpl.render(secrets)
 
@@ -213,8 +205,24 @@ def install_idp_auth(ctx, values_template_file=None, static_password_enabled=Fal
             "--namespace idp-auth "
             "--values {} "
             "idp-auth {}".format(
-                idp_auth_values_yaml,
-                app_directory), echo=True)
+        idp_auth_values_yaml,
+        app_directory), echo=True)
+
+
+@task()
+def install_idp_auth(ctx, values_template_file=None):
+    """
+    Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
+    Uses it to install idp-auth. IDP should be installed on bary cluster only.
+    """
+
+    secrets = get_secrets()
+    jinja = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    cluster = get_cluster_spec_from_context(ctx)
+    constellation = get_constellation()
+
+    if cluster.name == constellation.bary.name:
+        install_idp_auth_chart(ctx, values_template_file, jinja, secrets)
 
     with open(os.path.join(
             'patch-templates',
