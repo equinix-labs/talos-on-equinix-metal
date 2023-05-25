@@ -1,0 +1,18 @@
+name: oidc-{{ cluster_name }}
+user:
+  exec:
+    apiVersion: client.authentication.k8s.io/v1beta1
+    args:
+      - oidc-login
+      - get-token
+      - --oidc-issuer-url={{ issuer_url }}
+      - --oidc-client-id={{ client_id }}
+      {% if client_secret is not none and client_secret|length %}
+      - --oidc-client-secret="{{ client_secret }}"
+      {% endif %}
+      - --oidc-extra-scope=groups
+      - --oidc-extra-scope=email
+      - --oidc-extra-scope=offline_access
+      - --listen-address=127.0.0.1:18000
+    command: kubectl
+    env: null

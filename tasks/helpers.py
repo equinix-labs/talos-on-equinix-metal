@@ -5,6 +5,7 @@ import os
 from pprint import pprint
 
 import git
+import jinja2
 import yaml
 
 from tasks.constellation_v01 import Constellation, Cluster
@@ -218,3 +219,7 @@ def get_nodes_ips(ctx, talosconfig_file_name='talosconfig') -> ClusterNodes:
         raise Exception("Node list returned by kubectl is out of sync with your talosconfig!")
 
     return cluster_nodes
+
+
+def get_jinja():
+    return jinja2.Environment(undefined=jinja2.StrictUndefined)

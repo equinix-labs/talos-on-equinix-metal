@@ -1,5 +1,7 @@
 import os
+from pprint import pprint
 
+import jinja2
 import yaml
 from invoke import task
 from pydantic import ValidationError
@@ -7,7 +9,8 @@ from tabulate import tabulate
 
 from tasks.constellation_v01 import Constellation
 from tasks.helpers import get_config_dir, get_secrets_file_name, available_constellation_specs, \
-    get_constellation_context_file_name, get_ccontext
+    get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
+    get_secrets
 
 
 @task()
@@ -102,3 +105,44 @@ def list_constellations(ctx):
             table.append(row)
 
     print(tabulate(table))
+
+
+@task()
+def get_oidc_kubeconfig(ctx, cluster_name=None):
+    if cluster_name is None:
+        cluster_name = get_cluster_spec_from_context(ctx).name
+
+    kubeconfig_dir = os.path.join(
+        get_secrets_dir(),
+        cluster_name
+    )
+    kubeconfig_file_path = os.path.join(
+        kubeconfig_dir,
+        cluster_name + '.kubeconfig'
+    )
+    with open(kubeconfig_file_path) as kubeconfig_file:
+        kubeconfig = dict(yaml.safe_load(kubeconfig_file))
+
+    jinja = get_jinja()
+    with open(os.path.join('templates', 'k8s_oidc_user.yaml')) as oidc_user_tpl_file:
+        oidc_user_tpl = jinja.from_string(oidc_user_tpl_file.read())
+
+    secrets = get_secrets()
+    data = {
+        'cluster_name': cluster_name
+    }
+    data.update(secrets['idp_auth']['oidc'])
+
+    oidc_user = yaml.safe_load(oidc_user_tpl.render(data))
+
+    kubeconfig['users'] = [oidc_user]
+    kubeconfig['contexts'][0]['context']['user'] = oidc_user['name']
+    kubeconfig['contexts'][0]['name'] = "{}@{}".format('oidc', cluster_name)
+
+    oidc_kubeconfig_file_path = os.path.join(
+        kubeconfig_dir,
+        cluster_name + '.oidc.kubeconfig'
+    )
+
+    with open(oidc_kubeconfig_file_path, 'w') as oidc_kubeconfig_file:
+        yaml.safe_dump(kubeconfig, oidc_kubeconfig_file)

@@ -4,7 +4,7 @@ import jinja2
 from invoke import task
 
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation
+    get_constellation, get_jinja
 
 
 def get_gcp_token_file_name():
@@ -217,7 +217,7 @@ def install_idp_auth(ctx, values_template_file=None):
     """
 
     secrets = get_secrets()
-    jinja = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    jinja = get_jinja()
     cluster = get_cluster_spec_from_context(ctx)
     constellation = get_constellation()
 
