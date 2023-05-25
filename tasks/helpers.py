@@ -65,9 +65,13 @@ def get_secrets_file_name(name='secrets.yaml'):
     return os.path.join(get_config_dir(), name)
 
 
-def get_secrets():
+def get_secrets() -> dict:
     with open(get_secrets_file_name()) as secrets_file:
-        return dict(yaml.safe_load(secrets_file))['env']
+        return dict(yaml.safe_load(secrets_file))
+
+
+def get_secret_envs() -> list:
+    return get_secrets()['env']
 
 
 def get_cpem_config():
@@ -156,3 +160,61 @@ def get_constellation_clusters(constellation: Constellation = None) -> list[Clus
     clusters.append(constellation.bary)
     clusters.extend(constellation.satellites)
     return clusters
+
+
+class ClusterNodes:
+
+    control_plane: list
+    machines: list
+
+    def __init__(self):
+        self.control_plane = list()
+        self.machines = list()
+
+    def all(self) -> list:
+        all_nodes = self.control_plane.copy()
+        all_nodes.extend(self.machines)
+        return all_nodes
+
+
+def get_nodes_ips(ctx, talosconfig_file_name='talosconfig') -> ClusterNodes:
+
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    cluster_cfg_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
+
+    with open(os.path.join(cluster_cfg_dir, talosconfig_file_name), 'r') as talosconfig_file:
+        talosconfig = yaml.safe_load(talosconfig_file)
+
+    nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=True).stdout
+    cluster_nodes = ClusterNodes()
+    cp_vip = get_cp_vip_address(cluster_spec)
+    for node in yaml.safe_load(nodes_raw)['items']:
+        node_addresses = node['status']['addresses']
+        node_addresses = list(filter(lambda address: address['type'] == 'ExternalIP', node_addresses))
+        node_addresses = list(map(lambda address: address['address'], node_addresses))
+
+        if cp_vip in node_addresses:
+            node_addresses.remove(cp_vip)
+
+        if 'node-role.kubernetes.io/control-plane' in node['metadata']['labels']:
+            cluster_nodes.control_plane.extend(node_addresses)
+        else:
+            cluster_nodes.machines.extend(node_addresses)
+
+    talosconfig_addresses = talosconfig['contexts'][cluster_spec.name]['nodes']
+    try:
+        talosconfig_addresses.remove(cp_vip)
+    except ValueError:
+        pass
+
+    # from pprint import pprint
+    # print("#### node_patch_data")
+    # pprint(nodes)
+    # print("#### talosconfig")
+    # pprint(talosconfig_addresses)
+    # return
+
+    if len(set(cluster_nodes.all()) - set(talosconfig_addresses)) > 0:
+        raise Exception("Node list returned by kubectl is out of sync with your talosconfig!")
+
+    return cluster_nodes

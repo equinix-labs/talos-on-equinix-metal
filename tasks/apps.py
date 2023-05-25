@@ -1,9 +1,11 @@
 import configparser
 import os
+from pprint import pprint
 
+import jinja2
 import yaml
 from invoke import task
-from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secrets
+from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets
 
 
 def get_gcp_token_file_name():
@@ -19,7 +21,7 @@ def get_google_dns_token(ctx):
         print("File {} already exists, skipping".format(gcp_token_file_name))
         return
 
-    secrets = get_secrets()
+    secrets = get_secret_envs()
     ctx.run("gcloud iam service-accounts keys create {} --iam-account {}@{}.iam.gserviceaccount.com".format(
         get_gcp_token_file_name(),
         secrets['GCP_SA_NAME'],
@@ -71,7 +73,7 @@ def install_dns_and_tls_dependencies(ctx):
     Install Helm chart apps/dns-and-tls-dependencies
     """
     dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
-    secrets = get_secrets()
+    secrets = get_secret_envs()
     with ctx.cd(dns_tls_directory):
         ctx.run("helm dependency build", echo=True)
         ctx.run("helm upgrade --wait --install --namespace {} "
@@ -90,7 +92,7 @@ def install_dns_and_tls(ctx):
     Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
     """
     dns_tls_directory = os.path.join('apps', 'dns-and-tls')
-    secrets = get_secrets()
+    secrets = get_secret_envs()
     with ctx.cd(dns_tls_directory):
         ctx.run("helm upgrade --install --namespace {} "
                 "--set letsencrypt.email={} "
@@ -109,7 +111,7 @@ def install_whoami_app(ctx, oauth: bool = False):
     """
     dns_tls_directory = os.path.join('apps', 'whoami')
     cluster_spec = get_cluster_spec_from_context(ctx)
-    secrets = get_secrets()
+    secrets = get_secret_envs()
     
     if oauth:
         fqdn = "whoami-oauth.{}".format(
@@ -180,86 +182,56 @@ def install_persistent_storage(ctx):
 
 
 @task()
-def install_idp_auth(ctx):
+def install_idp_auth(ctx, values_template_file=None, static_password_enabled=False):
     """
     Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
     """
     app_directory = os.path.join('apps', 'idp-auth')
     secrets = get_secrets()
-    cluster = get_cluster_spec_from_context(ctx)
 
-    with open(os.path.join(app_directory, 'values.yaml')) as values_file:
-        values = dict(yaml.safe_load(values_file))
+    if values_template_file is None:
+        values_template_file = os.path.join(app_directory, 'values.tpl.yaml')
 
-    domain = secrets['GOCY_DOMAIN']
-    bouncer_fqdn = "bouncer.{}".format(domain)
-    values['dex']['config']['issuer'] = "https://{}".format(bouncer_fqdn)
-    values['dex']['config']['staticClients'][0]['secret'] = secrets['GOCY_OAUTH_CLIENT_SECRET']
-    values['dex']['config']['staticClients'][0]['redirectURIs'][0] = "https://oauth.{}/oauth2/callback".format(domain)
-    values['dex']['config']['staticClients'][1]['secret'] = secrets['GOCY_ARGOCD_SSO_CLIENT_SECRET']
-    values['dex']['config']['staticClients'][1]['redirectURIs'][0] = "https://argocd.{}/auth/callback".format(domain)
-    values['dex']['config']['staticClients'][2]['secret'] = secrets['GOCY_PINNIPED_SSO_CLIENT_SECRET']
-    values['dex']['config']['staticClients'][2]['redirectURIs'][0] = "https://pinniped.{}/callback".format(domain)
+    with open(values_template_file) as values_file:
+        values_yaml = values_file.read()
 
-    values['dex']['config']['staticPasswords'][0]['email'] = "eric@{}".format(domain)
-    eric_password_hash = ctx.run('echo "{}" | htpasswd -BinC 10 eirc | cut -d: -f2'.format(
-        secrets['ERIC_PASS']), hide='stdout', echo=False).stdout.strip()
-    values['dex']['config']['staticPasswords'][0]['hash'] = eric_password_hash
-
-    values['dex']['config']['staticPasswords'][1]['email'] = "kenny@{}".format(domain)
-    kenny_password_hash = ctx.run('echo "{}" | htpasswd -BinC 10 kenny | cut -d: -f2'.format(
-        secrets['KENNY_PASS']), hide='stdout', echo=False).stdout.strip()
-    values['dex']['config']['staticPasswords'][1]['hash'] = kenny_password_hash
-
-    values['dex']['config']['connectors'][0]['config']['clientID'] = secrets['GOCY_GH_CLIENT_ID']
-    values['dex']['config']['connectors'][0]['config']['clientSecret'] = secrets['GOCY_GH_CLIENT_SECRET']
-    values['dex']['config']['connectors'][0]['config']['redirectURI'] = "https://{}/callback".format(bouncer_fqdn)
-    values['dex']['config']['connectors'][0]['config']['orgs'][0]['name'] = secrets['GCP_PROJECT_ID']
-
-    values['dex']['ingress']['annotations']['external-dns.alpha.kubernetes.io/hostname'] = bouncer_fqdn
-    values['dex']['ingress']['hosts'][0]['host'] = bouncer_fqdn
-    values['dex']['ingress']['tls'][0]['secretName'] = "tls." + bouncer_fqdn
-    values['dex']['ingress']['tls'][0]['hosts'][0] = bouncer_fqdn
-
-    values['oauth2-proxy']['config']['clientSecret'] = secrets['GOCY_OAUTH_CLIENT_SECRET']
-    values['oauth2-proxy']['config']['cookieSecret'] = secrets['GOCY_OAUTH_COOKIE_SECRET']
-
-    oauth_cfg = configparser.ConfigParser()
-    tainted_config = "[gocy]\n{}".format(values['oauth2-proxy']['config']['configFile'])
-    oauth_cfg.read_string(tainted_config)
-
-    oauth_cfg['gocy']['oidc_issuer_url'] = '"https://{}"'.format(bouncer_fqdn)
-    oauth_cfg['gocy']['redirect_url'] = '"https://oauth.{}/oauth2/callback"'.format(domain)
-    oauth_cfg['gocy']['whitelist_domains'] = '[ ".{}" ]'.format(domain)
-    oauth_cfg['gocy']['cookie_domains'] = '[ ".{}" ]'.format(domain)
-
-    tainted_oauth_cfg_ini = os.path.join(
-            get_secrets_dir(),
-            'tainted_oauth_cfg.ini')
-    with open(tainted_oauth_cfg_ini, 'w') as tainted_oauth_cfg_file:
-        oauth_cfg.write(tainted_oauth_cfg_file)
-
-    with open(tainted_oauth_cfg_ini) as tainted_oauth_cfg_file:
-        values['oauth2-proxy']['config']['configFile'] = "\n".join(
-            tainted_oauth_cfg_file.read().splitlines()[1:]
-        )
-
-    oauth_fqdn = "oauth." + domain
-    values['oauth2-proxy']['ingress']['annotations']['external-dns.alpha.kubernetes.io/hostname'] = oauth_fqdn
-    values['oauth2-proxy']['ingress']['hosts'][0] = oauth_fqdn
-    values['oauth2-proxy']['ingress']['tls'][0]['secretName'] = "tls." + oauth_fqdn
-    values['oauth2-proxy']['ingress']['tls'][0]['hosts'][0] = oauth_fqdn
+    jinja = jinja2.Environment(undefined=jinja2.StrictUndefined)
+    cluster_yaml_tpl = jinja.from_string(values_yaml)
+    values_yaml = cluster_yaml_tpl.render(secrets)
 
     idp_auth_values_yaml = os.path.join(get_secrets_dir(), 'idp-auth-values.yaml')
     with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
-        yaml.dump(values, idp_auth_values_yaml_file)
+        idp_auth_values_yaml_file.write(values_yaml)
 
-    with ctx.cd(app_directory):
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade "
-                "--dependency-update "
-                "--install "
-                "--namespace idp-auth "
-                "--values {} "
-                "idp-auth ./".format(idp_auth_values_yaml), echo=True)
+    ctx.run("kubectl apply -f {}".format(
+        os.path.join(app_directory, 'namespace.yaml')
+    ), echo=True)
+    ctx.run("helm upgrade "
+            "--dependency-update "
+            "--install "
+            "--namespace idp-auth "
+            "--values {} "
+            "idp-auth {}".format(
+                idp_auth_values_yaml,
+                app_directory), echo=True)
+
+    with open(os.path.join(
+            'patch-templates',
+            'oidc',
+            'control-plane.pt.yaml')) as talos_oidc_patch_file:
+        talos_oidc_patch_tpl = jinja.from_string(talos_oidc_patch_file.read())
+
+    talos_oidc_patch = talos_oidc_patch_tpl.render(secrets)
+    talos_oidc_patch_dir = os.path.join(get_secrets_dir(), 'patch', 'oidc')
+
+    ctx.run("mkdir -p " + talos_oidc_patch_dir, echo=True)
+    talos_oidc_patch_file_path = os.path.join(talos_oidc_patch_dir, 'talos_oidc_patch.yaml')
+    with open(talos_oidc_patch_file_path, 'w') as talos_oidc_patch_file:
+        talos_oidc_patch_file.write(talos_oidc_patch)
+
+    cluster_nodes = get_nodes_ips(ctx)
+    ctx.run("talosctl --nodes {} patch mc -p @{}".format(
+        ",".join(cluster_nodes.control_plane),
+        talos_oidc_patch_file_path
+    ), echo=True)

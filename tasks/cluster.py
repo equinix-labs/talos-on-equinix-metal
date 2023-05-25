@@ -11,7 +11,7 @@ from tasks.constellation_v01 import Cluster
 from tasks.equinix_metal import generate_cpem_config, register_vips
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_cluster_spec_from_context, get_constellation, get_secrets
+    get_cluster_spec_from_context, get_constellation, get_secret_envs
 from tasks.k8s_context import use_kind_cluster_context, use_bary_cluster_context
 from tasks.network import build_network_service_dependencies_manifest
 
@@ -107,7 +107,7 @@ def generate_cluster_spec(ctx,
     with open(os.path.join(templates_dir, md_file_name), 'r') as md_file:
         _md_yaml = md_file.read()
 
-    secrets = get_secrets()
+    secrets = get_secret_envs()
     constellation = get_constellation()
     jinja2.is_undefined(True)
 

@@ -1,0 +1,126 @@
+# Given the number of project specific settings this file has to have, the following file is just a template.
+# Task apps.install-idp-auth uses it to produce ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
+role_bindings:
+  admins:
+    {% for binding in idp_auth['role_bindings'] %}
+    - provider: {{ binding.provider }}
+      group_prefix: "{{ binding.group_prefix }}"
+      group_name: "{{ binding.admins.group_name }}"
+    {% endfor %}
+  developers:
+    {% for binding in idp_auth['role_bindings'] %}
+    - provider: {{ binding.provider }}
+      group_prefix: "{{ binding.group_prefix }}"
+      group_name: "{{ binding.developers.group_name }}"
+    {% endfor %}
+  audience:
+    {% for binding in idp_auth['role_bindings'] %}
+    - provider: {{ binding.provider }}
+      group_prefix: "{{ binding.group_prefix }}"
+      group_name: "{{ binding.audience.group_name }}"
+    {% endfor %}
+
+dex:
+  config:
+    issuer: {{ idp_auth.dex.bouncer_fqdn }}
+    storage:
+      type: memory
+    enablePasswordDB: true
+    logger:
+      level: info
+      format: json
+    oauth2:
+      responseTypes:
+        - "code"
+        - "token"
+        - "id_token"
+      skipApprovalScreen: true
+    expiry:
+      signingKeys: "4h"
+      idTokens: "1h"
+    staticClients:
+      - id: oauth2-proxy
+        redirectURIs:
+          - 'https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback'
+        name: "oauth2-proxy"
+        secret: "{{ env.GOCY_OAUTH_CLIENT_SECRET }}"
+        public: true
+      - id: argocd
+        name: Argo CD
+        redirectURIs:
+          - 'https://argocd.{{ env.GOCY_DOMAIN }}/auth/callback'
+        secret: '{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}'
+      - id: kubelogin
+        name: Kubernetes
+        redirectURIs:
+          - http://localhost:8000
+          - http://localhost:18000
+        secret: '{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}'
+    {% if idp_auth.dex.staticPasswords.enabled %}
+    staticPasswords:
+      {% for user in idp_auth.dex.staticPasswords.users %}
+       hash: "{{ user.hash }}"
+       username: "{{ user.name }}"
+       userID: "{{ user.id }}"
+       {% endfor %}
+    {% endif %}
+    connectors:
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: {{ env.GOCY_GH_CLIENT_ID }}
+          clientSecret: {{ env.GOCY_GH_CLIENT_SECRET }}
+          redirectURI: https://{{ idp_auth.dex.bouncer_fqdn }}/callback
+          loadAllGroups: true
+          orgs:
+            - name: {{ env.GCP_PROJECT_ID }}
+  commonLabels:
+    team_name: dev
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: {{ idp_auth.dex.bouncer_fqdn }}
+    hosts:
+      - host: {{ idp_auth.dex.bouncer_fqdn }}
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: tls.{{ idp_auth.dex.bouncer_fqdn }}
+        hosts:
+          - {{ idp_auth.dex.bouncer_fqdn }}
+oauth2-proxy:
+  # Oauth client configuration specifics
+  config:
+    clientID: oauth2-proxy
+    clientSecret: "{{ env.GOCY_OAUTH_CLIENT_SECRET }}"
+    cookieSecret: "{{ env.GOCY_OAUTH_COOKIE_SECRET }}"
+    configFile: |-
+      provider = "oidc"
+      oidc_issuer_url = "https://{{ idp_auth.dex.bouncer_fqdn }}"
+      redirect_url = "https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback"
+      email_env.GOCY_DOMAINs = [ "*" ]
+      reverse_proxy = "true"
+      cookie_secure = "true"
+      whitelist_env.GOCY_DOMAINs = [ ".{{ env.GOCY_DOMAIN }}" ]
+      cookie_env.GOCY_DOMAINs = [ ".{{ env.GOCY_DOMAIN }}" ]
+      code_challenge_method = "S256"
+      set_authorization_header = "true"
+      pass_authorization_header = "true"
+
+  ingress:
+    enabled: true
+    className: nginx
+    path: /
+    hosts:
+      - {{ idp_auth.dex.oauth_fqdn }}
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: {{ idp_auth.dex.oauth_fqdn }}
+    tls:
+      - secretName: tls.{{ idp_auth.dex.oauth_fqdn }}
+        hosts:
+          - {{ idp_auth.dex.oauth_fqdn }}

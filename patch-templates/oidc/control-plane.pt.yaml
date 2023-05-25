@@ -1,0 +1,11 @@
+# https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+- op: add
+  path: /cluster/apiServer/extraArgs
+  value:
+    oidc-client-id: "{{ env.GOCY_OIDC_CLIENT_ID }}"
+    oidc-groups-claim: groups
+    oidc-groups-prefix: "oidc:"
+    oidc-issuer-url: "{{ env.GOCY_OIDC_URL }}"
+    oidc-username-claim: email
+    oidc-username-prefix: "oidc:"
