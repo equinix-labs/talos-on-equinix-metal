@@ -3,6 +3,7 @@ import os
 import jinja2
 from invoke import task
 
+from tasks.constellation_v01 import Cluster
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
     get_constellation, get_jinja
 
@@ -180,7 +181,7 @@ def install_persistent_storage(ctx):
                 echo=True)
 
 
-def install_idp_auth_chart(ctx, values_template_file, jinja, secrets):
+def install_idp_auth_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
     app_directory = os.path.join('apps', 'idp-auth')
 
     if values_template_file is None:
@@ -192,7 +193,7 @@ def install_idp_auth_chart(ctx, values_template_file, jinja, secrets):
     cluster_yaml_tpl = jinja.from_string(values_yaml)
     values_yaml = cluster_yaml_tpl.render(secrets)
 
-    idp_auth_values_yaml = os.path.join(get_secrets_dir(), 'idp-auth-values.yaml')
+    idp_auth_values_yaml = os.path.join(get_secrets_dir(), cluster.name, 'idp-auth-values.yaml')
     with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
         idp_auth_values_yaml_file.write(values_yaml)
 
@@ -205,8 +206,35 @@ def install_idp_auth_chart(ctx, values_template_file, jinja, secrets):
             "--namespace idp-auth "
             "--values {} "
             "idp-auth {}".format(
-        idp_auth_values_yaml,
-        app_directory), echo=True)
+                idp_auth_values_yaml,
+                app_directory), echo=True)
+
+
+def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
+    app_directory = os.path.join('apps', 'idp-auth-kubelogin')
+
+    if values_template_file is None:
+        values_template_file = os.path.join(app_directory, 'values.tpl.yaml')
+
+    with open(values_template_file) as values_file:
+        values_yaml = values_file.read()
+
+    cluster_yaml_tpl = jinja.from_string(values_yaml)
+    values_yaml = cluster_yaml_tpl.render(secrets)
+
+    idp_auth_values_yaml = os.path.join(get_secrets_dir(), cluster.name, 'idp-auth-kubelogin-values.yaml')
+    with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
+        idp_auth_values_yaml_file.write(values_yaml)
+
+    ctx.run("helm upgrade "
+            "--dependency-update "
+            "--install "
+            "--namespace idp-auth "
+            "--create-namespace "
+            "--values {} "
+            "idp-auth-kubelogin {}".format(
+                idp_auth_values_yaml,
+                app_directory), echo=True)
 
 
 @task()
@@ -222,7 +250,9 @@ def install_idp_auth(ctx, values_template_file=None):
     constellation = get_constellation()
 
     if cluster.name == constellation.bary.name:
-        install_idp_auth_chart(ctx, values_template_file, jinja, secrets)
+        install_idp_auth_chart(ctx, cluster, values_template_file, jinja, secrets)
+
+    install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, secrets)
 
     with open(os.path.join(
             'patch-templates',

@@ -1,24 +1,5 @@
 # Given the number of project specific settings this file has to have, the following file is just a template.
 # Task apps.install-idp-auth uses it to produce ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
-role_bindings:
-  admins:
-    {% for binding in idp_auth['role_bindings'] %}
-    - provider: {{ binding.provider }}
-      group_prefix: {{ binding.group_prefix }}
-      group_name: {{ binding.admins.group_name }}
-    {% endfor %}
-  developers:
-    {% for binding in idp_auth['role_bindings'] %}
-    - provider: {{ binding.provider }}
-      group_prefix: {{ binding.group_prefix }}
-      group_name: {{ binding.developers.group_name }}
-    {% endfor %}
-  audience:
-    {% for binding in idp_auth['role_bindings'] %}
-    - provider: {{ binding.provider }}
-      group_prefix: {{ binding.group_prefix }}
-      group_name: {{ binding.audience.group_name }}
-    {% endfor %}
 dex:
   config:
     issuer: https://{{ idp_auth.dex.bouncer_fqdn }}
