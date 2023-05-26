@@ -35,7 +35,7 @@ dex:
         redirectURIs:
           - http://localhost:8000
           - http://localhost:18000
-        secret: "{{ idp_auth.oidc.issuer_url }}"
+        secret: "{{ idp_auth.oidc.client_secret }}"
     {% if idp_auth.dex.staticPasswords.enabled %}
     staticPasswords:
       {% for user in idp_auth.dex.staticPasswords.users %}
@@ -55,6 +55,14 @@ dex:
           loadAllGroups: true
           orgs:
             - name: {{ env.GCP_PROJECT_ID }}
+      - type: oidc
+        id: okta
+        name: okta
+        config:
+          issuer: "{{ idp_auth.oidc.issuer_url }}"
+          clientID: "{{ idp_auth.oidc.client_id }}"
+          clientSecret: "{{ idp_auth.oidc.client_secret }}"
+          redirectURI: http://localhost:18000
   commonLabels:
     team_name: dev
   ingress:

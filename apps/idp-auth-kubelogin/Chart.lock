@@ -1,0 +1,9 @@
+dependencies:
+- name: dex
+  repository: https://charts.dexidp.io
+  version: 0.14.1
+- name: oauth2-proxy
+  repository: https://oauth2-proxy.github.io/manifests
+  version: 6.12.0
+digest: sha256:26fd23a886e814393faaebd6b60c647c7fe373d2668b438fbbff6681a10c7376
+generated: "2023-05-17T18:28:58.564253+02:00"

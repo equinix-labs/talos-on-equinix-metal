@@ -21,10 +21,10 @@ spec:
               protocol: TCP
             - port: "50001" # Talos
               protocol: TCP
-            - port: 51820 # wireguard
+            - port: "51820" # wireguard
               protocol: TCP
-            - port: 8472 # https://docs.cilium.io/en/v1.13/network/concepts/routing/#arch-overlay
+            - port: "8472" # https://docs.cilium.io/en/v1.13/network/concepts/routing/#arch-overlay
               protocol: UDP
-            - port: 2379 # clustermesh-apiserver
+            - port: "2379" # clustermesh-apiserver
               protocol: TCP
 {{- end }}

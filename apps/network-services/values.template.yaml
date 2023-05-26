@@ -4,4 +4,4 @@ metallb:
     - name: # Populated by task: network.install-network-service
       addresses: # Populated by task: network.install-network-service
 firewall:
-  enabled: false
+  enabled: true

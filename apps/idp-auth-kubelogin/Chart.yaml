@@ -1,0 +1,7 @@
+apiVersion: v2
+name: idp-auth-kubelogin
+description: Enables kubelogin, manages ClusterRoleBindings
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
