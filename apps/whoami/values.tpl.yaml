@@ -1,0 +1,6 @@
+test_app:
+  fqdn: {{ whoami_fqdn }}
+  name: {{ name }}
+  oauth:
+    enabled: {{ oauth_enabled }}
+    fqdn: {{ oauth_fqdn }}

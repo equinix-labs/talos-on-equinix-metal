@@ -71,7 +71,10 @@ def get_secrets() -> dict:
         return dict(yaml.safe_load(secrets_file))
 
 
-def get_secret_envs() -> list:
+def get_secret_envs(secrets: dict = None) -> list:
+    if secrets is not None:
+        return secrets['env']
+
     return get_secrets()['env']
 
 
@@ -142,6 +145,13 @@ def get_secrets_dir():
     return os.path.join(
         get_config_dir(),
         get_ccontext()
+    )
+
+
+def get_cluster_secrets_dir(cluster: Cluster):
+    return os.path.join(
+        get_secrets_dir(),
+        cluster.name
     )
 
 
@@ -223,3 +233,17 @@ def get_nodes_ips(ctx, talosconfig_file_name='talosconfig') -> ClusterNodes:
 
 def get_jinja():
     return jinja2.Environment(undefined=jinja2.StrictUndefined)
+
+
+def get_fqdn(name, secrets: dict, cluster: Cluster):
+
+    if type(name) == list:
+        _name = ".".join(name)
+    else:
+        _name = name
+
+    return "{}.{}.{}".format(
+        _name,
+        cluster.domain_prefix,
+        secrets['env']['GOCY_DOMAIN']
+    )

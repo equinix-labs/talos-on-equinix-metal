@@ -1,0 +1,54 @@
+configs:
+  cm:
+    url: https://{{ argocd_fqdn }}
+    oidc.config: |
+      name: dex
+      issuer: https://{{ bouncer_fqdn }}
+      clientID: argocd
+      clientSecret: $oidc.dex.clientSecret
+      requestedScopes: ["openid", "profile", "email", "groups"]
+  secret:
+    # -- Bcrypt hashed admin password
+    ## Argo expects the password in the secret to be bcrypt hashed. You can create this hash with
+    ## `htpasswd -nbBC 10 "" ${GOCY_ARGO_ADMIN_PWD} | tr -d ':\n' | sed 's/$2y/$2a/'`
+    argocdServerAdminPassword: ""
+  params:
+    server.insecure: true
+  credentialTemplates:
+    github-gocy:
+  repositories:
+    github-gocy:
+      url: git@github.com:gocloudyourself/gocy.git
+      name: gocy-main
+      type: git
+
+dex:
+  enabled: false
+
+server:
+  extraArgs:
+    - '--dex-server=https://{{ bouncer_fqdn }}'
+  extensions:
+    enabled: false
+  ingress:
+    # -- Enable an ingress resource for the Argo CD server
+    enabled: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: {{ argocd_fqdn }}
+#      nginx.ingress.kubernetes.io/auth-url: "https://oauth.v1.gocy.org/oauth2/auth"
+#      nginx.ingress.kubernetes.io/auth-signin: "https://oauth.v1.gocy.org/oauth2/start"
+#      nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+    # -- Defines which ingress controller will implement the resource
+    ingressClassName: "nginx"
+
+    # -- List of ingress hosts
+    ## Argo Ingress.
+    ## Hostnames must be provided if Ingress is enabled.
+    ## Secrets must be manually created in the namespace
+    hosts:
+      - {{ argocd_fqdn }}
+    tls:
+      - secretName: tls.{{ argocd_fqdn }}
+        hosts:
+          - {{ argocd_fqdn }}

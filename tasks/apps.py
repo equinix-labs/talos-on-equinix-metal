@@ -1,11 +1,12 @@
 import os
+from pathlib import Path
 
 import jinja2
 from invoke import task
 
 from tasks.constellation_v01 import Cluster
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation, get_jinja
+    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir
 
 
 def get_gcp_token_file_name():
@@ -104,46 +105,70 @@ def install_dns_and_tls(ctx):
                 ), echo=True)
 
 
+def render(ctx, source: str, target: str, data: dict):
+    jinja = get_jinja()
+    ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
+    with open(source) as source_file:
+        template = jinja.from_string(source_file.read())
+
+    with open(target, 'w') as target_file:
+        target_file.write(template.render(data))
+
+
+def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
+    """
+    Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
+    """
+    apps_dir = 'apps'
+    app_dir = os.path.join(apps_dir, app_folder_name)
+    target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
+    target = os.path.join(target_app_dir, 'values.yaml')
+    render(ctx,
+           os.path.join(app_dir, 'values.tpl.yaml'),
+           target,
+           data)
+
+    return target
+
+
+def render_patch(ctx, nodes: list, path_tpl_path, data: dict):
+    """
+    ToDo: Render jinja style talos patch to ~/.gocy/[constellation]/[cluster]/patch
+        Append node information to the rendered file.
+    """
+    pass
+
+
 @task()
 def install_whoami_app(ctx, oauth: bool = False):
     """
     Install Helm chart apps/whoami
     """
-    dns_tls_directory = os.path.join('apps', 'whoami')
+    app_directory = os.path.join('apps', 'whoami')
     cluster_spec = get_cluster_spec_from_context(ctx)
-    secrets = get_secret_envs()
-    
-    if oauth:
-        fqdn = "whoami-oauth.{}".format(
-            secrets['GOCY_DOMAIN']
-        )
-    else:
-        fqdn = "whoami.{}.{}".format(
-            cluster_spec.domain_prefix,
-            secrets['GOCY_DOMAIN']
-        )
+    secrets = get_secrets()
 
-    with ctx.cd(dns_tls_directory):
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        if fqdn:
-            ctx.run("helm upgrade --install --namespace test-application "
-                    "--set test_app.fqdn={} "
-                    "--set test_app.name={} "
-                    "--set test_app.oauth.enabled=true "
-                    "--set test_app.oauth.fqdn='{}' "
-                    "whoami-test-app ./".format(
-                        fqdn,
-                        cluster_spec.name,
-                        'https://oauth.{}'.format(secrets['GOCY_DOMAIN'])
-                    ), echo=True)
-        else:
-            ctx.run("helm upgrade --install --namespace test-application "
-                    "--set test_app.fqdn={} "
-                    "--set test_app.name={} "
-                    "whoami-test-app ./".format(
-                        fqdn,
-                        cluster_spec.name
-                    ), echo=True)
+    if oauth:
+        fqdn = get_fqdn('whoami-oauth', secrets, cluster_spec)
+    else:
+        fqdn = get_fqdn('whoami', secrets, cluster_spec)
+
+    data = {
+        'whoami_fqdn': fqdn,
+        'name': cluster_spec.name,
+        'oauth_enabled': oauth,
+        'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec)
+    }
+
+    values_file = render_values(ctx, cluster_spec, 'whoami', data)
+
+    ctx.run("kubectl apply -f {}".format(os.path.join(app_directory, 'namespace.yaml')), echo=True)
+    ctx.run("helm upgrade --install --namespace test-application "
+            "--values={} "
+            "whoami-test-app {}".format(
+                values_file,
+                app_directory), echo=True)
+
 
 
 @task()
@@ -244,15 +269,17 @@ def install_idp_auth(ctx, values_template_file=None):
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
     """
 
-    secrets = get_secrets()
+    data = get_secrets()
     jinja = get_jinja()
     cluster = get_cluster_spec_from_context(ctx)
     constellation = get_constellation()
+    data['bouncer_fqdn'] = get_fqdn('bouncer', data, cluster)
+    data['oauth_fqdn'] = get_fqdn('oauth', data, cluster)
 
     if cluster.name == constellation.bary.name:
-        install_idp_auth_chart(ctx, cluster, values_template_file, jinja, secrets)
+        install_idp_auth_chart(ctx, cluster, values_template_file, jinja, data)
 
-    install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, secrets)
+    install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
 
     with open(os.path.join(
             'patch-templates',
@@ -260,7 +287,7 @@ def install_idp_auth(ctx, values_template_file=None):
             'control-plane.pt.yaml')) as talos_oidc_patch_file:
         talos_oidc_patch_tpl = jinja.from_string(talos_oidc_patch_file.read())
 
-    talos_oidc_patch = talos_oidc_patch_tpl.render(secrets)
+    talos_oidc_patch = talos_oidc_patch_tpl.render(data)
     talos_oidc_patch_dir = os.path.join(get_secrets_dir(), 'patch', 'oidc')
 
     ctx.run("mkdir -p " + talos_oidc_patch_dir, echo=True)

@@ -2,7 +2,7 @@
 # Task apps.install-idp-auth uses it to produce ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
 dex:
   config:
-    issuer: https://{{ idp_auth.dex.bouncer_fqdn }}
+    issuer: https://{{ bouncer_fqdn }}
     storage:
       type: memory
     enablePasswordDB: true
@@ -21,7 +21,7 @@ dex:
     staticClients:
       - id: oauth2-proxy
         redirectURIs:
-          - https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback
+          - https://{{ oauth_fqdn }}/oauth2/callback
         name: "oauth2-proxy"
         secret: "{{ env.GOCY_OAUTH_CLIENT_SECRET }}"
         public: true
@@ -51,7 +51,7 @@ dex:
         config:
           clientID: {{ env.GOCY_GH_CLIENT_ID }}
           clientSecret: {{ env.GOCY_GH_CLIENT_SECRET }}
-          redirectURI: https://{{ idp_auth.dex.bouncer_fqdn }}/callback
+          redirectURI: https://{{ bouncer_fqdn }}/callback
           loadAllGroups: true
           orgs:
             - name: {{ env.GCP_PROJECT_ID }}
@@ -70,16 +70,16 @@ dex:
     className: "nginx"
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-gcp
-      external-dns.alpha.kubernetes.io/hostname: {{ idp_auth.dex.bouncer_fqdn }}
+      external-dns.alpha.kubernetes.io/hostname: {{ bouncer_fqdn }}
     hosts:
-      - host: {{ idp_auth.dex.bouncer_fqdn }}
+      - host: {{ bouncer_fqdn }}
         paths:
           - path: /
             pathType: ImplementationSpecific
     tls:
-      - secretName: tls.{{ idp_auth.dex.bouncer_fqdn }}
+      - secretName: tls.{{ bouncer_fqdn }}
         hosts:
-          - {{ idp_auth.dex.bouncer_fqdn }}
+          - {{ bouncer_fqdn }}
 oauth2-proxy:
   # Oauth client configuration specifics
   config:
@@ -88,8 +88,8 @@ oauth2-proxy:
     cookieSecret: "{{ env.GOCY_OAUTH_COOKIE_SECRET }}"
     configFile: |-
       provider = "oidc"
-      oidc_issuer_url = "https://{{ idp_auth.dex.bouncer_fqdn }}"
-      redirect_url = "https://{{ idp_auth.dex.oauth_fqdn }}/oauth2/callback"
+      oidc_issuer_url = "https://{{ bouncer_fqdn }}"
+      redirect_url = "https://{{ oauth_fqdn }}/oauth2/callback"
       email_domains = [ "*" ]
       reverse_proxy = "true"
       cookie_secure = "true"
@@ -104,11 +104,11 @@ oauth2-proxy:
     className: nginx
     path: /
     hosts:
-      - {{ idp_auth.dex.oauth_fqdn }}
+      - {{ oauth_fqdn }}
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-gcp
-      external-dns.alpha.kubernetes.io/hostname: {{ idp_auth.dex.oauth_fqdn }}
+      external-dns.alpha.kubernetes.io/hostname: {{ oauth_fqdn }}
     tls:
-      - secretName: tls.{{ idp_auth.dex.oauth_fqdn }}
+      - secretName: tls.{{ oauth_fqdn }}
         hosts:
-          - {{ idp_auth.dex.oauth_fqdn }}
+          - {{ oauth_fqdn }}

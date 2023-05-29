@@ -1,6 +1,0 @@
-test_app:
-  fqdn: # Filled by task apps.install-whoami-app
-  name: # Filled by task apps.install-whoami-app
-  oauth:
-    enabled: false
-    fqdn:
