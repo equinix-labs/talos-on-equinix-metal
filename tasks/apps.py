@@ -1,12 +1,45 @@
 import os
 from pathlib import Path
 
-import jinja2
 from invoke import task
 
 from tasks.constellation_v01 import Cluster
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
     get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir
+
+
+def render(ctx, source: str, target: str, data: dict):
+    jinja = get_jinja()
+    ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
+    with open(source) as source_file:
+        template = jinja.from_string(source_file.read())
+
+    with open(target, 'w') as target_file:
+        target_file.write(template.render(data))
+
+
+def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
+    """
+    Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
+    """
+    apps_dir = 'apps'
+    app_dir = os.path.join(apps_dir, app_folder_name)
+    target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
+    target = os.path.join(target_app_dir, 'values.yaml')
+    render(ctx,
+           os.path.join(app_dir, 'values.tpl.yaml'),
+           target,
+           data)
+
+    return target
+
+
+def render_patch(ctx, nodes: list, path_tpl_path, data: dict):
+    """
+    ToDo: Render jinja style talos patch to ~/.gocy/[constellation]/[cluster]/patch
+        Append node information to the rendered file.
+    """
+    pass
 
 
 def get_gcp_token_file_name():
@@ -105,40 +138,6 @@ def install_dns_and_tls(ctx):
                 ), echo=True)
 
 
-def render(ctx, source: str, target: str, data: dict):
-    jinja = get_jinja()
-    ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
-    with open(source) as source_file:
-        template = jinja.from_string(source_file.read())
-
-    with open(target, 'w') as target_file:
-        target_file.write(template.render(data))
-
-
-def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
-    """
-    Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
-    """
-    apps_dir = 'apps'
-    app_dir = os.path.join(apps_dir, app_folder_name)
-    target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
-    target = os.path.join(target_app_dir, 'values.yaml')
-    render(ctx,
-           os.path.join(app_dir, 'values.tpl.yaml'),
-           target,
-           data)
-
-    return target
-
-
-def render_patch(ctx, nodes: list, path_tpl_path, data: dict):
-    """
-    ToDo: Render jinja style talos patch to ~/.gocy/[constellation]/[cluster]/patch
-        Append node information to the rendered file.
-    """
-    pass
-
-
 @task()
 def install_whoami_app(ctx, oauth: bool = False):
     """
@@ -169,6 +168,26 @@ def install_whoami_app(ctx, oauth: bool = False):
                 values_file,
                 app_directory), echo=True)
 
+
+@task
+def install_argo(ctx):
+    app_directory = os.path.join('apps', 'argocd')
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'argocd_fqdn': get_fqdn('argo', secrets, cluster_spec),
+        'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster_spec),
+        'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET']
+    }
+
+    values_file = render_values(ctx, cluster_spec, 'argocd', data)
+    ctx.run("helm upgrade --install --namespace argocd --create-namespace "
+            "--values={} "
+            "argocd {} ".format(
+                values_file,
+                app_directory
+            ), echo=True)
 
 
 @task()
@@ -206,21 +225,9 @@ def install_persistent_storage(ctx):
                 echo=True)
 
 
-def install_idp_auth_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
+def install_idp_auth_chart(ctx, cluster: Cluster, secrets):
     app_directory = os.path.join('apps', 'idp-auth')
-
-    if values_template_file is None:
-        values_template_file = os.path.join(app_directory, 'values.tpl.yaml')
-
-    with open(values_template_file) as values_file:
-        values_yaml = values_file.read()
-
-    cluster_yaml_tpl = jinja.from_string(values_yaml)
-    values_yaml = cluster_yaml_tpl.render(secrets)
-
-    idp_auth_values_yaml = os.path.join(get_secrets_dir(), cluster.name, 'idp-auth-values.yaml')
-    with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
-        idp_auth_values_yaml_file.write(values_yaml)
+    values_file = render_values(ctx, cluster, 'idp-auth', secrets)
 
     ctx.run("kubectl apply -f {}".format(
         os.path.join(app_directory, 'namespace.yaml')
@@ -231,7 +238,7 @@ def install_idp_auth_chart(ctx, cluster: Cluster, values_template_file, jinja, s
             "--namespace idp-auth "
             "--values {} "
             "idp-auth {}".format(
-                idp_auth_values_yaml,
+                values_file,
                 app_directory), echo=True)
 
 
@@ -275,9 +282,10 @@ def install_idp_auth(ctx, values_template_file=None):
     constellation = get_constellation()
     data['bouncer_fqdn'] = get_fqdn('bouncer', data, cluster)
     data['oauth_fqdn'] = get_fqdn('oauth', data, cluster)
+    data['argo_fqdn'] = get_fqdn('argo', data, cluster)
 
     if cluster.name == constellation.bary.name:
-        install_idp_auth_chart(ctx, cluster, values_template_file, jinja, data)
+        install_idp_auth_chart(ctx, cluster, data)
 
     install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
 
@@ -300,3 +308,4 @@ def install_idp_auth(ctx, values_template_file=None):
         ",".join(cluster_nodes.control_plane),
         talos_oidc_patch_file_path
     ), echo=True)
+

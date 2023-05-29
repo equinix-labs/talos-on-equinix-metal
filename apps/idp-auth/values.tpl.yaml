@@ -28,8 +28,8 @@ dex:
       - id: argocd
         name: Argo CD
         redirectURIs:
-          - https://argocd.{{ env.GOCY_DOMAIN }}/auth/callback
-        secret: "{{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}"
+          - https://{{ argo_fqdn }}/auth/callback
+        secret: {{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}
       - id: kubelogin
         name: Kubernetes
         redirectURIs:
