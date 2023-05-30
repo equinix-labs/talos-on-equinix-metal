@@ -1,0 +1,29 @@
+argo-cd:
+  dex:
+    enabled: false
+  configs:
+    cm:
+      url: https://{{ argocd_fqdn }}
+      oidc.config: |
+        name: dex
+        issuer: https://{{ bouncer_fqdn }}
+        clientID: argocd
+        clientSecret: {{ client_secret }}
+        requestedScopes: ["openid", "profile", "email", "groups"]
+      params:
+        server.insecure: true
+
+  server:
+    ingress:
+      enabled: true
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-gcp
+        external-dns.alpha.kubernetes.io/hostname: {{ argocd_fqdn }}
+        nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+      ingressClassName: "nginx"
+      hosts:
+        - {{ argocd_fqdn }}
+      tls:
+        - secretName: tls.{{ argocd_fqdn }}
+          hosts:
+            - {{ argocd_fqdn }}

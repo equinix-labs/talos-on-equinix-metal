@@ -1,0 +1,9 @@
+dependencies:
+- name: keydb
+  repository: https://enapter.github.io/charts/
+  version: 0.40.1
+- name: cockroachdb
+  repository: https://charts.cockroachdb.com/
+  version: 11.0.1
+digest: sha256:63b94a9bf934e8e3355de054487c0d48f54c7cc6f5d5eb9b2118ed83049ec652
+generated: "2023-05-29T18:21:15.704142+02:00"

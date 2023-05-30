@@ -30,6 +30,11 @@ dex:
         redirectURIs:
           - https://{{ argo_fqdn }}/auth/callback
         secret: {{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}
+      - id: {{ gitea.oauth_key }}
+        name: gitea
+        redirectURIs:
+          - https://{{ gitea_fqdn }}/user/oauth2/dex/callback
+        secret: {{ gitea.oauth_secret }}
       - id: kubelogin
         name: Kubernetes
         redirectURIs:

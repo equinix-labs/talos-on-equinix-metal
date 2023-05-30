@@ -27,7 +27,7 @@ def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
     target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
     target = os.path.join(target_app_dir, 'values.yaml')
     render(ctx,
-           os.path.join(app_dir, 'values.tpl.yaml'),
+           os.path.join(app_dir, 'values.jinja.yaml'),
            target,
            data)
 
@@ -178,13 +178,39 @@ def install_argo(ctx):
     data = {
         'argocd_fqdn': get_fqdn('argo', secrets, cluster_spec),
         'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster_spec),
-        'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET']
+        'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET'],
     }
 
     values_file = render_values(ctx, cluster_spec, 'argocd', data)
     ctx.run("helm upgrade --install --namespace argocd --create-namespace "
             "--values={} "
             "argocd {} ".format(
+                values_file,
+                app_directory
+            ), echo=True)
+
+
+@task
+def install_gitea(ctx):
+    """
+    Install app by folder name from apps folder
+    """
+    app_name = 'gitea'
+    app_directory = os.path.join('apps', app_name)
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'cluster_domain': cluster_spec.name + '.local',
+        'gitea_fqdn': get_fqdn('gitea', secrets, cluster_spec),
+        'dex_url': get_fqdn('bouncer', secrets, cluster_spec),
+    }
+    data.update(secrets['gitea'])
+
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+    ctx.run("helm upgrade --dependency-update --install --namespace gitea --create-namespace "
+            "--values={} "
+            "gitea {} ".format(
                 values_file,
                 app_directory
             ), echo=True)
@@ -246,7 +272,7 @@ def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file
     app_directory = os.path.join('apps', 'idp-auth-kubelogin')
 
     if values_template_file is None:
-        values_template_file = os.path.join(app_directory, 'values.tpl.yaml')
+        values_template_file = os.path.join(app_directory, 'values.jinja.yaml')
 
     with open(values_template_file) as values_file:
         values_yaml = values_file.read()
@@ -283,6 +309,7 @@ def install_idp_auth(ctx, values_template_file=None):
     data['bouncer_fqdn'] = get_fqdn('bouncer', data, cluster)
     data['oauth_fqdn'] = get_fqdn('oauth', data, cluster)
     data['argo_fqdn'] = get_fqdn('argo', data, cluster)
+    data['gitea_fqdn'] = get_fqdn('gitea', data, cluster)
 
     if cluster.name == constellation.bary.name:
         install_idp_auth_chart(ctx, cluster, data)

@@ -1,0 +1,15 @@
+apiVersion: v2
+name: gitea
+description: Chart tracks compatible versions of gitea
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: keydb
+    version: 0.40.1
+    repository: https://enapter.github.io/charts/
+  - name: cockroachdb
+    version: 11.0.1
+    repository: https://charts.cockroachdb.com/

@@ -1,0 +1,37 @@
+gitea:
+  global:
+    storageClass: ceph-block
+  persistence:
+    storageClass: ceph-block
+  clusterDomain: {{ cluster_domain }}
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: {{ gitea_fqdn }}
+    hosts:
+      - host: {{ gitea_fqdn }}
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - hosts:
+        - {{ gitea_fqdn }}
+        secretName: tls.{{ gitea_fqdn }}
+  gitea:
+    config: # https://docs.gitea.com/next/administration/config-cheat-sheet#service-service
+      service:
+        SHOW_REGISTRATION_BUTTON: 'false'
+        DISABLE_REGISTRATION: 'true'
+    admin:
+      existingSecret:
+      username: {{ admin_user }}
+      password: {{ admin_password }}
+      email: {{ admin_email }}
+    oauth:
+      - name: 'dex'
+        provider: openidConnect
+        key: {{ dex_key }}
+        secret: {{ dex_secret }}
+        autoDiscoverUrl: https://{{ dex_url }}/.well-known/openid-configuration
