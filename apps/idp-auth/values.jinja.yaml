@@ -30,17 +30,17 @@ dex:
         redirectURIs:
           - https://{{ argo_fqdn }}/auth/callback
         secret: {{ env.GOCY_ARGOCD_SSO_CLIENT_SECRET }}
-      - id: {{ gitea.oauth_key }}
+      - id: {{ gitea.dex_key }}
         name: gitea
         redirectURIs:
           - https://{{ gitea_fqdn }}/user/oauth2/dex/callback
-        secret: {{ gitea.oauth_secret }}
+        secret: {{ gitea.dex_secret }}
       - id: kubelogin
         name: Kubernetes
         redirectURIs:
           - http://localhost:8000
           - http://localhost:18000
-        secret: "{{ idp_auth.oidc.client_secret }}"
+        secret: "{{ idp_auth.k8s_oidc.client_secret }}"
     {% if idp_auth.dex.staticPasswords.enabled %}
     staticPasswords:
       {% for user in idp_auth.dex.staticPasswords.users %}
@@ -54,20 +54,22 @@ dex:
         id: github
         name: GitHub
         config:
-          clientID: {{ env.GOCY_GH_CLIENT_ID }}
-          clientSecret: {{ env.GOCY_GH_CLIENT_SECRET }}
+          clientID: {{ idp_auth.dex.connectors.github.client_id }}
+          clientSecret: {{ idp_auth.dex.connectors.github.client_secret }}
           redirectURI: https://{{ bouncer_fqdn }}/callback
           loadAllGroups: true
           orgs:
-            - name: {{ env.GCP_PROJECT_ID }}
+            - name: {{ idp_auth.dex.connectors.github.org_name }}
       - type: oidc
         id: okta
         name: okta
         config:
-          issuer: "{{ idp_auth.oidc.issuer_url }}"
-          clientID: "{{ idp_auth.oidc.client_id }}"
-          clientSecret: "{{ idp_auth.oidc.client_secret }}"
-          redirectURI: http://localhost:18000
+          issuer: "{{ idp_auth.dex.connectors.okta.issuer }}"
+          clientID: "{{ idp_auth.dex.connectors.okta.client_id }}"
+          {% if idp_auth.dex.connectors.okta.client_secret is not none and idp_auth.dex.connectors.okta.client_secret|length %}
+          clientSecret: "{{ idp_auth.dex.connectors.okta.client_secret }}"
+          {% endif %}
+          redirectURI: https://{{ bouncer_fqdn }}/callback
   commonLabels:
     team_name: dev
   ingress:

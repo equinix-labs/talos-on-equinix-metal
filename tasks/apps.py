@@ -317,9 +317,10 @@ def install_idp_auth(ctx, values_template_file=None):
     install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
 
     with open(os.path.join(
-            'patch-templates',
+            'templates',
+            'patch',
             'oidc',
-            'control-plane.pt.yaml')) as talos_oidc_patch_file:
+            'control-plane.jinja.yaml')) as talos_oidc_patch_file:
         talos_oidc_patch_tpl = jinja.from_string(talos_oidc_patch_file.read())
 
     talos_oidc_patch = talos_oidc_patch_tpl.render(data)
