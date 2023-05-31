@@ -1,0 +1,21 @@
+apiVersion: v2
+name: ingress-bundle
+description: Tracks compatible versions of jaeger, opentelemetry
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: jaeger
+    version: 0.71.2
+    repository: https://jaegertracing.github.io/helm-charts
+  - repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    name: opentelemetry-collector
+    version: 0.59.1
+  - repository: https://grafana.github.io/helm-charts
+    name: grafana
+    version: 6.56.6
+  - repository: https://victoriametrics.github.io/helm-charts
+    name: victoria-metrics-cluster
+    version: 0.9.68

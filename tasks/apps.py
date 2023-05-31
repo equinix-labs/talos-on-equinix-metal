@@ -302,6 +302,24 @@ def install_harbor(ctx):
     helm_install(ctx, values_file, app_name, app_name)
 
 
+@task
+def install_observability(ctx):
+    app_name = 'observability'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'jaeger_fqdn': get_fqdn('jaeger', secrets, cluster_spec),
+        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+        'grafana_fqdn': get_fqdn('grafana', secrets, cluster_spec),
+        'cluster_name': cluster_spec.name + '.local'
+    }
+    data.update(secrets['grafana'])
+
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+    helm_install(ctx, values_file, app_name, app_name)
+
+
 @task()
 def install_ingress_controller(ctx):
     """
