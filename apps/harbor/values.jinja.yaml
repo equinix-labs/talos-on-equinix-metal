@@ -1,0 +1,46 @@
+harbor:
+  externalURL: https://{{ harbor_fqdn }}
+  expose:
+    type: ingress
+    tls:
+      enabled: true
+      certSource: secret
+      secret:
+        secretName: tls.core.{{ harbor_fqdn }}
+        notarySecretName: tls.notary.{{ harbor_fqdn }}
+    ingress:
+      hosts:
+        core: {{ harbor_fqdn }}
+        notary: notary.{{ harbor_fqdn }}
+      className: nginx
+      harbor:
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-gcp
+          external-dns.alpha.kubernetes.io/hostname: {{ harbor_fqdn }}
+      notary:
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-gcp
+          external-dns.alpha.kubernetes.io/hostname: notary.{{ harbor_fqdn }}
+  persistence:
+    enabled: true
+    persistentVolumeClaim:
+      registry:
+        storageClass: ceph-block
+        size: 100Gi
+      chartmuseum:
+        storageClass: ceph-block
+      jobservice:
+        jobLog:
+          storageClass: ceph-block
+      database:
+        storageClass: ceph-block
+      redis:
+        storageClass: ceph-block
+      trivy:
+        storageClass: ceph-block
+  harborAdminPassword: {{ admin_pass }}
+  secretKey: {{ secret_key }}
+  registry:
+    credentials:
+      username: {{ registry.user }}
+      password: {{ registry.pass }}

@@ -246,7 +246,8 @@ def install_dbs(ctx):
             ), echo=True)
 
 
-def helm_install(ctx, values_file, app_directory, release_name, namespace=None, namespace_file_name='namespace.yaml'):
+def helm_install(ctx, values_file, app_name, release_name, namespace=None, namespace_file_name='namespace.yaml'):
+    app_directory = os.path.join('apps', app_name)
     namespace_file_path = os.path.join(app_directory, namespace_file_name)
     namespace_cmd = ''
     if namespace is not None:
@@ -283,7 +284,22 @@ def install_dashboards(ctx):
     }
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
-    helm_install(ctx, values_file, os.path.join('apps', app_name), 'dashboards')
+    helm_install(ctx, values_file, app_name, app_name)
+
+
+@task
+def install_harbor(ctx):
+    app_name = 'harbor'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'harbor_fqdn': get_fqdn('harbor', secrets, cluster_spec)
+    }
+    data.update(secrets['harbor'])
+
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+    helm_install(ctx, values_file, app_name, app_name)
 
 
 @task()
