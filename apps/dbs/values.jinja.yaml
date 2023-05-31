@@ -1,0 +1,51 @@
+keydb:
+{#  tolerations:#}
+{#    - key: node-role.kubernetes.io/control-plane#}
+{#      operator: Exists#}
+{#      effect: NoSchedule#}
+{#    - key: node-role.kubernetes.io/master#}
+{#      operator: Exists#}
+{#      effect: NoSchedule#}
+  persistentVolume:
+    storageClass: ceph-block
+cockroachdb:
+  clusterDomain: {{ cluster_domain }}
+  conf:
+    cluster-name: {{ cluster_name }}
+  statefulset:
+{#    tolerations:#}
+{#      - key: node-role.kubernetes.io/control-plane#}
+{#        operator: Exists#}
+{#        effect: NoSchedule#}
+{#      - key: node-role.kubernetes.io/master#}
+{#        operator: Exists#}
+{#        effect: NoSchedule#}
+  storage:
+    persistentVolume:
+      storageClass: ceph-block
+  init:
+    provisioning:
+      enabled: true
+      users:
+        - name: {{ cockroachdb.username }}
+          password: {{ cockroachdb.password }}
+          options:
+            - LOGIN
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: letsencrypt-gcp
+      external-dns.alpha.kubernetes.io/hostname: {{ cockroach_fqdn }}
+      nginx.ingress.kubernetes.io/auth-url: https://{{ oauth_fqdn }}/oauth2/auth
+      nginx.ingress.kubernetes.io/auth-signin: https://{{ oauth_fqdn }}/oauth2/start
+      nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/server-snippet: |
+        proxy_ssl_verify off;
+    hosts:
+      - {{ cockroach_fqdn }}
+    tls:
+      - hosts:
+        - {{ cockroach_fqdn }}
+        secretName: tls.{{ cockroach_fqdn }}

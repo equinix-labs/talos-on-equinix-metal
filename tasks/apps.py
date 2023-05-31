@@ -193,7 +193,7 @@ def install_argo(ctx):
 @task
 def install_gitea(ctx):
     """
-    Install app by folder name from apps folder
+    Install gitea
     """
     app_name = 'gitea'
     app_directory = os.path.join('apps', app_name)
@@ -211,6 +211,35 @@ def install_gitea(ctx):
     ctx.run("helm upgrade --dependency-update --install --namespace gitea --create-namespace "
             "--values={} "
             "gitea {} ".format(
+                values_file,
+                app_directory
+            ), echo=True)
+
+
+@task
+def install_dbs(ctx):
+    app_name = 'dbs'
+    app_directory = os.path.join('apps', app_name)
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'cluster_domain': cluster_spec.name + '.local',
+        'cluster_name': cluster_spec.name,
+        'cockroach_fqdn': get_fqdn('cockroach', secrets, cluster_spec),
+        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+    }
+    data.update(secrets['dbs'])
+
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+
+    namespace_file = os.path.join(app_directory, 'namespace.yaml')
+    if os.path.isfile(namespace_file):
+        ctx.run("kubectl apply -f " + namespace_file, echo=True)
+
+    ctx.run("helm upgrade --dependency-update --install --namespace dbs "
+            "--values={} "
+            "dbs {} ".format(
                 values_file,
                 app_directory
             ), echo=True)
