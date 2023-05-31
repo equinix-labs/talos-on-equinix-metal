@@ -1,6 +1,6 @@
 apiVersion: v2
 name: gitea
-description: Chart tracks compatible versions of gitea
+description: Chart tracks compatible versions of keydb and cockroachdb
 
 type: application
 version: 0.1.0

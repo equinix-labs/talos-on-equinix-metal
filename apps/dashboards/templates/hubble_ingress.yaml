@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hubble
+  namespace: network-services
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-gcp
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.hubble.hubble_fqdn }}
+    nginx.ingress.kubernetes.io/auth-url: "https://{{ .Values.hubble.oauth_fqdn }}/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://{{ .Values.hubble.oauth_fqdn }}/oauth2/start"
+    nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.hubble.hubble_fqdn }}
+      secretName: tls.{{ .Values.hubble.hubble_fqdn }}
+  rules:
+    - host: {{ .Values.hubble.hubble_fqdn }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hubble-ui
+                port:
+                  number: 80

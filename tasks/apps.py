@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import yaml
 from invoke import task
 
 from tasks.constellation_v01 import Cluster
@@ -243,6 +244,46 @@ def install_dbs(ctx):
                 values_file,
                 app_directory
             ), echo=True)
+
+
+def helm_install(ctx, values_file, app_directory, release_name, namespace=None, namespace_file_name='namespace.yaml'):
+    namespace_file_path = os.path.join(app_directory, namespace_file_name)
+    namespace_cmd = ''
+    if namespace is not None:
+        namespace_cmd = "--create-namespace --namespace " + namespace
+
+    if os.path.isfile(namespace_file_path):
+        ctx.run("kubectl apply -f " + namespace_file_path, echo=True)
+        with open(namespace_file_path) as namespace_file:
+            namespace = dict(yaml.safe_load(namespace_file))['metadata']['name']
+
+        namespace_cmd = "--namespace " + namespace
+
+    ctx.run("helm upgrade --dependency-update --install {} "
+            "--values={} "
+            "{} {} ".format(
+                namespace_cmd,
+                values_file,
+                namespace if namespace is not None else release_name,
+                app_directory
+            ), echo=True)
+
+
+@task
+def install_dashboards(ctx):
+    app_name = 'dashboards'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'k8s_dashboard_fqdn': get_fqdn(['k8s', 'dash'], secrets, cluster_spec),
+        'rook_fqdn': get_fqdn(['rook', 'dash'], secrets, cluster_spec),
+        'hubble_fqdn': get_fqdn(['hubble', 'dash'], secrets, cluster_spec),
+        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+    }
+
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+    helm_install(ctx, values_file, os.path.join('apps', app_name), 'dashboards')
 
 
 @task()
