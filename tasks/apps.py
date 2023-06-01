@@ -197,7 +197,6 @@ def install_gitea(ctx):
     Install gitea
     """
     app_name = 'gitea'
-    app_directory = os.path.join('apps', app_name)
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
@@ -209,12 +208,7 @@ def install_gitea(ctx):
     data.update(secrets['gitea'])
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
-    ctx.run("helm upgrade --dependency-update --install --namespace gitea --create-namespace "
-            "--values={} "
-            "gitea {} ".format(
-                values_file,
-                app_directory
-            ), echo=True)
+    helm_install(ctx, values_file, app_name)
 
 
 @task
@@ -246,7 +240,7 @@ def install_dbs(ctx):
             ), echo=True)
 
 
-def helm_install(ctx, values_file, app_name, release_name, namespace=None, namespace_file_name='namespace.yaml'):
+def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name='namespace.yaml'):
     app_directory = os.path.join('apps', app_name)
     namespace_file_path = os.path.join(app_directory, namespace_file_name)
     namespace_cmd = ''
@@ -265,7 +259,7 @@ def helm_install(ctx, values_file, app_name, release_name, namespace=None, names
             "{} {} ".format(
                 namespace_cmd,
                 values_file,
-                namespace if namespace is not None else release_name,
+                namespace if namespace is not None else app_name,
                 app_directory
             ), echo=True)
 
@@ -284,7 +278,7 @@ def install_dashboards(ctx):
     }
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
-    helm_install(ctx, values_file, app_name, app_name)
+    helm_install(ctx, values_file, app_name)
 
 
 @task
@@ -299,7 +293,7 @@ def install_harbor(ctx):
     data.update(secrets['harbor'])
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
-    helm_install(ctx, values_file, app_name, app_name)
+    helm_install(ctx, values_file, app_name)
 
 
 @task
@@ -317,7 +311,7 @@ def install_observability(ctx):
     data.update(secrets['grafana'])
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
-    helm_install(ctx, values_file, app_name, app_name)
+    helm_install(ctx, values_file, app_name)
 
 
 @task()

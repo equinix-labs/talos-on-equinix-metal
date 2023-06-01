@@ -21,17 +21,23 @@ gitea:
         secretName: tls.{{ gitea_fqdn }}
   gitea:
     config: # https://docs.gitea.com/next/administration/config-cheat-sheet#service-service
+      service.explore:
+        REQUIRE_SIGNIN_VIEW: true
       service:
         SHOW_REGISTRATION_BUTTON: 'false'
         DISABLE_REGISTRATION: 'true'
+      oauth2_client:
+        ENABLE_AUTO_REGISTRATION: true
+        ACCOUNT_LINKING: disabled
     admin:
       existingSecret:
       username: {{ admin_user }}
       password: {{ admin_password }}
       email: {{ admin_email }}
-    oauth:
+    oauth: # https://docs.gitea.com/next/administration/command-line#admin
       - name: 'dex'
         provider: openidConnect
         key: {{ dex_key }}
         secret: {{ dex_secret }}
         autoDiscoverUrl: https://{{ dex_url }}/.well-known/openid-configuration
+        scopes: 'openid email profile groups'
