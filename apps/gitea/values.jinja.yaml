@@ -4,7 +4,7 @@ gitea:
   persistence:
     storageClass: ceph-block
   clusterDomain: {{ cluster_domain }}
-  ingress:
+  ingress: # http://gitea-http.gitea:3000/gocy/jupiter.git
     enabled: true
     className: nginx
     annotations:

@@ -20,6 +20,9 @@ argo-cd:
         cert-manager.io/cluster-issuer: letsencrypt-gcp
         external-dns.alpha.kubernetes.io/hostname: {{ argocd_fqdn }}
         nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        nginx.ingress.kubernetes.io/server-snippet: |
+          proxy_ssl_verify off;
       ingressClassName: "nginx"
       hosts:
         - {{ argocd_fqdn }}

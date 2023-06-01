@@ -1,12 +1,14 @@
 import os
 from pathlib import Path
+from typing import Union
 
 import yaml
+from gitea import *
 from invoke import task
 
 from tasks.constellation_v01 import Cluster
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir
+    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext
 
 
 def render(ctx, source: str, target: str, data: dict):
@@ -209,6 +211,44 @@ def install_gitea(ctx):
 
     values_file = render_values(ctx, cluster_spec, app_name, data)
     helm_install(ctx, values_file, app_name)
+
+
+@task
+def provision_gitea(ctx):
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+
+    data = {
+        'cluster_domain': cluster_spec.name + '.local',
+        'gitea_fqdn': get_fqdn('gitea', secrets, cluster_spec),
+        'dex_url': get_fqdn('bouncer', secrets, cluster_spec),
+    }
+    data.update(secrets['gitea'])
+
+    gitea = Gitea(
+        "https://" + data['gitea_fqdn'],
+        auth=(
+            secrets['gitea']['admin_user'],
+            secrets['gitea']['admin_password'])
+    )
+
+    admin = gitea.get_user()
+    print("Gitea Version: " + gitea.get_version())
+    print("API-Token belongs to user: " + admin.username)
+
+    gitea.create_org(admin, 'gocy', "GOCY configuration")
+    gocy = Organization.request(gitea, 'gocy')
+
+    gocy.commit()
+    constellation_name = get_ccontext()
+    gocy.create_repo(
+        constellation_name,
+        'Configuration of {} constellation'.format(constellation_name),
+        autoInit=False
+    )
+
+
+
 
 
 @task

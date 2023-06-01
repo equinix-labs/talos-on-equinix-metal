@@ -1,0 +1,1 @@
+`kubectl -n gitea port-forward statefulsets/gitea 3000:3000`
