@@ -9,10 +9,10 @@ from invoke import task
 
 from tasks.constellation_v01 import Cluster
 from tasks.equinix_metal import generate_cpem_config, register_vips
+from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
     get_cluster_spec_from_context, get_constellation, get_secret_envs
-from tasks.k8s_context import use_kind_cluster_context, use_bary_cluster_context
 from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -89,7 +89,7 @@ def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: li
     return cluster_template
 
 
-@task(register_vips, use_kind_cluster_context)
+@task(register_vips, context_set_kind)
 def generate_cluster_spec(ctx,
                           templates_dir=os.path.join('templates', 'cluster'),
                           cluster_file_name='capi.yaml',
@@ -407,7 +407,7 @@ def clean(ctx):
 #     """
 
 
-@task(clean, use_kind_cluster_context, generate_cpem_config, register_vips,
+@task(clean, context_set_kind, generate_cpem_config, register_vips,
       generate_cluster_spec, talos_apply_config_patches)
 def build_manifests(ctx):
     """
@@ -415,7 +415,7 @@ def build_manifests(ctx):
     """
 
 
-@task(use_kind_cluster_context)
+@task(context_set_kind)
 def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_CLUSTER_MANIFEST_STATIC_FILE_NAME):
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
@@ -435,9 +435,9 @@ def clusterctl_move(ctx):
     """
     Move CAPI objects from local kind cluster to the management(bary) cluster
     """
-    use_bary_cluster_context(ctx)
+    context_set_bary(ctx)
     clusterctl_init(ctx)
-    use_kind_cluster_context(ctx)
+    context_set_kind(ctx)
 
     constellation = get_constellation()
     bary_kubeconfig = os.path.join(

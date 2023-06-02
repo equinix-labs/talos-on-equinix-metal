@@ -5,9 +5,9 @@ import os
 import yaml
 from invoke import task
 
+from tasks.gocy import context_set_bary
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
     get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation
-from tasks.k8s_context import use_bary_cluster_context
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -354,7 +354,7 @@ def enable_cluster_mesh(ctx, namespace='network-services'):
     Enables Cilium ClusterMesh
     https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
     """
-    use_bary_cluster_context(ctx)
+    context_set_bary(ctx)
     constellation = get_constellation()
     for cluster in get_constellation_clusters():
         if cluster.name != constellation.bary.name:

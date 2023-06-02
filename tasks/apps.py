@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import Union
 
 import yaml
 from gitea import *
@@ -182,6 +181,7 @@ def install_argo(ctx):
         'argocd_fqdn': get_fqdn('argo', secrets, cluster_spec),
         'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster_spec),
         'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET'],
+        'constellation': get_ccontext()
     }
 
     values_file = render_values(ctx, cluster_spec, 'argocd', data)
@@ -215,6 +215,7 @@ def install_gitea(ctx):
 
 @task
 def provision_gitea(ctx):
+    # ToDo: clean it up
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 

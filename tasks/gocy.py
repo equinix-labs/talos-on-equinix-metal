@@ -1,7 +1,6 @@
 import os
 from pprint import pprint
 
-import jinja2
 import yaml
 from invoke import task
 from pydantic import ValidationError
@@ -11,6 +10,9 @@ from tasks.constellation_v01 import Constellation
 from tasks.helpers import get_config_dir, get_secrets_file_name, available_constellation_specs, \
     get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
+from tasks.helpers import get_constellation_clusters, get_constellation
+
+KIND_CLUSTER_NAME = 'kind-toem-capi-local'
 
 
 @task()
@@ -52,9 +54,9 @@ def secret_source(ctx):
 
 
 @task()
-def ccontext_set(ctx, ccontext: str):
+def constellation_set(ctx, ccontext: str):
     """
-    Set default Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
+    Set Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
     written = False
     for available_constellation in available_constellation_specs():
@@ -73,16 +75,16 @@ def ccontext_set(ctx, ccontext: str):
 
 
 @task()
-def ccontext_get(ctx):
+def constellation_get(ctx):
     """
-    Get default Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
+    Get Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
     default - jupiter
     """
     print(get_ccontext())
 
 
 @task()
-def list_constellations(ctx):
+def constellation_list(ctx):
     """
     List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
     """
@@ -109,6 +111,9 @@ def list_constellations(ctx):
 
 @task()
 def get_oidc_kubeconfig(ctx, cluster_name=None):
+    """
+    Generates oidc kubeconfigs to be shared with team members.
+    """
     if cluster_name is None:
         cluster_name = get_cluster_spec_from_context(ctx).name
 
@@ -147,3 +152,55 @@ def get_oidc_kubeconfig(ctx, cluster_name=None):
 
     with open(oidc_kubeconfig_file_path, 'w') as oidc_kubeconfig_file:
         yaml.safe_dump(kubeconfig, oidc_kubeconfig_file)
+
+
+def set_cluster_context(ctx, cluster_data, kind_cluster_name=KIND_CLUSTER_NAME):
+
+    if type(cluster_data) is dict:
+        cluster_name = cluster_data['name']
+    elif type(cluster_data) is str:
+        cluster_name = cluster_data
+    else:
+        cluster_name = ""
+
+    constellation_spec = get_constellation_clusters()
+    known_cluster_context = False
+    for cluster_spec in constellation_spec:
+        if cluster_name == kind_cluster_name or cluster_name == cluster_spec.name:
+            known_cluster_context = True
+
+    if not known_cluster_context:
+        pprint('Cluster context unrecognised: {}'.format(cluster_name))
+        return
+
+    if 'kind' in cluster_name:
+        ctx.run("kconf use " + cluster_name, echo=True)
+    else:
+        ctx.run("kconf use admin@" + cluster_name, echo=True)
+        ctx.run("talosctl config context " + cluster_name, echo=True)
+
+
+@task()
+def context_set(ctx, context):
+    """
+    Set Talos and k8s cluster context to [context]
+    """
+    set_cluster_context(ctx, context)
+
+
+@task()
+def context_set_bary(ctx):
+    """
+    Switch k8s context to management(bary) cluster
+    """
+    constellation = get_constellation()
+    set_cluster_context(ctx, constellation.bary.name)
+
+
+@task()
+def context_set_kind(ctx, kind_cluster_name=KIND_CLUSTER_NAME):
+    """
+    Switch k8s context to local(kind) management(ClusterAPI) cluster
+    """
+    set_cluster_context(ctx, kind_cluster_name)
+

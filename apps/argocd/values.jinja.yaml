@@ -2,6 +2,9 @@ argo-cd:
   dex:
     enabled: false
   configs:
+    repositories:
+      gitea:
+        url: http://gitea-http.gitea:3000/gocy/{{ constellation }}.git
     cm:
       url: https://{{ argocd_fqdn }}
       oidc.config: |
