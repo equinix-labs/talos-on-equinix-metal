@@ -1,4 +1,4 @@
-import glob
+import json
 import json
 import os
 from pprint import pprint
@@ -7,7 +7,7 @@ import yaml
 from invoke import task
 
 from tasks.ReservedVIPs import ReservedVIPs
-from tasks.constellation_v01 import Cluster, VipRole, VipType, Vip
+from tasks.constellation_v01 import Cluster, VipRole, VipType
 from tasks.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_constellation_clusters, get_constellation
 
@@ -57,14 +57,15 @@ def create_config_dirs(ctx):
         )), echo=True)
 
 
-def _render_vip_addresses_file(vip_reservations: list, ip_addresses_file_name):
+def _render_vip_addresses_file(key, cluster_state: dict, cluster: Cluster):
     reserved_vips = ReservedVIPs()
 
-    for vip_reservation in vip_reservations:
-        reserved_vips.append(vip_reservation)
+    for vip in cluster_state:
+        pprint(vip)
+        # reserved_vips.append(vip_reservation)
 
-    with open(ip_addresses_file_name, 'w') as ip_addresses_file:
-        ip_addresses_file.write(reserved_vips.yaml())
+    # with open(ip_addresses_file_name, 'w') as ip_addresses_file:
+    #     ip_addresses_file.write(reserved_vips.yaml())
 
 
 def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
@@ -104,15 +105,20 @@ def register_global_vip(ctx, vip: dict, tags: list):
         "fail_on_approval_required": "true",
         "tags": tags
     }
-    return ctx.run("curl -s -X POST "
-                   "-H 'Content-Type: application/json' "
-                   "-H \"X-Auth-Token: {}\" "
-                   "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
-                   "-d '{}'".format(
-                        "${METAL_AUTH_TOKEN}",
-                        "${METAL_PROJECT_ID}",
-                        json.dumps(payload)
-                    ), hide='stdout', echo=True).stdout
+    result = ctx.run("curl -s -X POST "
+                     "-H 'Content-Type: application/json' "
+                     "-H \"X-Auth-Token: {}\" "
+                     "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
+                     "-d '{}'".format(
+                            "${METAL_AUTH_TOKEN}",
+                            "${METAL_PROJECT_ID}",
+                            json.dumps(payload)
+                        ), hide='stdout', echo=True).stdout
+
+    if vip['count'] > 1:
+        return [dict(yaml.safe_load(result))]
+    else:
+        return list(yaml.safe_load_all(result))
 
 
 def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
@@ -130,14 +136,16 @@ def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
 
 
 def register_public_vip(ctx, vip: dict, cluster: Cluster, tags: list):
-    vip_reservations_file_path = get_ip_reservation_file_path(cluster, vip['role'])
-    return ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
+    result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
         VipType.public_ipv4,
         vip['count'],
         cluster.metro,
-        ",".join(tags),
-        vip_reservations_file_path
+        ",".join(tags)
     ), hide='stdout', echo=True).stdout
+    if vip['count'] > 1:
+        return [dict(yaml.safe_load(result))]
+    else:
+        return list(yaml.safe_load_all(result))
 
 
 def render_existing_vips(ctx, project_vips_file_path):
@@ -146,6 +154,8 @@ def render_existing_vips(ctx, project_vips_file_path):
 
     existing_vip_key = 'existing_vip_key'
     constellation_spec = get_constellation_clusters()
+    global_vip = None
+
     for cluster_spec in constellation_spec:
         cluster_state = cluster_spec.dict()
         for vip_state in cluster_state['vips']:
@@ -159,29 +169,33 @@ def render_existing_vips(ctx, project_vips_file_path):
                         #             and 'metro' in project_vip
                         #             and project_vip['metro']['code'] == cluster_spec.metro)):
                         # If we are missing VIPs mark the spot
-                        vip_state[existing_vip_key].append(project_vip)
+                        if vip_state['vipType'] == VipType.global_ipv4:
+                            if global_vip is None:
+                                global_vip = project_vip
 
-            _render_vip_addresses_file(
-                vip_state[existing_vip_key],
-                get_ip_addresses_file_path(cluster_spec, vip_state['role']))
+                            vip_state[existing_vip_key].append(global_vip)
+                        else:
+                            vip_state[existing_vip_key].append(project_vip)
 
         for vip_state in cluster_state['vips']:
             vip_tags = get_vip_tags(vip_state['role'], cluster_spec)
-            pprint(vip_state)
             if len(vip_state[existing_vip_key]) == 0:
                 # Register missing VIPs
                 vip_state[existing_vip_key] = list()
                 if vip_state['vipType'] == VipType.public_ipv4:
-                    vip_state[existing_vip_key].append(
+                    vip_state[existing_vip_key].extend(
                         register_public_vip(ctx, vip_state, cluster_spec, vip_tags)
                     )
                 else:
-                    vip_state[existing_vip_key].append(
-                        register_global_vip(ctx, vip_state, cluster_spec, vip_tags)
-                    )
-                _render_vip_addresses_file(
-                    vip_state[existing_vip_key],
-                    get_ip_addresses_file_path(cluster_spec, vip_state['role']))
+                    if global_vip is None:
+                        global_vip = register_global_vip(ctx, vip_state, vip_tags)
+
+                    vip_state[existing_vip_key].extend(global_vip)
+
+        _render_vip_addresses_file(
+            existing_vip_key,
+            cluster_state,
+            cluster_spec)
 
 
 def register_vip(ctx, cluster: Cluster, project_vips_file_path,
