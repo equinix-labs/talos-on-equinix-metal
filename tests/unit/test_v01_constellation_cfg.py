@@ -87,4 +87,3 @@ def test_constellation_is_loadable():
 
         assert type(constellation).__module__ == 'tasks.constellation_v01'
         assert type(constellation).__name__ == 'Constellation'
-
