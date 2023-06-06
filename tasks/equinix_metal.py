@@ -1,14 +1,15 @@
 import glob
 import json
 import os
+from pprint import pprint
 
-import ipcalc
 import yaml
 from invoke import task
 
-from tasks.constellation_v01 import Cluster, VipRole, VipType
+from tasks.ReservedVIPs import ReservedVIPs
+from tasks.constellation_v01 import Cluster, VipRole, VipType, Vip
 from tasks.helpers import str_presenter, get_secrets_dir, \
-    get_cpem_config, get_cfg, get_constellation_clusters, get_constellation
+    get_cpem_config, get_constellation_clusters, get_constellation
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -56,30 +57,22 @@ def create_config_dirs(ctx):
         )), echo=True)
 
 
-@task()
-def get_project_ips(ctx, project_ips_file_name=None):
-    """
-    Produces [secrets_dir]/project-ips.yaml with IP addressed used in the current Equinix Metal project.
-    """
+def _render_vip_addresses_file(vip_reservations: list, ip_addresses_file_name):
+    reserved_vips = ReservedVIPs()
 
-    project_ips_file_name = get_cfg(project_ips_file_name, ctx.equinix_metal.project_ips_file_name)
-    ctx.run("metal ip get -o yaml > {}".format(project_ips_file_name), echo=True)
+    for vip_reservation in vip_reservations:
+        reserved_vips.append(vip_reservation)
 
-
-def _render_ip_addresses_file(ip_reservation, addresses, ip_addresses_file_name):
-    for address in ipcalc.Network('{}/{}'.format(ip_reservation['address'], ip_reservation['cidr'])):
-        addresses.append(str(address))
     with open(ip_addresses_file_name, 'w') as ip_addresses_file:
-        yaml.dump(addresses, ip_addresses_file)
+        ip_addresses_file.write(reserved_vips.yaml())
 
 
 def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
-    addresses = list()
     with open(ip_reservations_file_name, 'r') as ip_reservations_file:
-        _render_ip_addresses_file(yaml.safe_load(ip_reservations_file), addresses, ip_addresses_file_name)
+        _render_vip_addresses_file(yaml.safe_load(ip_reservations_file), ip_addresses_file_name)
 
 
-def get_ip_addresses_file_name(cluster_spec: Cluster, address_role):
+def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
         cluster_spec.name,
@@ -87,7 +80,7 @@ def get_ip_addresses_file_name(cluster_spec: Cluster, address_role):
     )
 
 
-def get_ip_reservation_file_name(cluster_spec: Cluster, address_role):
+def get_ip_reservation_file_path(cluster_spec: Cluster, address_role):
     return os.path.join(
         get_secrets_dir(),
         cluster_spec.name,
@@ -95,80 +88,132 @@ def get_ip_reservation_file_name(cluster_spec: Cluster, address_role):
     )
 
 
-def register_global_vip(ctx, cluster: Cluster, cp_tags, ip_reservations_file_name):
+def register_global_vip(ctx, vip: dict, tags: list):
     """
     We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
     affect the management cluster (bary).
+
+    ToDo:
+        There is a bug in Metal CLI that prevents us from using the CLI in this case.
+        Thankfully API endpoint works.
+        https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/
     """
-    constellation = get_constellation()
-    if cluster.name != constellation.bary.name:
-        existing_ip_reservation_file_names = glob.glob(
-            os.path.join(
-                get_secrets_dir(),
-                '**',
-                os.path.basename(ip_reservations_file_name)
-            ),
-            recursive=True)
-        for existing_ip_reservation_file_name in existing_ip_reservation_file_names:
-            if cluster.name not in existing_ip_reservation_file_name:
-                with open(existing_ip_reservation_file_name) as existing_ip_reservation_file:
-                    existing_ip_reservation = yaml.safe_load(existing_ip_reservation_file)
-                    if existing_ip_reservation['type'] == 'global_ipv4':
-                        print('Global IP reservation file already exists. Copying config for satellite: '
-                              + cluster.name)
-                        ctx.run('cp {} {}'.format(
-                            existing_ip_reservation_file_name,
-                            ip_reservations_file_name
-                        ), echo=True)
-                        return
-
-    # Todo: There is a bug in Metal CLI that prevents us from using the CLI in this case.
-    #       Thankfully API endpoint works.
-    #       https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/
     payload = {
-        "type": "global_ipv4",
-        "quantity": 1,
-        "fail_on_approval_required": "false",
-        "tags": cp_tags
+        "type": VipType.global_ipv4,
+        "quantity": vip['count'],
+        "fail_on_approval_required": "true",
+        "tags": tags
     }
-    ctx.run("curl -s -X POST "
-            "-H 'Content-Type: application/json' "
-            "-H \"X-Auth-Token: {}\" "
-            "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
-            "-d '{}' | yq e -P - > {}".format(
-                "${METAL_AUTH_TOKEN}",
-                "${METAL_PROJECT_ID}",
-                json.dumps(payload),
-                ip_reservations_file_name
-            ), echo=True)
+    return ctx.run("curl -s -X POST "
+                   "-H 'Content-Type: application/json' "
+                   "-H \"X-Auth-Token: {}\" "
+                   "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
+                   "-d '{}'".format(
+                        "${METAL_AUTH_TOKEN}",
+                        "${METAL_PROJECT_ID}",
+                        json.dumps(payload)
+                    ), hide='stdout', echo=True).stdout
 
 
-def register_vip(ctx, cluster: Cluster, project_ips_file_name,
+def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
+    """
+    ToDo: Despite all the efforts to disable it
+        https://github.com/kubernetes-sigs/cluster-api-provider-packet on its own registers a VIP for the control plane.
+        We need one so we will use it. The tag remains defined by CAPP.
+        As for the tags the 'cp' VIP is used for the Control Plane. The 'ingress' VIP will be used by the ingress.
+        The 'mesh' VIP will be used by cilium as ClusterMesh endpoint.
+    """
+    if address_role == VipRole.cp:
+        return ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
+    else:
+        return ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
+
+
+def register_public_vip(ctx, vip: dict, cluster: Cluster, tags: list):
+    vip_reservations_file_path = get_ip_reservation_file_path(cluster, vip['role'])
+    return ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
+        VipType.public_ipv4,
+        vip['count'],
+        cluster.metro,
+        ",".join(tags),
+        vip_reservations_file_path
+    ), hide='stdout', echo=True).stdout
+
+
+def render_existing_vips(ctx, project_vips_file_path):
+    with open(project_vips_file_path) as project_vips_file:
+        project_vips = yaml.safe_load(project_vips_file)
+
+    existing_vip_key = 'existing_vip_key'
+    constellation_spec = get_constellation_clusters()
+    for cluster_spec in constellation_spec:
+        cluster_state = cluster_spec.dict()
+        for vip_state in cluster_state['vips']:
+            vip_tags = get_vip_tags(vip_state['role'], cluster_spec)
+            vip_state[existing_vip_key] = list()
+            for project_vip in project_vips:
+                if 'tags' in project_vip and project_vip.get('tags') == vip_tags:
+                    if project_vip['type'] == vip_state['vipType']:
+                        # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
+                        #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
+                        #             and 'metro' in project_vip
+                        #             and project_vip['metro']['code'] == cluster_spec.metro)):
+                        # If we are missing VIPs mark the spot
+                        vip_state[existing_vip_key].append(project_vip)
+
+            _render_vip_addresses_file(
+                vip_state[existing_vip_key],
+                get_ip_addresses_file_path(cluster_spec, vip_state['role']))
+
+        for vip_state in cluster_state['vips']:
+            vip_tags = get_vip_tags(vip_state['role'], cluster_spec)
+            pprint(vip_state)
+            if len(vip_state[existing_vip_key]) == 0:
+                # Register missing VIPs
+                vip_state[existing_vip_key] = list()
+                if vip_state['vipType'] == VipType.public_ipv4:
+                    vip_state[existing_vip_key].append(
+                        register_public_vip(ctx, vip_state, cluster_spec, vip_tags)
+                    )
+                else:
+                    vip_state[existing_vip_key].append(
+                        register_global_vip(ctx, vip_state, cluster_spec, vip_tags)
+                    )
+                _render_vip_addresses_file(
+                    vip_state[existing_vip_key],
+                    get_ip_addresses_file_path(cluster_spec, vip_state['role']))
+
+
+def register_vip(ctx, cluster: Cluster, project_vips_file_path,
                  address_role: VipRole, address_type: VipType, address_count: int):
     cluster_metro = cluster.metro
 
-    ip_reservations_file_name = get_ip_reservation_file_name(cluster, address_role)
-    ip_addresses_file_name = get_ip_addresses_file_name(cluster, address_role)
-    # ToDo: Most likely, despite all the efforts to disable it
-    #   https://github.com/kubernetes-sigs/cluster-api-provider-packet registers a VIP
-    #   We need one so we will use it...
-    if address_role == 'cp':
-        cp_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
+    ip_reservations_file_name = get_ip_reservation_file_path(cluster, address_role)
+    ip_addresses_file_name = get_ip_addresses_file_path(cluster, address_role)
+    # ToDo: Despite all the efforts to disable it
+    #   https://github.com/kubernetes-sigs/cluster-api-provider-packet on its own registers a VIP for the control plane.
+    #   We need one so we will use it. The tag remains defined by CAPP.
+    if address_role == VipRole.cp:
+        vip_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
     else:
-        cp_tags = ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
+        vip_tags = ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
 
     if os.path.isfile(ip_reservations_file_name):
         render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
         return
 
-    with open(project_ips_file_name, 'r') as all_ips_file:
+    with open(project_vips_file_path, 'r') as all_ips_file:
         no_reservations = False
-        addresses = list()
-        # ToDo: OMG FIX or DELETE ME!
+        # ToDo: VIPs are sourced in two ways. This could be solved in more elegant and resilient way...
+        #   1) Initial run, where VIPs are not yet registered on metal platform. Therefore we need to
+        #       'metal ip request' them. Grab the output, parse and produce ip_addresses_file_name
+        #   2) Subsequent run, where VIPs are registered on metal platform. VIPs are present in 'project-ips.yaml'
+        #       together with all other IPS for a given metal project. We need to filter the ones needed for this
+        #       particular constellation & cluster.
         for ip_spec in yaml.safe_load(all_ips_file):
-            if (ip_spec['global_ip'] or ('metro' in ip_spec and ip_spec['metro']['code'] == cluster_metro))\
-                    and 'tags' in ip_spec and len(ip_spec.get('tags')) > 0 and ip_spec.get('tags')[0] == cp_tags[0]:
-                _render_ip_addresses_file(ip_spec, addresses, ip_addresses_file_name)
+            if (ip_spec['global_ip'] or ('metro' in ip_spec and ip_spec['metro']['code'] == cluster_metro)) \
+                    and 'tags' in ip_spec and ip_spec.get('tags') == vip_tags:
+                _render_vip_addresses_file(ip_spec, ip_addresses_file_name)
                 no_reservations = False
                 break
             else:
@@ -180,27 +225,26 @@ def register_vip(ctx, cluster: Cluster, project_ips_file_name,
                     address_type,
                     address_count,
                     cluster_metro,
-                    ",".join(cp_tags),
+                    ",".join(vip_tags),
                     ip_reservations_file_name
                 ), echo=True)
             elif address_type == 'global_ipv4':
-                register_global_vip(ctx, cluster, cp_tags, ip_reservations_file_name)
+                register_global_vip(ctx, cluster, vip_tags, ip_reservations_file_name)
             else:
                 print("Unsupported address_type: " + address_type)
 
             render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
 
 
-@task(get_project_ips, create_config_dirs)
-def register_vips(ctx, project_ips_file_name=None):
+@task(create_config_dirs)
+def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
     """
-    Registers VIPs as per constellation spec in invoke.yaml
+    Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
     """
-    project_ips_file_name = get_cfg(project_ips_file_name, ctx.equinix_metal.project_ips_file_name)
-    constellation_spec = get_constellation_clusters()
-    for cluster_spec in constellation_spec:
-        for vip in cluster_spec.vips:
-            register_vip(ctx, cluster_spec, project_ips_file_name, vip.role, vip.vipType, vip.count)
+    project_vips_file_path = os.path.join(get_secrets_dir(), project_vips_file_name)
+    ctx.run("metal ip get -o yaml > {}".format(project_vips_file_path), echo=True)
+
+    render_existing_vips(ctx, project_vips_file_path)
 
 
 @task()
@@ -246,5 +290,3 @@ def check_capacity(ctx):
             ctx.run("metal capacity check --metros {} --plans {} --quantity {}".format(
                 metro, node_type, count
             ), echo=True)
-
-

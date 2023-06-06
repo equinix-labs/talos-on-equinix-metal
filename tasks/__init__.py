@@ -28,8 +28,5 @@ ns.configure({
             get_secrets_dir(),
             'ca'
         )
-    },
-    'equinix_metal': {
-        'project_ips_file_name': os.path.join(get_secrets_dir(), 'project-ips.yaml')
     }
 })
