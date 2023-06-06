@@ -1,3 +1,4 @@
+import copy
 import json
 import json
 import os
@@ -7,7 +8,7 @@ import yaml
 from invoke import task
 
 from tasks.ReservedVIPs import ReservedVIPs
-from tasks.constellation_v01 import Cluster, VipRole, VipType
+from tasks.constellation_v01 import Cluster, VipRole, VipType, Vip
 from tasks.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_constellation_clusters, get_constellation
 
@@ -57,20 +58,16 @@ def create_config_dirs(ctx):
         )), echo=True)
 
 
-def _render_vip_addresses_file(key, cluster_state: dict, cluster: Cluster):
+def render_vip_addresses_file(cluster: Cluster):
     reserved_vips = ReservedVIPs()
 
-    for vip in cluster_state:
+    for vip in cluster.vips:
+        print("#"*10 + ':' + cluster.name)
         pprint(vip)
-        # reserved_vips.append(vip_reservation)
+        reserved_vips.extend(vip.reserved)
 
-    # with open(ip_addresses_file_name, 'w') as ip_addresses_file:
-    #     ip_addresses_file.write(reserved_vips.yaml())
-
-
-def render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name):
-    with open(ip_reservations_file_name, 'r') as ip_reservations_file:
-        _render_vip_addresses_file(yaml.safe_load(ip_reservations_file), ip_addresses_file_name)
+        with open(get_ip_addresses_file_path(cluster, vip.role), 'w') as ip_addresses_file:
+            ip_addresses_file.write(reserved_vips.yaml())
 
 
 def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
@@ -81,15 +78,7 @@ def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
     )
 
 
-def get_ip_reservation_file_path(cluster_spec: Cluster, address_role):
-    return os.path.join(
-        get_secrets_dir(),
-        cluster_spec.name,
-        "ip-{}-reservation.yaml".format(address_role)
-    )
-
-
-def register_global_vip(ctx, vip: dict, tags: list):
+def register_global_vip(ctx, vip: Vip, tags: list):
     """
     We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
     affect the management cluster (bary).
@@ -101,7 +90,7 @@ def register_global_vip(ctx, vip: dict, tags: list):
     """
     payload = {
         "type": VipType.global_ipv4,
-        "quantity": vip['count'],
+        "quantity": vip.count,
         "fail_on_approval_required": "true",
         "tags": tags
     }
@@ -115,7 +104,7 @@ def register_global_vip(ctx, vip: dict, tags: list):
                             json.dumps(payload)
                         ), hide='stdout', echo=True).stdout
 
-    if vip['count'] > 1:
+    if vip.count > 1:
         return [dict(yaml.safe_load(result))]
     else:
         return list(yaml.safe_load_all(result))
@@ -135,119 +124,17 @@ def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
         return ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
 
 
-def register_public_vip(ctx, vip: dict, cluster: Cluster, tags: list):
+def register_public_vip(ctx, vip: Vip, cluster: Cluster, tags: list):
     result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
         VipType.public_ipv4,
-        vip['count'],
+        vip.count,
         cluster.metro,
         ",".join(tags)
     ), hide='stdout', echo=True).stdout
-    if vip['count'] > 1:
+    if vip.count > 1:
         return [dict(yaml.safe_load(result))]
     else:
         return list(yaml.safe_load_all(result))
-
-
-def render_existing_vips(ctx, project_vips_file_path):
-    with open(project_vips_file_path) as project_vips_file:
-        project_vips = yaml.safe_load(project_vips_file)
-
-    existing_vip_key = 'existing_vip_key'
-    constellation_spec = get_constellation_clusters()
-    global_vip = None
-
-    for cluster_spec in constellation_spec:
-        cluster_state = cluster_spec.dict()
-        for vip_state in cluster_state['vips']:
-            vip_tags = get_vip_tags(vip_state['role'], cluster_spec)
-            vip_state[existing_vip_key] = list()
-            for project_vip in project_vips:
-                if 'tags' in project_vip and project_vip.get('tags') == vip_tags:
-                    if project_vip['type'] == vip_state['vipType']:
-                        # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
-                        #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
-                        #             and 'metro' in project_vip
-                        #             and project_vip['metro']['code'] == cluster_spec.metro)):
-                        # If we are missing VIPs mark the spot
-                        if vip_state['vipType'] == VipType.global_ipv4:
-                            if global_vip is None:
-                                global_vip = project_vip
-
-                            vip_state[existing_vip_key].append(global_vip)
-                        else:
-                            vip_state[existing_vip_key].append(project_vip)
-
-        for vip_state in cluster_state['vips']:
-            vip_tags = get_vip_tags(vip_state['role'], cluster_spec)
-            if len(vip_state[existing_vip_key]) == 0:
-                # Register missing VIPs
-                vip_state[existing_vip_key] = list()
-                if vip_state['vipType'] == VipType.public_ipv4:
-                    vip_state[existing_vip_key].extend(
-                        register_public_vip(ctx, vip_state, cluster_spec, vip_tags)
-                    )
-                else:
-                    if global_vip is None:
-                        global_vip = register_global_vip(ctx, vip_state, vip_tags)
-
-                    vip_state[existing_vip_key].extend(global_vip)
-
-        _render_vip_addresses_file(
-            existing_vip_key,
-            cluster_state,
-            cluster_spec)
-
-
-def register_vip(ctx, cluster: Cluster, project_vips_file_path,
-                 address_role: VipRole, address_type: VipType, address_count: int):
-    cluster_metro = cluster.metro
-
-    ip_reservations_file_name = get_ip_reservation_file_path(cluster, address_role)
-    ip_addresses_file_name = get_ip_addresses_file_path(cluster, address_role)
-    # ToDo: Despite all the efforts to disable it
-    #   https://github.com/kubernetes-sigs/cluster-api-provider-packet on its own registers a VIP for the control plane.
-    #   We need one so we will use it. The tag remains defined by CAPP.
-    if address_role == VipRole.cp:
-        vip_tags = ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
-    else:
-        vip_tags = ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
-
-    if os.path.isfile(ip_reservations_file_name):
-        render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
-        return
-
-    with open(project_vips_file_path, 'r') as all_ips_file:
-        no_reservations = False
-        # ToDo: VIPs are sourced in two ways. This could be solved in more elegant and resilient way...
-        #   1) Initial run, where VIPs are not yet registered on metal platform. Therefore we need to
-        #       'metal ip request' them. Grab the output, parse and produce ip_addresses_file_name
-        #   2) Subsequent run, where VIPs are registered on metal platform. VIPs are present in 'project-ips.yaml'
-        #       together with all other IPS for a given metal project. We need to filter the ones needed for this
-        #       particular constellation & cluster.
-        for ip_spec in yaml.safe_load(all_ips_file):
-            if (ip_spec['global_ip'] or ('metro' in ip_spec and ip_spec['metro']['code'] == cluster_metro)) \
-                    and 'tags' in ip_spec and ip_spec.get('tags') == vip_tags:
-                _render_vip_addresses_file(ip_spec, ip_addresses_file_name)
-                no_reservations = False
-                break
-            else:
-                no_reservations = True
-
-        if no_reservations:
-            if address_type == 'public_ipv4':
-                ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml > {}".format(
-                    address_type,
-                    address_count,
-                    cluster_metro,
-                    ",".join(vip_tags),
-                    ip_reservations_file_name
-                ), echo=True)
-            elif address_type == 'global_ipv4':
-                register_global_vip(ctx, cluster, vip_tags, ip_reservations_file_name)
-            else:
-                print("Unsupported address_type: " + address_type)
-
-            render_ip_addresses_file(ip_reservations_file_name, ip_addresses_file_name)
 
 
 @task(create_config_dirs)
@@ -258,7 +145,49 @@ def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
     project_vips_file_path = os.path.join(get_secrets_dir(), project_vips_file_name)
     ctx.run("metal ip get -o yaml > {}".format(project_vips_file_path), echo=True)
 
-    render_existing_vips(ctx, project_vips_file_path)
+    with open(project_vips_file_path) as project_vips_file:
+        project_vips = list(yaml.safe_load(project_vips_file))
+
+    constellation_spec = get_constellation_clusters()
+    global_vip = None
+
+    for cluster_spec in constellation_spec:
+        for vip_spec in cluster_spec.vips:
+            vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
+            for project_vip in project_vips:
+                if 'tags' in project_vip and project_vip.get('tags') == vip_tags:
+                    if project_vip['type'] == vip_spec.vipType:
+                        # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
+                        #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
+                        #             and 'metro' in project_vip
+                        #             and project_vip['metro']['code'] == cluster_spec.metro)):
+
+                        # If we are missing VIPs mark the spot
+                        if vip_spec.vipType == VipType.global_ipv4:
+                            if global_vip is None:
+                                print('copy <<<')
+                                global_vip = copy.deepcopy(project_vip)
+
+                            print('copy >>>')
+                            vip_spec.reserved.append(global_vip)
+                        else:
+                            vip_spec.reserved.append(project_vip)
+
+        for vip_spec in cluster_spec.vips:
+            vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
+            if len(vip_spec.reserved) == 0:
+                # Register missing VIPs
+                if vip_spec.vipType == VipType.public_ipv4:
+                    vip_spec.reserved.extend(
+                        register_public_vip(ctx, vip_spec, cluster_spec, vip_tags)
+                    )
+                else:
+                    if global_vip is None:
+                        global_vip = register_global_vip(ctx, vip_spec, vip_tags)
+
+                    vip_spec.reserved.extend(global_vip)
+
+        render_vip_addresses_file(cluster_spec)
 
 
 @task()

@@ -10,11 +10,13 @@ class ReservedVIPs(YamlModel):
     public_ipv4: list = []
     global_ipv4: list = []
 
-    def append(self, reservation):
-        ip_address = ipcalc.Network('{}/{}'.format(reservation['address'], reservation['cidr']))
-        if reservation['type'] == VipType.global_ipv4:
-            self.global_ipv4.append(str(ip_address))
-        elif reservation['type'] == VipType.public_ipv4:
-            self.public_ipv4.append(str(ip_address))
-        else:
-            print("Equinix Metal API changed the type of VIP: {}, is not supported".format(reservation['type']))
+    def extend(self, reservation: list):
+        for item in reservation:
+            if type(item) is dict:
+                ip_address = ipcalc.Network('{}/{}'.format(item['address'], item['cidr']))
+                if item['type'] == VipType.global_ipv4:
+                    self.global_ipv4.append(str(ip_address))
+                elif item['type'] == VipType.public_ipv4:
+                    self.public_ipv4.append(str(ip_address))
+                else:
+                    print("Equinix Metal API changed the type of VIP: {}, is not supported".format(item['type']))

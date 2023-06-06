@@ -19,7 +19,7 @@ class Vip(BaseModel):
     role: VipRole = None
     count: int = 0
     vipType: VipType = None
-    existing: dict = None
+    reserved: list[dict] = list()
 
 
 class Node(BaseModel):
