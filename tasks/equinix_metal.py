@@ -59,7 +59,6 @@ def create_config_dirs(ctx):
 
 
 def render_vip_addresses_file(cluster: Cluster):
-    print("##### " + cluster.name)
     data = {
         VipRole.cp: ReservedVIPs(),
         VipRole.mesh: ReservedVIPs(),
@@ -67,7 +66,6 @@ def render_vip_addresses_file(cluster: Cluster):
     }
 
     for vip in cluster.vips:
-        pprint(vip.role + " " + str(len(vip.reserved)))
         data[vip.role].extend(vip.reserved)
 
         with open(get_ip_addresses_file_path(cluster, vip.role), 'w') as ip_addresses_file:
