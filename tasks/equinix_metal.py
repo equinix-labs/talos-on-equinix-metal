@@ -59,15 +59,19 @@ def create_config_dirs(ctx):
 
 
 def render_vip_addresses_file(cluster: Cluster):
-    reserved_vips = ReservedVIPs()
+    print("##### " + cluster.name)
+    data = {
+        VipRole.cp: ReservedVIPs(),
+        VipRole.mesh: ReservedVIPs(),
+        VipRole.ingress: ReservedVIPs()
+    }
 
     for vip in cluster.vips:
-        # print("#"*10 + ':' + cluster.name)
-        # pprint(vip)
-        reserved_vips.extend(vip.reserved)
+        pprint(vip.role + " " + str(len(vip.reserved)))
+        data[vip.role].extend(vip.reserved)
 
         with open(get_ip_addresses_file_path(cluster, vip.role), 'w') as ip_addresses_file:
-            ip_addresses_file.write(reserved_vips.yaml())
+            ip_addresses_file.write(data[vip.role].yaml())
 
 
 def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
@@ -125,10 +129,25 @@ def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
 
 
 def is_constellation_member(tags: list) -> bool:
-    cluster_name_from_tag = tags[0].split(":")[-1:]
+    cluster_name_from_tag = tags[0].split(":")[-1:][0]  # First tag, last field, delimited by :
+    if type(cluster_name_from_tag) is not str:
+        print("Tags: {} are not what was expected".format(tags))
+
     clusters = get_constellation_clusters()
     for cluster in clusters:
         if cluster.name == cluster_name_from_tag:
+            return True
+
+    return False
+
+
+def vip_role_match(vip_role: VipRole, tags: list) -> bool:
+    if len(tags) == 1:
+        if vip_role == VipRole.cp:
+            return True
+    elif len(tags) > 1:
+        role_from_tag = tags[1].split(":")[-1:][0]  # Second tag, last field, delimited by :
+        if role_from_tag == vip_role:
             return True
 
     return False
@@ -166,25 +185,20 @@ def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
             vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
             for project_vip in project_vips:
                 if 'tags' in project_vip:
-                    if is_constellation_member(project_vip.get('tags')):
-                        if global_vip is not None and project_vip['type'] == VipType.global_ipv4:
-                            vip_spec.reserved.append(global_vip)
-
-                    if project_vip['type'] == vip_spec.vipType:
-                        if project_vip.get('tags') == vip_tags:
-                            # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
-                            #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
-                            #             and 'metro' in project_vip
-                            #             and project_vip['metro']['code'] == cluster_spec.metro)):
-
-                            # If we are missing VIPs mark the spot
-                            if project_vip['type'] == VipType.global_ipv4:
-                                if global_vip is None:
-                                    global_vip = project_vip
-
-                                vip_spec.reserved.append(global_vip)
-                            else:
+                    if is_constellation_member(project_vip.get('tags')) and vip_role_match(
+                            vip_spec.role, project_vip.get('tags')):
+                        if project_vip['type'] == VipType.global_ipv4:
+                            if global_vip is None:
+                                global_vip = project_vip
                                 vip_spec.reserved.append(project_vip)
+                            else:
+                                vip_spec.reserved.append(global_vip)
+
+                    if project_vip['type'] == vip_spec.vipType and vip_spec.vipType == VipType.public_ipv4:
+                        if project_vip.get('tags') == vip_tags \
+                                and 'metro' in project_vip and project_vip['metro']['code'] == cluster_spec.metro:
+                            # If we are missing VIPs mark the spot
+                            vip_spec.reserved.append(project_vip)
 
         for vip_spec in cluster_spec.vips:
             vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
