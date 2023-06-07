@@ -62,8 +62,8 @@ def render_vip_addresses_file(cluster: Cluster):
     reserved_vips = ReservedVIPs()
 
     for vip in cluster.vips:
-        print("#"*10 + ':' + cluster.name)
-        pprint(vip)
+        # print("#"*10 + ':' + cluster.name)
+        # pprint(vip)
         reserved_vips.extend(vip.reserved)
 
         with open(get_ip_addresses_file_path(cluster, vip.role), 'w') as ip_addresses_file:
@@ -121,7 +121,17 @@ def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:
     if address_role == VipRole.cp:
         return ["cluster-api-provider-packet:cluster-id:{}".format(cluster.name)]
     else:
-        return ["gocy:vip:{}".format(address_role.name), "gocy:cluster:{}".format(cluster.name)]
+        return ["gocy:cluster:{}".format(cluster.name), "gocy:vip:{}".format(address_role.name)]
+
+
+def is_constellation_member(tags: list) -> bool:
+    cluster_name_from_tag = tags[0].split(":")[-1:]
+    clusters = get_constellation_clusters()
+    for cluster in clusters:
+        if cluster.name == cluster_name_from_tag:
+            return True
+
+    return False
 
 
 def register_public_vip(ctx, vip: Vip, cluster: Cluster, tags: list):
@@ -155,23 +165,26 @@ def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
         for vip_spec in cluster_spec.vips:
             vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
             for project_vip in project_vips:
-                if 'tags' in project_vip and project_vip.get('tags') == vip_tags:
-                    if project_vip['type'] == vip_spec.vipType:
-                        # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
-                        #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
-                        #             and 'metro' in project_vip
-                        #             and project_vip['metro']['code'] == cluster_spec.metro)):
-
-                        # If we are missing VIPs mark the spot
-                        if vip_spec.vipType == VipType.global_ipv4:
-                            if global_vip is None:
-                                print('copy <<<')
-                                global_vip = copy.deepcopy(project_vip)
-
-                            print('copy >>>')
+                if 'tags' in project_vip:
+                    if is_constellation_member(project_vip.get('tags')):
+                        if global_vip is not None and project_vip['type'] == VipType.global_ipv4:
                             vip_spec.reserved.append(global_vip)
-                        else:
-                            vip_spec.reserved.append(project_vip)
+
+                    if project_vip['type'] == vip_spec.vipType:
+                        if project_vip.get('tags') == vip_tags:
+                            # if ((project_vip['type'] == vip_state['vipType'] == str(VipType.global_ipv4))
+                            #         or (project_vip['type'] == vip_state['vipType'] == str(VipType.public_ipv4)
+                            #             and 'metro' in project_vip
+                            #             and project_vip['metro']['code'] == cluster_spec.metro)):
+
+                            # If we are missing VIPs mark the spot
+                            if project_vip['type'] == VipType.global_ipv4:
+                                if global_vip is None:
+                                    global_vip = project_vip
+
+                                vip_spec.reserved.append(global_vip)
+                            else:
+                                vip_spec.reserved.append(project_vip)
 
         for vip_spec in cluster_spec.vips:
             vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
