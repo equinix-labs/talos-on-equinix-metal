@@ -1,8 +1,5 @@
-import copy
-import json
 import json
 import os
-from pprint import pprint
 
 import yaml
 from invoke import task
@@ -195,7 +192,6 @@ def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
                     if project_vip['type'] == vip_spec.vipType and vip_spec.vipType == VipType.public_ipv4:
                         if project_vip.get('tags') == vip_tags \
                                 and 'metro' in project_vip and project_vip['metro']['code'] == cluster_spec.metro:
-                            # If we are missing VIPs mark the spot
                             vip_spec.reserved.append(project_vip)
 
         for vip_spec in cluster_spec.vips:

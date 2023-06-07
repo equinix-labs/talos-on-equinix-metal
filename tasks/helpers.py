@@ -2,14 +2,13 @@ import base64
 import glob
 import json
 import os
-from pprint import pprint
 
 import git
 import jinja2
 import yaml
 
-from tasks.constellation_v01 import Constellation, Cluster
-
+from tasks.ReservedVIPs import ReservedVIPs
+from tasks.constellation_v01 import Constellation, Cluster, VipRole
 
 CONSTELLATION_FILE_SUFFIX = '.constellation.yaml'
 
@@ -97,17 +96,17 @@ def get_file_content_as_b64(filename):
         return base64.b64encode(file.read()).decode('utf-8')
 
 
-def get_vips(cluster_spec, role):
+def get_vips(cluster_spec: Cluster, role: VipRole) -> ReservedVIPs:
     with open(os.path.join(
             get_secrets_dir(),
             cluster_spec.name,
             'ip-{}-addresses.yaml'.format(role)
     ), 'r') as cp_address:
-        return yaml.safe_load(cp_address)
+        return ReservedVIPs.parse_raw(cp_address.read())
 
 
 def get_cp_vip_address(cluster_spec):
-    return get_vips(cluster_spec, 'cp')[0]
+    return get_vips(cluster_spec, VipRole.cp).public_ipv4[0]
 
 
 def get_cluster_name():
