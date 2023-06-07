@@ -185,9 +185,9 @@ def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
             vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
             for project_vip in project_vips:
                 if 'tags' in project_vip:
-                    if is_constellation_member(project_vip.get('tags')) and vip_role_match(
-                            vip_spec.role, project_vip.get('tags')):
-                        if project_vip['type'] == VipType.global_ipv4:
+                    if project_vip['type'] == vip_spec.vipType and vip_spec.vipType == VipType.global_ipv4:
+                        if is_constellation_member(project_vip.get('tags')) and vip_role_match(
+                                vip_spec.role, project_vip.get('tags')):
                             if global_vip is None:
                                 global_vip = project_vip
                                 vip_spec.reserved.append(project_vip)
