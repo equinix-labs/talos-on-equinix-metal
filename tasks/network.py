@@ -1,13 +1,18 @@
 import base64
 import json
 import os
+from pprint import pprint
 
 import yaml
 from invoke import task
 
+from tasks.ReservedVIPs import ReservedVIPs
+from tasks.apps import render_values, helm_install
+from tasks.constellation_v01 import VipRole
 from tasks.gocy import context_set_bary
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation
+    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation, \
+    get_ip_addresses_file_path
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
@@ -319,33 +324,21 @@ def install_network_service(ctx):
     1 PublicIPv4 for Cilium Mesh API server.
     """
     cluster_spec = get_cluster_spec_from_context(ctx)
-    cluster_cfg_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
-    mesh_vips = get_vips(cluster_spec, 'mesh')
-    ingress_vips = get_vips(cluster_spec, 'ingress')
-    chart_directory = os.path.join('apps', 'network-services')
-    with open(os.path.join(chart_directory, 'values.template.yaml'), 'r') as value_template_file:
-        chart_values = dict(yaml.safe_load(value_template_file))
-        chart_values['metallb']['clusterName'] = cluster_spec.name
-        chart_values['metallb']['pools'] = list()
-        chart_values['metallb']['pools'].append({
-            'name': 'mesh',
-            'addresses': ["{}/32".format(mesh_vips[0])]
-        })
-        chart_values['metallb']['pools'].append({
-            'name': 'ingress',
-            'addresses': ["{}/32".format(ingress_vips[0])]
-        })
+    app_name = 'network-services'
+    data = {
+        'cluster_name': cluster_spec.name,
+        'vips': {
+            str(VipRole.mesh): dict(),
+            str(VipRole.ingress): dict()
+        }
+    }
 
-    network_services_values_file_name = os.path.join(
-        cluster_cfg_dir,
-        'values.network-services.yaml')
-    with open(network_services_values_file_name, 'w') as value_template_file:
-        yaml.safe_dump(chart_values, value_template_file)
+    for role in data['vips']:
+        with open(get_ip_addresses_file_path(cluster_spec, role)) as ip_addresses_file:
+            data['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
 
-    with ctx.cd(chart_directory):
-        ctx.run("helm upgrade --install --values {} --namespace network-services network-services ./".format(
-            network_services_values_file_name
-        ), echo=True)
+    values_file = render_values(ctx, cluster_spec, app_name, data)
+    helm_install(ctx, values_file, app_name, namespace=app_name)
 
 
 @task()

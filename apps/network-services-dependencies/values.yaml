@@ -46,5 +46,5 @@ cilium:
       service:
         type: LoadBalancer
         annotations:
-          metallb.universe.tf/address-pool: mesh
+          metallb.universe.tf/address-pool: mesh-public-ipv4
       replicas: 2

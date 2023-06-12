@@ -77,6 +77,14 @@ def get_secret_envs(secrets: dict = None) -> list:
     return get_secrets()['env']
 
 
+def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
+    return os.path.join(
+        get_secrets_dir(),
+        cluster_spec.name,
+        "ip-{}-addresses.yaml".format(address_role)
+    )
+
+
 def get_cpem_config():
     return {
         'apiKey': os.environ.get('PACKET_API_KEY'),

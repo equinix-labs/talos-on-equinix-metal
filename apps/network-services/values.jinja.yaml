@@ -1,0 +1,16 @@
+metallb:
+  clusterName: {{ cluster_name }}
+  pools:
+  {% for role, element in vips.items() %}
+    {% for scope, addresses in element.items() %}
+      {% if addresses|length > 0 %}
+    - name: {{ role }}-{{ scope.replace('_','-') }}
+      addresses:
+      {% for address in addresses %}
+        - {{ address }}/32
+      {% endfor %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+firewall:
+  enabled: true

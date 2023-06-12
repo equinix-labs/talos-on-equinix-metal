@@ -7,7 +7,7 @@ from invoke import task
 from tasks.ReservedVIPs import ReservedVIPs
 from tasks.constellation_v01 import Cluster, VipRole, VipType, Vip
 from tasks.helpers import str_presenter, get_secrets_dir, \
-    get_cpem_config, get_constellation_clusters, get_constellation
+    get_cpem_config, get_constellation_clusters, get_constellation, get_ip_addresses_file_path
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -67,14 +67,6 @@ def render_vip_addresses_file(cluster: Cluster):
 
         with open(get_ip_addresses_file_path(cluster, vip.role), 'w') as ip_addresses_file:
             ip_addresses_file.write(data[vip.role].yaml())
-
-
-def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
-    return os.path.join(
-        get_secrets_dir(),
-        cluster_spec.name,
-        "ip-{}-addresses.yaml".format(address_role)
-    )
 
 
 def register_global_vip(ctx, vip: Vip, tags: list):

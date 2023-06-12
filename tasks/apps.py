@@ -17,7 +17,8 @@ def render(ctx, source: str, target: str, data: dict):
         template = jinja.from_string(source_file.read())
 
     with open(target, 'w') as target_file:
-        target_file.write(template.render(data))
+        rendered_list = [line for line in template.render(data).splitlines() if len(line.rstrip()) > 0]
+        target_file.write(os.linesep.join(rendered_list))
 
 
 def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
@@ -116,10 +117,10 @@ def install_dns_and_tls_dependencies(ctx):
                 "--set external_dns.provider.google.google_project={} "
                 "--set external_dns.provider.google.domain_filter={} "
                 "dns-and-tls-dependencies ./".format(
-                    get_dns_tls_namespace_name(),
-                    secrets['GCP_PROJECT_ID'],
-                    secrets['GOCY_DOMAIN']
-                ), echo=True)
+            get_dns_tls_namespace_name(),
+            secrets['GCP_PROJECT_ID'],
+            secrets['GOCY_DOMAIN']
+        ), echo=True)
 
 
 @task(install_dns_and_tls_dependencies)
@@ -134,10 +135,10 @@ def install_dns_and_tls(ctx):
                 "--set letsencrypt.email={} "
                 "--set letsencrypt.google.project_id={} "
                 "dns-and-tls ./".format(
-                    get_dns_tls_namespace_name(),
-                    secrets['GOCY_ADMIN_EMAIL'],
-                    secrets['GCP_PROJECT_ID']
-                ), echo=True)
+            get_dns_tls_namespace_name(),
+            secrets['GOCY_ADMIN_EMAIL'],
+            secrets['GCP_PROJECT_ID']
+        ), echo=True)
 
 
 @task()
@@ -167,8 +168,8 @@ def install_whoami_app(ctx, oauth: bool = False):
     ctx.run("helm upgrade --install --namespace test-application "
             "--values={} "
             "whoami-test-app {}".format(
-                values_file,
-                app_directory), echo=True)
+        values_file,
+        app_directory), echo=True)
 
 
 @task
@@ -188,9 +189,9 @@ def install_argo(ctx):
     ctx.run("helm upgrade --install --namespace argocd --create-namespace "
             "--values={} "
             "argocd {} ".format(
-                values_file,
-                app_directory
-            ), echo=True)
+        values_file,
+        app_directory
+    ), echo=True)
 
 
 @task
@@ -273,9 +274,9 @@ def install_dbs(ctx):
     ctx.run("helm upgrade --dependency-update --install --namespace dbs "
             "--values={} "
             "dbs {} ".format(
-                values_file,
-                app_directory
-            ), echo=True)
+        values_file,
+        app_directory
+    ), echo=True)
 
 
 def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name='namespace.yaml'):
@@ -295,11 +296,11 @@ def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name
     ctx.run("helm upgrade --dependency-update --install {} "
             "--values={} "
             "{} {} ".format(
-                namespace_cmd,
-                values_file,
-                namespace if namespace is not None else app_name,
-                app_directory
-            ), echo=True)
+        namespace_cmd,
+        values_file,
+        namespace if namespace is not None else app_name,
+        app_directory
+    ), echo=True)
 
 
 @task
@@ -372,7 +373,7 @@ def install_persistent_storage(ctx):
     with ctx.cd(app_directory):
         ctx.run("kubectl apply -f namespace.yaml", echo=True)
         ctx.run("helm upgrade "
-                "--dependency-update "                
+                "--dependency-update "
                 "--install "
                 "--namespace persistent-storage "
                 "persistent-storage ./", echo=True)
@@ -400,8 +401,8 @@ def install_idp_auth_chart(ctx, cluster: Cluster, secrets):
             "--namespace idp-auth "
             "--values {} "
             "idp-auth {}".format(
-                values_file,
-                app_directory), echo=True)
+        values_file,
+        app_directory), echo=True)
 
 
 def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
@@ -427,8 +428,8 @@ def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file
             "--create-namespace "
             "--values {} "
             "idp-auth-kubelogin {}".format(
-                idp_auth_values_yaml,
-                app_directory), echo=True)
+        idp_auth_values_yaml,
+        app_directory), echo=True)
 
 
 @task()
@@ -472,4 +473,3 @@ def install_idp_auth(ctx, values_template_file=None):
         ",".join(cluster_nodes.control_plane),
         talos_oidc_patch_file_path
     ), echo=True)
-
