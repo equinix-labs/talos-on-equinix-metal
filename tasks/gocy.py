@@ -88,7 +88,8 @@ def constellation_list(ctx):
     """
     List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
     """
-    table = [['file', 'valid', 'name', 'version', 'ccontext']]
+    headers = ['file', 'valid', 'name', 'version', 'ccontext']
+    table = []
     ccontext = get_ccontext()
     for available_constellation in available_constellation_specs():
         row = [available_constellation.name]
@@ -106,7 +107,7 @@ def constellation_list(ctx):
         finally:
             table.append(row)
 
-    print(tabulate(table))
+    print(tabulate(table, headers=headers))
 
 
 @task()
