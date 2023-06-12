@@ -5,9 +5,10 @@ import yaml
 from gitea import *
 from invoke import task
 
-from tasks.constellation_v01 import Cluster
+from tasks.ReservedVIPs import ReservedVIPs
+from tasks.constellation_v01 import Cluster, VipRole
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext
+    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path
 
 
 def render(ctx, source: str, target: str, data: dict):
@@ -21,14 +22,14 @@ def render(ctx, source: str, target: str, data: dict):
         target_file.write(os.linesep.join(rendered_list))
 
 
-def render_values(ctx, cluster: Cluster, app_folder_name, data) -> str:
+def render_values(ctx, cluster: Cluster, app_folder_name, data, target_file_name='values.yaml') -> str:
     """
     Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
     """
     apps_dir = 'apps'
     app_dir = os.path.join(apps_dir, app_folder_name)
     target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
-    target = os.path.join(target_app_dir, 'values.yaml')
+    target = os.path.join(target_app_dir, target_file_name)
     render(ctx,
            os.path.join(app_dir, 'values.jinja.yaml'),
            target,
@@ -296,11 +297,11 @@ def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name
     ctx.run("helm upgrade --dependency-update --install {} "
             "--values={} "
             "{} {} ".format(
-        namespace_cmd,
-        values_file,
-        namespace if namespace is not None else app_name,
-        app_directory
-    ), echo=True)
+                namespace_cmd,
+                values_file,
+                namespace if namespace is not None else app_name,
+                app_directory
+            ), echo=True)
 
 
 @task
@@ -358,10 +359,31 @@ def install_ingress_controller(ctx):
     """
     Install Helm chart apps/ingress-bundle
     """
-    app_directory = os.path.join('apps', 'ingress-bundle')
-    with ctx.cd(app_directory):
-        ctx.run("helm dependency update", echo=True)
-        ctx.run("helm upgrade --install ingress-bundle --namespace ingress-bundle --create-namespace ./", echo=True)
+    app_name = 'ingress-bundle'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+
+    with open(get_ip_addresses_file_path(cluster_spec, VipRole.ingress)) as ip_addresses_file:
+        ingress_vips = ReservedVIPs().parse_raw(ip_addresses_file.read())
+
+    address_pool_name = 'ingress-public-ipv4'
+    ingress_class_name = 'nginx'
+    ingress_class_default = True
+    target_file_name = 'values.yaml'
+
+    if len(ingress_vips.global_ipv4) > 0:
+        address_pool_name = 'ingress-global-ipv4'
+        ingress_class_name = 'nginx-global'
+        ingress_class_default = False
+        target_file_name = 'values.global.yaml'
+
+    data = {
+        'address_pool_name': address_pool_name,
+        'ingress_class_name': ingress_class_name,
+        'ingress_class_default': ingress_class_default
+    }
+
+    values_file = render_values(ctx, cluster_spec, app_name, data, target_file_name=target_file_name)
+    helm_install(ctx, values_file, app_name, namespace=app_name)
 
 
 @task()

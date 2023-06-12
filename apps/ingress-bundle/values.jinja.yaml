@@ -1,0 +1,10 @@
+ingress-nginx:
+  controller:
+    service:
+      annotations:
+        metallb.universe.tf/address-pool: {{ address_pool_name }}
+    image:
+      allowPrivilegeEscalation: false
+    ingressClassResource:
+      name: {{ ingress_class_name }}
+      default: {{ ingress_class_default }}

@@ -1,7 +1,0 @@
-ingress-nginx:
-  controller:
-    service:
-      annotations:
-        metallb.universe.tf/address-pool: ingress
-    image:
-      allowPrivilegeEscalation: false
