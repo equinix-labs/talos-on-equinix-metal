@@ -21,14 +21,37 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ .Values.cluster.application.metadata_name }}
+  name: {{ .Values.cluster.application.metadata_name }}-apps
 spec:
   destination:
     name: {{ .Values.cluster.application.destination_name }}
-    namespace: {{ .Values.cluster.application.destination_namespace | quote }}
+    namespace: argo-apps
   project: {{ .Values.cluster.application.project }}
   source:
-    path: {{ .Values.cluster.application.source_path }}
+    path: {{ .Values.cluster.application.source_path }}/apps
+    repoURL: {{ .Values.cluster.application.source_repo_url }}
+    targetRevision: master
+    directory:
+      recursive: true
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.cluster.application.metadata_name }}-infra
+spec:
+  destination:
+    name: {{ .Values.cluster.application.destination_name }}
+    namespace: argo-infra
+  project: {{ .Values.cluster.application.project }}
+  source:
+    path: {{ .Values.cluster.application.source_path }}/infra
     repoURL: {{ .Values.cluster.application.source_repo_url }}
     targetRevision: master
     directory:

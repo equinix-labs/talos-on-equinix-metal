@@ -309,12 +309,18 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
             talos_config_data['contexts'][cluster_name]['endpoints'].append(key)
             control_plane_node = key
 
-    with open(os.path.join(cluster_config_dir, talosconfig), 'w') as talos_config_file:
+    talosconfig_path = os.path.join(cluster_config_dir, talosconfig)
+    with open(talosconfig_path, 'w') as talos_config_file:
         yaml.dump(talos_config_data, talos_config_file)
 
+    ctx.run("talosctl config merge " + talosconfig_path, echo=True)
+
+    kubeconfig_path = os.path.join(cluster_config_dir, cluster_name + ".kubeconfig")
     if control_plane_node is None:
-        print('Could not produce ' + os.path.join(cluster_config_dir, cluster_name + ".kubeconfig"))
+        print('Could not produce ' + kubeconfig_path)
         return
+
+    ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
 
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
         os.path.join(cluster_config_dir, talosconfig),
