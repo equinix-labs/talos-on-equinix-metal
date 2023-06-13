@@ -1,9 +1,13 @@
 import os
+from glob import glob
 from pathlib import Path
+from pprint import pprint
+from shutil import copytree, ignore_patterns
 
 import yaml
 from gitea import *
 from invoke import task
+from tabulate import tabulate
 
 from tasks.ReservedVIPs import ReservedVIPs
 from tasks.constellation_v01 import Cluster, VipRole
@@ -11,7 +15,7 @@ from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_se
     get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path
 
 
-def render(ctx, source: str, target: str, data: dict):
+def render_values_file(ctx, source: str, target: str, data: dict):
     jinja = get_jinja()
     ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
     with open(source) as source_file:
@@ -22,20 +26,48 @@ def render(ctx, source: str, target: str, data: dict):
         target_file.write(os.linesep.join(rendered_list))
 
 
-def render_values(ctx, cluster: Cluster, app_folder_name, data, target_file_name='values.yaml') -> str:
+def render_values(ctx, cluster: Cluster, app_folder_name, data,
+                  apps_dir_name='apps',
+                  template_file_name='values.jinja.yaml',
+                  target_file_name='values.yaml') -> str:
     """
     Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
     """
-    apps_dir = 'apps'
-    app_dir = os.path.join(apps_dir, app_folder_name)
-    target_app_dir = os.path.join(get_cluster_secrets_dir(cluster), app_dir)
-    target = os.path.join(target_app_dir, target_file_name)
-    render(ctx,
-           os.path.join(app_dir, 'values.jinja.yaml'),
-           target,
-           data)
+    source_apps_path = os.path.join(apps_dir_name, app_folder_name)
+    target_apps_path = os.path.join(get_cluster_secrets_dir(cluster), source_apps_path)
+    copytree(source_apps_path, target_apps_path, ignore=ignore_patterns(template_file_name), dirs_exist_ok=True)
+
+    target = os.path.join(target_apps_path, target_file_name)
+    render_values_file(ctx,
+                       os.path.join(source_apps_path, template_file_name),
+                       target,
+                       data)
 
     return target
+
+
+def get_available(ctx, apps_dir='apps', template_file_name='values.jinja.yaml'):
+    apps_dirs = glob(os.path.join(apps_dir, '*'), recursive=True)
+
+    compatible_apps = []
+    for apps_dir in apps_dirs:
+        if os.path.isfile(os.path.join(apps_dir, template_file_name)):
+            compatible_apps.append([
+                os.path.basename(apps_dir),
+                apps_dir
+            ])
+
+    return compatible_apps
+
+
+@task()
+def print_available(ctx, apps_dir='apps', template_file_name='values.jinja.yaml'):
+    """
+    List compatible applications
+    """
+    print(tabulate(
+        get_available(ctx, apps_dir, template_file_name),
+        headers=['name', 'path']))
 
 
 def render_patch(ctx, nodes: list, path_tpl_path, data: dict):
@@ -106,7 +138,7 @@ def deploy_dns_management_token(ctx, provider='google'):
 
 
 @task(deploy_dns_management_token)
-def install_dns_and_tls_dependencies(ctx):
+def dns_and_tls_dependencies(ctx):
     """
     Install Helm chart apps/dns-and-tls-dependencies
     """
@@ -118,14 +150,14 @@ def install_dns_and_tls_dependencies(ctx):
                 "--set external_dns.provider.google.google_project={} "
                 "--set external_dns.provider.google.domain_filter={} "
                 "dns-and-tls-dependencies ./".format(
-            get_dns_tls_namespace_name(),
-            secrets['GCP_PROJECT_ID'],
-            secrets['GOCY_DOMAIN']
-        ), echo=True)
+                    get_dns_tls_namespace_name(),
+                    secrets['GCP_PROJECT_ID'],
+                    secrets['GOCY_DOMAIN']
+                ), echo=True)
 
 
-@task(install_dns_and_tls_dependencies)
-def install_dns_and_tls(ctx):
+@task(dns_and_tls_dependencies)
+def dns_and_tls(ctx):
     """
     Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
     """
@@ -136,18 +168,18 @@ def install_dns_and_tls(ctx):
                 "--set letsencrypt.email={} "
                 "--set letsencrypt.google.project_id={} "
                 "dns-and-tls ./".format(
-            get_dns_tls_namespace_name(),
-            secrets['GOCY_ADMIN_EMAIL'],
-            secrets['GCP_PROJECT_ID']
-        ), echo=True)
+                    get_dns_tls_namespace_name(),
+                    secrets['GOCY_ADMIN_EMAIL'],
+                    secrets['GCP_PROJECT_ID']
+                ), echo=True)
 
 
 @task()
-def install_whoami_app(ctx, oauth: bool = False):
+def whoami(ctx, oauth: bool = False):
     """
     Install Helm chart apps/whoami
     """
-    app_directory = os.path.join('apps', 'whoami')
+    app_name = 'whoami'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
@@ -164,17 +196,11 @@ def install_whoami_app(ctx, oauth: bool = False):
     }
 
     values_file = render_values(ctx, cluster_spec, 'whoami', data)
-
-    ctx.run("kubectl apply -f {}".format(os.path.join(app_directory, 'namespace.yaml')), echo=True)
-    ctx.run("helm upgrade --install --namespace test-application "
-            "--values={} "
-            "whoami-test-app {}".format(
-        values_file,
-        app_directory), echo=True)
+    helm_install(ctx, values_file, app_name, 'test-application')
 
 
 @task
-def install_argo(ctx):
+def argo(ctx):
     app_directory = os.path.join('apps', 'argocd')
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -190,13 +216,13 @@ def install_argo(ctx):
     ctx.run("helm upgrade --install --namespace argocd --create-namespace "
             "--values={} "
             "argocd {} ".format(
-        values_file,
-        app_directory
-    ), echo=True)
+                values_file,
+                app_directory
+            ), echo=True)
 
 
 @task
-def install_gitea(ctx):
+def gitea(ctx):
     """
     Install gitea
     """
@@ -215,21 +241,35 @@ def install_gitea(ctx):
     helm_install(ctx, values_file, app_name)
 
 
-@task
-def provision_gitea(ctx):
-    # ToDo: clean it up
+@task()
+def gitea_port_forward(ctx):
+    """
+    Port forward gitea to localhost. Execute in a separate terminal, prior to apps.gitea-provision.
+    """
+    ctx.run("kubectl -n gitea port-forward statefulsets/gitea 3000:3000", echo=True)
+
+
+@task(gitea)
+def gitea_provision(ctx, ingress=False):
+    """
+    Provision local gitea, so that it works with Argo
+    """
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
+    gitea_fqdn = 'localhost:3000'
+    if ingress:
+        gitea_fqdn = get_fqdn('gitea', secrets, cluster_spec)
+
     data = {
         'cluster_domain': cluster_spec.name + '.local',
-        'gitea_fqdn': get_fqdn('gitea', secrets, cluster_spec),
+        'gitea_fqdn': gitea_fqdn,
         'dex_url': get_fqdn('bouncer', secrets, cluster_spec),
     }
     data.update(secrets['gitea'])
 
     gitea = Gitea(
-        "https://" + data['gitea_fqdn'],
+        "https://" if ingress else "http://" + data['gitea_fqdn'],
         auth=(
             secrets['gitea']['admin_user'],
             secrets['gitea']['admin_password'])
@@ -252,7 +292,7 @@ def provision_gitea(ctx):
 
 
 @task
-def install_dbs(ctx):
+def dbs(ctx):
     app_name = 'dbs'
     app_directory = os.path.join('apps', app_name)
     cluster_spec = get_cluster_spec_from_context(ctx)
@@ -275,9 +315,9 @@ def install_dbs(ctx):
     ctx.run("helm upgrade --dependency-update --install --namespace dbs "
             "--values={} "
             "dbs {} ".format(
-        values_file,
-        app_directory
-    ), echo=True)
+                values_file,
+                app_directory
+            ), echo=True)
 
 
 def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name='namespace.yaml'):
@@ -305,7 +345,7 @@ def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name
 
 
 @task
-def install_dashboards(ctx):
+def dashboards(ctx):
     app_name = 'dashboards'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -322,7 +362,7 @@ def install_dashboards(ctx):
 
 
 @task
-def install_harbor(ctx):
+def harbor(ctx):
     app_name = 'harbor'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -337,7 +377,7 @@ def install_harbor(ctx):
 
 
 @task
-def install_observability(ctx):
+def observability(ctx):
     app_name = 'observability'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -355,7 +395,7 @@ def install_observability(ctx):
 
 
 @task()
-def install_ingress_controller(ctx):
+def ingress_controller(ctx):
     """
     Install Helm chart apps/ingress-bundle
     """
@@ -387,7 +427,7 @@ def install_ingress_controller(ctx):
 
 
 @task()
-def install_persistent_storage(ctx):
+def persistent_storage(ctx):
     """
     Install persistent-storage
     """
@@ -410,7 +450,7 @@ def install_persistent_storage(ctx):
                 echo=True)
 
 
-def install_idp_auth_chart(ctx, cluster: Cluster, secrets):
+def idp_auth_chart(ctx, cluster: Cluster, secrets):
     app_directory = os.path.join('apps', 'idp-auth')
     values_file = render_values(ctx, cluster, 'idp-auth', secrets)
 
@@ -427,7 +467,7 @@ def install_idp_auth_chart(ctx, cluster: Cluster, secrets):
         app_directory), echo=True)
 
 
-def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
+def idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
     app_directory = os.path.join('apps', 'idp-auth-kubelogin')
 
     if values_template_file is None:
@@ -455,7 +495,7 @@ def install_idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file
 
 
 @task()
-def install_idp_auth(ctx, values_template_file=None):
+def idp_auth(ctx, values_template_file=None):
     """
     Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
@@ -471,9 +511,9 @@ def install_idp_auth(ctx, values_template_file=None):
     data['gitea_fqdn'] = get_fqdn('gitea', data, cluster)
 
     if cluster.name == constellation.bary.name:
-        install_idp_auth_chart(ctx, cluster, data)
+        idp_auth_chart(ctx, cluster, data)
 
-    install_idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
+    idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
 
     with open(os.path.join(
             'templates',

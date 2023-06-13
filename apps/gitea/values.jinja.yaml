@@ -5,7 +5,7 @@ gitea:
     storageClass: ceph-block
   clusterDomain: {{ cluster_domain }}
   ingress: # http://gitea-http.gitea:3000/gocy/jupiter.git
-    enabled: true
+    enabled: false
     className: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-gcp

@@ -1,0 +1,42 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.cluster.project.metadata_name }}
+spec:
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  description: This is just an root-project example.
+  destinations:
+    - name: {{ .Values.cluster.project.destination_name }}
+      namespace: "*"
+      server: {{ .Values.cluster.project.destination_server }}
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  sourceRepos:
+    - "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.cluster.application.metadata_name }}
+spec:
+  destination:
+    name: {{ .Values.cluster.application.destination_name }}
+    namespace: {{ .Values.cluster.application.destination_namespace | quote }}
+  project: {{ .Values.cluster.application.project }}
+  source:
+    path: {{ .Values.cluster.application.source_path }}
+    repoURL: {{ .Values.cluster.application.source_repo_url }}
+    targetRevision: master
+    directory:
+      recursive: true
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2
