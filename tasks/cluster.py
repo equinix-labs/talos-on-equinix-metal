@@ -124,7 +124,7 @@ def generate_cluster_spec(ctx,
                 'TALOS_VERSION': cluster_cfg.talos,
                 'CPEM_VERSION': cluster_cfg.cpem,
                 'KUBERNETES_VERSION': cluster_cfg.kubernetes,
-                'namespace': 'argo-infa'
+                'namespace': 'argo-infra'
             }
         data.update(secrets)
 
@@ -324,8 +324,6 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
         print('Could not produce ' + kubeconfig_path)
         return
 
-    ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
-
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
         os.path.join(cluster_config_dir, talosconfig),
         control_plane_node), echo=True)
@@ -333,8 +331,11 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
         os.path.join(cluster_config_dir, talosconfig),
         get_cp_vip_address(get_cluster_spec(ctx, cluster_name)),
-        os.path.join(cluster_config_dir, cluster_name + ".kubeconfig")
+        kubeconfig_path
     ), echo=True)
+
+    ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
+    ctx.run("kconf use " + cluster_name, echo=True, pty=True)
 
 
 @task()

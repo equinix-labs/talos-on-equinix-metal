@@ -3,6 +3,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: PacketMachineTemplate
 metadata:
   name: {{ machine_name }}
+  namespace: {{ namespace }}
   labels:
     cluster: {{ CLUSTER_NAME }}
 spec:
@@ -17,6 +18,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
   name: {{ machine_name }}
+  namespace: {{ namespace }}
   labels:
     cluster.x-k8s.io/cluster-name: {{ CLUSTER_NAME }}
     pool: pool-{{ WORKER_NODE_TYPE }}
@@ -45,3 +47,24 @@ spec:
         name: {{ machine_name }}
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: PacketMachineTemplate
+
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  name: hc-{{ CLUSTER_NAME }}-{{ machine_name }}
+  namespace: {{ namespace }}
+spec:
+  clusterName: {{ CLUSTER_NAME }}
+  maxUnhealthy: 40%
+  nodeStartupTimeout: 20m
+  selector:
+    matchLabels:
+      nodepool: pool-{{ WORKER_NODE_TYPE }}
+  unhealthyConditions:
+    - type: Ready
+      status: Unknown
+      timeout: 300s
+    - type: Ready
+      status: "False"
+      timeout: 300s
