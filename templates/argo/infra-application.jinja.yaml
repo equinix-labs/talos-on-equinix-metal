@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ name }} # rhea
+  namespace: {{ namespace }} # argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    name: {{ destination }} # in-cluster
+    namespace: {{ destination_cluster }} # test-application
+  project: {{ project }} # saturn
+  source:
+    path: {{ path }} # "saturn/apps/whoami"
+    repoURL: {{ repo_url }} # "http://gitea-http.gitea:3000/gocy/saturn.git"
+    targetRevision: master
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2

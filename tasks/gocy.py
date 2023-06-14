@@ -7,9 +7,9 @@ from pydantic import ValidationError
 from tabulate import tabulate
 
 from tasks.constellation_v01 import Constellation
-from tasks.helpers import get_config_dir, get_secrets_file_name, available_constellation_specs, \
+from tasks.helpers import get_config_dir, get_secrets_file_name, get_constellation_spec_file_paths, \
     get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
-    get_secrets
+    get_secrets, get_cluster_secrets_dir
 from tasks.helpers import get_constellation_clusters, get_constellation
 
 KIND_CLUSTER_NAME = 'kind-toem-capi-local'
@@ -65,7 +65,7 @@ def constellation_set(ctx, ccontext: str):
     Set Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
     written = False
-    for available_constellation in available_constellation_specs():
+    for available_constellation in get_constellation_spec_file_paths():
         try:
             constellation = Constellation.parse_raw(available_constellation.read())
             if constellation.name == ccontext:
@@ -94,24 +94,23 @@ def constellation_list(ctx):
     """
     List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
     """
-    headers = ['file', 'valid', 'name', 'version', 'ccontext']
+    headers = ['ccontext', 'name', 'file', 'version']
     table = []
     ccontext = get_ccontext()
-    for available_constellation in available_constellation_specs():
-        row = [available_constellation.name]
+    for constellation_spec_file_path in get_constellation_spec_file_paths():
+        row = []
         try:
-            constellation = Constellation.parse_raw(available_constellation.read())
-            row.append(True)
-            row.append(constellation.name)
-            row.append(constellation.version)
+            constellation = Constellation.parse_raw(constellation_spec_file_path.read())
             if ccontext == constellation.name:
-                row.append(True)
+                row.append("*")
             else:
-                row.append(False)
-        except ValidationError:
-            row.append(False)
-        finally:
+                row.append("")
+            row.append(constellation.name)
+            row.append(constellation_spec_file_path.name)
+            row.append(constellation.version)
             table.append(row)
+        except ValidationError:
+            print("Could not parse spec file: " + constellation_spec_file_path.name)
 
     print(tabulate(table, headers=headers))
 

@@ -121,7 +121,20 @@ def get_cluster_name():
     return os.environ.get('CLUSTER_NAME')
 
 
-def available_constellation_specs(constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
+def constellation_create_dirs(cluster: Cluster):
+    """
+    Create directory structure in ~/$GOCY_DEFAULT_ROOT/[constellation_name], compatible with ArgoCD
+    """
+    secrets_dir = get_cluster_secrets_dir(cluster)
+    paths = set()
+    paths.add(os.path.join(secrets_dir, 'argo', 'infra'))
+    paths.add(os.path.join(secrets_dir, 'argo', 'apps'))
+
+    for directory in paths:
+        os.makedirs(directory, exist_ok=True)
+
+
+def get_constellation_spec_file_paths(constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
     available_constellation_config_file_names = glob.glob(
         os.path.join(
             get_config_dir(),

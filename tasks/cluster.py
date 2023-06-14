@@ -12,7 +12,8 @@ from tasks.equinix_metal import generate_cpem_config, register_vips
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja
+    get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
+    constellation_create_dirs
 from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -135,7 +136,7 @@ def generate_cluster_spec(ctx,
             worker_yaml_tpl = jinja.from_string(_md_yaml)
             data['machine_name'] = "{}-machine-{}".format(
                 cluster_cfg.name,
-                worker_node.plan.replace('.', '-'))  # CPEM blows up if there are dots in machine name
+                worker_node.plan.replace('.', '-'))  # ToDo: CPEM blows up if there are dots in machine name
             data['WORKER_NODE_TYPE'] = worker_node.plan
             data['WORKER_MACHINE_COUNT'] = worker_node.count
             cluster_yaml = "{}\n{}".format(cluster_yaml, worker_yaml_tpl.render(data))
@@ -174,28 +175,31 @@ def add_talos_hashbang(filename):
         file.write("#!talos\n" + data)
 
 
-def _talos_apply_config_patch(ctx, cluster_spec):
-    cluster_manifest_file_name = os.path.join(get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_FILE_NAME)
+def _talos_apply_config_patch(ctx, cluster_spec: Cluster):
+    cluster_secrets_dir = get_cluster_secrets_dir(cluster_spec)
+    cluster_manifest_file_name = os.path.join(cluster_secrets_dir, _CLUSTER_MANIFEST_FILE_NAME)
+    # ToDo: Fix Magic strings in path
     cluster_manifest_static_file_name = os.path.join(
-        get_secrets_dir(), cluster_spec.name, _CLUSTER_MANIFEST_STATIC_FILE_NAME)
-    config_dir_name = os.path.join(get_secrets_dir(), cluster_spec.name)
+        cluster_secrets_dir, 'argo', 'infra', _CLUSTER_MANIFEST_STATIC_FILE_NAME)
+
+    constellation_create_dirs(cluster_spec)
 
     with open(cluster_manifest_file_name) as cluster_manifest_file:
         for document in yaml.safe_load_all(cluster_manifest_file):
             if document['kind'] == 'TalosControlPlane':
-                with open(os.path.join(config_dir_name, 'controlplane-patches.yaml'), 'w') as cp_patches_file:
+                with open(os.path.join(cluster_secrets_dir, 'controlplane-patches.yaml'), 'w') as cp_patches_file:
                     yaml.dump(
                         document['spec']['controlPlaneConfig']['controlplane']['configPatches'],
                         cp_patches_file
                     )
             if document['kind'] == 'TalosConfigTemplate':
-                with open(os.path.join(config_dir_name, 'worker-patches.yaml'), 'w') as worker_patches_file:
+                with open(os.path.join(cluster_secrets_dir, 'worker-patches.yaml'), 'w') as worker_patches_file:
                     yaml.dump(
                         document['spec']['template']['spec']['configPatches'],
                         worker_patches_file
                     )
 
-    with ctx.cd(config_dir_name):
+    with ctx.cd(cluster_secrets_dir):
         worker_capi_file_name = "worker-capi.yaml"
         cp_capi_file_name = "controlplane-capi.yaml"
         ctx.run(
@@ -211,8 +215,8 @@ def _talos_apply_config_patch(ctx, cluster_spec):
             echo=True
         )
 
-        add_talos_hashbang(os.path.join(config_dir_name, worker_capi_file_name))
-        add_talos_hashbang(os.path.join(config_dir_name, cp_capi_file_name))
+        add_talos_hashbang(os.path.join(cluster_secrets_dir, worker_capi_file_name))
+        add_talos_hashbang(os.path.join(cluster_secrets_dir, cp_capi_file_name))
 
         ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
         ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
@@ -223,13 +227,13 @@ def _talos_apply_config_patch(ctx, cluster_spec):
             if document['kind'] == 'TalosControlPlane':
                 del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
                 document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
-                with open(os.path.join(config_dir_name, cp_capi_file_name), 'r') as talos_cp_config_file:
+                with open(os.path.join(cluster_secrets_dir, cp_capi_file_name), 'r') as talos_cp_config_file:
                     document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
 
             if document['kind'] == 'TalosConfigTemplate':
                 del (document['spec']['template']['spec']['configPatches'])
                 document['spec']['template']['spec']['generateType'] = 'none'
-                with open(os.path.join(config_dir_name, worker_capi_file_name), 'r') as talos_worker_config_file:
+                with open(os.path.join(cluster_secrets_dir, worker_capi_file_name), 'r') as talos_worker_config_file:
                     document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
 
             documents.append(document)
@@ -371,11 +375,10 @@ def user_confirmed():
     return user_input.strip().lower() == 'y'
 
 
-def clean_constellation_dir(constellation: Constellation):
+def clean_constellation_dir():
     files_to_remove = glob.glob(
         os.path.join(
             get_secrets_dir(),
-            constellation.name,
             '**'),
         recursive=True)
     files_to_remove = list(map(lambda fname: re.sub("/$", "", fname), files_to_remove))
@@ -434,7 +437,7 @@ def clean(ctx):
     USE WITH CAUTION! - Nukes constellation configuration.
     """
     constellation = get_constellation()
-    clean_constellation_dir(constellation)
+    clean_constellation_dir()
     clean_k8s_contexts(ctx, constellation)
 
 
