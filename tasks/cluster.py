@@ -325,17 +325,28 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
         return
 
     ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
-        os.path.join(cluster_config_dir, talosconfig),
+        talosconfig_path,
         control_plane_node), echo=True)
 
     ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
-        os.path.join(cluster_config_dir, talosconfig),
+        talosconfig_path,
         get_cp_vip_address(get_cluster_spec(ctx, cluster_name)),
         kubeconfig_path
     ), echo=True)
 
     ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
     ctx.run("kconf use " + cluster_name, echo=True, pty=True)
+
+    """
+    With current deployment method - TalosControlPlane throws an error:
+    {"namespace": "argo-infra", "talosControlPlane": "saturn-control-plane", "error": "Secret \"saturn-talosconfig\" not found"}
+    The following is a workaround:
+    """
+    ctx.run('kubectl -n {} create secret generic {}-talosconfig --from-file="{}"'.format(
+        'argo-infra',  # ToDo: Fix: Magic String - argo namespace
+        cluster_name,
+        talosconfig_path
+    ))
 
 
 @task()
