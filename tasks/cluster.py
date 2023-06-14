@@ -7,7 +7,7 @@ import jinja2
 import yaml
 from invoke import task
 
-from tasks.constellation_v01 import Cluster
+from tasks.constellation_v01 import Cluster, Constellation
 from tasks.equinix_metal import generate_cpem_config, register_vips
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
@@ -366,11 +366,16 @@ def kind_clusterctl_init(ctx, name='toem-capi-local'):
     ctx.run("kind create cluster --name {}".format(name), echo=True)
 
 
-def clean_constellation_dir(cluster: Cluster):
+def user_confirmed():
+    user_input = input('Continue y/N ?')
+    return user_input.strip().lower() == 'y'
+
+
+def clean_constellation_dir(constellation: Constellation):
     files_to_remove = glob.glob(
         os.path.join(
             get_secrets_dir(),
-            cluster.name,
+            constellation.name,
             '**'),
         recursive=True)
     files_to_remove = list(map(lambda fname: re.sub("/$", "", fname), files_to_remove))
@@ -389,8 +394,7 @@ def clean_constellation_dir(cluster: Cluster):
     for file in files_to_remove:
         print(file)
 
-    user_input = input('Continue y/N ?')
-    if user_input.strip().lower() == 'y':
+    if user_confirmed():
         for name in files_to_remove:
             try:
                 if os.path.isfile(name):
@@ -401,13 +405,37 @@ def clean_constellation_dir(cluster: Cluster):
                 pass
 
 
+def clean_k8s_contexts(ctx, constellation: Constellation):
+    contexts = set([line.strip() for line in ctx.run("kconf list", hide='stdout', echo=True).stdout.splitlines()])
+    trash_can = set()
+    clusters = get_constellation_clusters(constellation)
+    for context in contexts:
+        for cluster in clusters:
+            if "@" + cluster.name in context:
+                trash_can.add(context)
+
+    if len(trash_can) == 0:
+        return
+
+    print('Following k8s contexts will be removed:')
+    for trash in trash_can:
+        print(trash)
+
+    if user_confirmed():
+        difference = contexts.difference(trash_can)
+        ctx.run("kconf use " + difference.pop())
+        for trash in trash_can:
+            ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=True, pty=True)
+
+
 @task()
 def clean(ctx):
     """
-    USE WITH CAUTION! - Nukes all local configuration.
+    USE WITH CAUTION! - Nukes constellation configuration.
     """
-    cluster = get_cluster_spec_from_context(ctx)
-    clean_constellation_dir(cluster)
+    constellation = get_constellation()
+    clean_constellation_dir(constellation)
+    clean_k8s_contexts(ctx, constellation)
 
 
 # ToDo: Fix or remove ?
