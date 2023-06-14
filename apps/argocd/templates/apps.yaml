@@ -25,7 +25,7 @@ metadata:
 spec:
   destination:
     name: {{ .Values.cluster.application.destination_name }}
-    namespace: argo-apps
+    namespace: {{ .Values.cluster.application.destination_namespace | quote }}
   project: {{ .Values.cluster.application.project }}
   source:
     path: {{ .Values.cluster.application.source_path }}/apps
@@ -48,7 +48,7 @@ metadata:
 spec:
   destination:
     name: {{ .Values.cluster.application.destination_name }}
-    namespace: argo-infra
+    namespace: {{ .Values.cluster.application.destination_namespace | quote }}
   project: {{ .Values.cluster.application.project }}
   source:
     path: {{ .Values.cluster.application.source_path }}/infra

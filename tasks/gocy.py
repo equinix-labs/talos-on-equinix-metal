@@ -50,6 +50,12 @@ def secret_source(ctx):
         for name, value in secrets['env'].items():
             source.append('export {}={}'.format(name, value))
 
+    source.append('export {}={}'.format('TALOSCONFIG',
+                                        os.path.join(
+                                            get_secrets_dir(),
+                                            'talosconfig'
+                                        )))
+
     print("\n".join(source))
 
 

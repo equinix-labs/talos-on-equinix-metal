@@ -1,7 +1,6 @@
 import os
 from glob import glob
 from pathlib import Path
-from pprint import pprint
 from shutil import copytree, ignore_patterns
 
 import yaml

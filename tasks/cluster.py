@@ -12,7 +12,7 @@ from tasks.equinix_metal import generate_cpem_config, register_vips
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_cluster_spec_from_context, get_constellation, get_secret_envs
+    get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja
 from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -122,17 +122,17 @@ def generate_cluster_spec(ctx,
                 'CONTROL_PLANE_MACHINE_COUNT': cluster_cfg.control_nodes[0].count,
                 'TALOS_VERSION': cluster_cfg.talos,
                 'CPEM_VERSION': cluster_cfg.cpem,
-                'KUBERNETES_VERSION': cluster_cfg.kubernetes
+                'KUBERNETES_VERSION': cluster_cfg.kubernetes,
+                'namespace': 'argo-infa'
             }
         data.update(secrets)
 
-        cluster_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
-        cluster_yaml_tpl = cluster_env.from_string(_cluster_yaml)
+        jinja = get_jinja()
+        cluster_yaml_tpl = jinja.from_string(_cluster_yaml)
         cluster_yaml = cluster_yaml_tpl.render(data)
 
         for worker_node in cluster_cfg.worker_nodes:
-            worker_env = jinja2.Environment(undefined=jinja2.StrictUndefined)
-            worker_yaml_tpl = worker_env.from_string(_md_yaml)
+            worker_yaml_tpl = jinja.from_string(_md_yaml)
             data['machine_name'] = "{}-machine-{}".format(
                 cluster_cfg.name,
                 worker_node.plan.replace('.', '-'))  # CPEM blows up if there are dots in machine name
@@ -366,14 +366,11 @@ def kind_clusterctl_init(ctx, name='toem-capi-local'):
     ctx.run("kind create cluster --name {}".format(name), echo=True)
 
 
-@task()
-def clean(ctx):
-    """
-    USE WITH CAUTION! - Nukes all local configuration.
-    """
+def clean_constellation_dir(cluster: Cluster):
     files_to_remove = glob.glob(
         os.path.join(
             get_secrets_dir(),
+            cluster.name,
             '**'),
         recursive=True)
     files_to_remove = list(map(lambda fname: re.sub("/$", "", fname), files_to_remove))
@@ -402,6 +399,15 @@ def clean(ctx):
                     shutil.rmtree(name)
             except OSError:
                 pass
+
+
+@task()
+def clean(ctx):
+    """
+    USE WITH CAUTION! - Nukes all local configuration.
+    """
+    cluster = get_cluster_spec_from_context(ctx)
+    clean_constellation_dir(cluster)
 
 
 # ToDo: Fix or remove ?
