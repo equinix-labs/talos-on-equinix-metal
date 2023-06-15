@@ -1,7 +1,6 @@
 import base64
 import json
 import os
-from pprint import pprint
 
 import yaml
 from invoke import task
@@ -11,11 +10,11 @@ from tasks.apps import render_values, helm_install
 from tasks.constellation_v01 import VipRole
 from tasks.gocy import context_set_bary
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_clusters, get_vips, get_file_content_as_b64, get_constellation, \
+    get_cluster_spec_from_context, get_constellation_clusters, get_file_content_as_b64, get_constellation, \
     get_ip_addresses_file_path
 
 yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dum
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
 
 @task()
@@ -337,7 +336,7 @@ def install_network_service(ctx):
         with open(get_ip_addresses_file_path(cluster_spec, role)) as ip_addresses_file:
             data['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
+    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
     helm_install(ctx, values_file, app_name, namespace=app_name)
 
 

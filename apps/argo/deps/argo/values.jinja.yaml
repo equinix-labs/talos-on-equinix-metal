@@ -15,6 +15,14 @@ argo-cd:
         requestedScopes: ["openid", "profile", "email", "groups"]
       params:
         server.insecure: true
+    rbac:
+      policy.csv: |
+        p, role:org-admin, applications, *, */*, allow
+        p, role:org-admin, clusters, get, *, allow
+        p, role:org-admin, repositories, *, *, allow
+        p, role:org-admin, logs, get, *, allow
+        p, role:org-admin, exec, create, */*, allow
+        g, gocloudyourself:Dream, role:org-admin
 
   server:
     ingress:

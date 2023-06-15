@@ -252,7 +252,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False):
 
 
 @task
-def argo(ctx):
+def argo(ctx, install=False):
     """
     Install ArgoCD
     """
@@ -276,7 +276,7 @@ def argo(ctx):
     }
 
     value_files = render_values(ctx, cluster_spec, app_name, data, namespace='argocd')
-    helm_install(ctx, value_files, app_name, namespace='argocd')
+    helm_install(ctx, value_files, app_name, namespace='argocd', install=install)
 
 
 @task
