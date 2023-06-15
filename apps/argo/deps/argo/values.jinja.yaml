@@ -1,22 +1,10 @@
-cluster:
-  project:
-    metadata_name: saturn
-    destination_name: in-cluster
-    destination_server: https://kubernetes.default.svc
-  application:
-    metadata_name: saturn
-    destination_name: in-cluster
-    destination_namespace: "*"
-    project: saturn
-    source_path: saturn/argo
-    source_repo_url: http://gitea-http.gitea:3000/gocy/saturn.git
 argo-cd:
   dex:
     enabled: false
   configs:
     repositories:
       gitea:
-        url: http://gitea-http.gitea:3000/gocy/{{ constellation }}.git
+        url: http://gitea-http.gitea:3000/gocy/{{ constellation_name }}.git
     cm:
       url: https://{{ argocd_fqdn }}
       oidc.config: |

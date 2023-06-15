@@ -1,0 +1,68 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.app_of_apps.project.metadata_name }}
+spec:
+  app_of_appsResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  description: This is just an root-project example.
+  destinations:
+    - name: {{ .Values.app_of_apps.project.destination_name }}
+      namespace: "*"
+      server: {{ .Values.app_of_apps.project.destination_server }}
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  sourceRepos:
+    - "*"
+    
+{{- range $app := .Values.app_of_apps.applications }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $app.metadata_name }}-apps
+spec:
+  destination:
+    name: {{ $app.destination_name }}
+    namespace: {{ $app.destination_namespace | quote }}
+  project: {{ $app.project }}
+  source:
+    path: {{ $app.source_path }}/apps
+    repoURL: {{ $app.source_repo_url }}
+    targetRevision: master
+    directory:
+      recursive: true
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $app.metadata_name }}-infra
+spec:
+  destination:
+    name: {{ $app.destination_name }}
+    namespace: {{ $app.destination_namespace | quote }}
+  project: {{ $app.project }}
+  source:
+    path: {{ $app.source_path }}/infra
+    repoURL: {{ $app.source_repo_url }}
+    targetRevision: master
+    directory:
+      recursive: true
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2
+{{- end }}

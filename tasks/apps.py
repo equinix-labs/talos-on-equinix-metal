@@ -11,7 +11,8 @@ from tabulate import tabulate
 from tasks.ReservedVIPs import ReservedVIPs
 from tasks.constellation_v01 import Cluster, VipRole
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path
+    get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path, \
+    get_constellation_clusters
 
 
 def render_values_file(ctx, source: str, target: str, data: dict):
@@ -28,21 +29,51 @@ def render_values_file(ctx, source: str, target: str, data: dict):
 def render_values(ctx, cluster: Cluster, app_folder_name, data,
                   apps_dir_name='apps',
                   template_file_name='values.jinja.yaml',
-                  target_file_name='values.yaml') -> str:
+                  target_file_name='values.yaml') -> dict:
     """
     Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
     """
     source_apps_path = os.path.join(apps_dir_name, app_folder_name)
     target_apps_path = os.path.join(get_cluster_secrets_dir(cluster), source_apps_path)
-    copytree(source_apps_path, target_apps_path, ignore=ignore_patterns(template_file_name), dirs_exist_ok=True)
+    copytree(source_apps_path, target_apps_path,
+             ignore=ignore_patterns(template_file_name, 'charts'), dirs_exist_ok=True)
 
     target = os.path.join(target_apps_path, target_file_name)
+    template_paths = glob(os.path.join(source_apps_path, '**', template_file_name), recursive=True)
+
     render_values_file(ctx,
                        os.path.join(source_apps_path, template_file_name),
                        target,
-                       data)
+                       data['values'])
 
-    return target
+    targets = {
+        'apps': list(),
+        'deps': list()
+    }
+    targets['apps'].append(target)
+
+    for template_path in template_paths:
+        for dependency_name, dependency_data in data['deps'].items():
+            dependency_folder_path = os.path.join('deps', dependency_name)
+            if dependency_folder_path in template_path:
+                source = os.path.join(
+                    source_apps_path,
+                    dependency_folder_path,
+                    template_file_name
+                )
+                target = os.path.join(
+                    target_apps_path,
+                    dependency_folder_path,
+                    target_file_name)
+
+                render_values_file(ctx,
+                                   source,
+                                   target,
+                                   dependency_data)
+
+                targets['deps'].append(target)
+
+    return targets
 
 
 def get_available(ctx, apps_dir='apps', template_file_name='values.jinja.yaml'):
@@ -194,31 +225,35 @@ def whoami(ctx, oauth: bool = False):
         'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec)
     }
 
-    values_file = render_values(ctx, cluster_spec, 'whoami', data)
+    values_file = render_values(ctx, cluster_spec, app_name, data)
     helm_install(ctx, values_file, app_name, 'test-application')
 
 
 @task
 def argo(ctx):
-    app_directory = os.path.join('apps', 'argocd')
+    app_name = 'argo'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
     data = {
-        'argocd_fqdn': get_fqdn('argo', secrets, cluster_spec),
-        'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster_spec),
-        'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET'],
-        'constellation': get_ccontext()
+        'values': {
+            'constellation_name': get_ccontext(),
+            'clusters': get_constellation_clusters()
+        },
+        'deps': {
+            'argo': {
+                'argocd_fqdn': get_fqdn('argo', secrets, cluster_spec),
+                'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster_spec),
+                'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET'],
+                'constellation_name': get_ccontext()
+            }
+        }
     }
 
-    values_file = render_values(ctx, cluster_spec, 'argocd', data)
-    ctx.run("helm upgrade --install --namespace argocd --create-namespace "
-            "--values={} "
-            "argocd {} ".format(
-                values_file,
-                app_directory
-            ), echo=True)
+    value_files = render_values(ctx, cluster_spec, app_name, data)
+    helm_install(ctx, value_files, app_name, namespace='argocd')
 
+    ctx.run('kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d')
 
 @task
 def gitea(ctx):
@@ -319,12 +354,10 @@ def dbs(ctx):
             ), echo=True)
 
 
-def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name='namespace.yaml'):
-    app_directory = os.path.join('apps', app_name)
+def _helm_install(ctx, values_file_path: str, app_name: str,
+                  namespace=None, namespace_file_name='namespace.yaml', wait=False):
+    app_directory = os.path.dirname(values_file_path)
     namespace_file_path = os.path.join(app_directory, namespace_file_name)
-    namespace_cmd = ''
-    if namespace is not None:
-        namespace_cmd = "--create-namespace --namespace " + namespace
 
     if os.path.isfile(namespace_file_path):
         ctx.run("kubectl apply -f " + namespace_file_path, echo=True)
@@ -332,15 +365,29 @@ def helm_install(ctx, values_file, app_name, namespace=None, namespace_file_name
             namespace = dict(yaml.safe_load(namespace_file))['metadata']['name']
 
         namespace_cmd = "--namespace " + namespace
+    else:
+        if namespace is None:
+            namespace = app_name
 
-    ctx.run("helm upgrade --dependency-update --install {} "
-            "--values={} "
+        namespace_cmd = "--create-namespace --namespace " + namespace
+
+    ctx.run("helm upgrade --dependency-update "
+            "{}"
+            "--install {} "
             "{} {} ".format(
+                "--wait " if wait else '',
                 namespace_cmd,
-                values_file,
-                namespace if namespace is not None else app_name,
+                app_name,
                 app_directory
             ), echo=True)
+
+
+def helm_install(ctx, values_files: dict, app_name, namespace=None, namespace_file_name='namespace.yaml'):
+    for dependency in values_files['deps']:
+        _helm_install(ctx, dependency, app_name + '-dep', namespace, namespace_file_name, True)
+
+    for app in values_files['apps']:
+        _helm_install(ctx, app, app_name, namespace, namespace_file_name)
 
 
 @task
