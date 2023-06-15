@@ -8,7 +8,7 @@ cluster:
     destination_name: in-cluster
     destination_namespace: "*"
     project: saturn
-    source_path: argo
+    source_path: saturn/argo
     source_repo_url: http://gitea-http.gitea:3000/gocy/saturn.git
 argo-cd:
   dex:

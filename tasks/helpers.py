@@ -121,6 +121,10 @@ def get_cluster_name():
     return os.environ.get('CLUSTER_NAME')
 
 
+def get_argo_infra_namespace_name():
+    return 'argo-infra'
+
+
 def constellation_create_dirs(cluster: Cluster):
     """
     Create directory structure in ~/$GOCY_DEFAULT_ROOT/[constellation_name], compatible with ArgoCD

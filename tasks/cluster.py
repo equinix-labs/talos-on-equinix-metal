@@ -13,7 +13,7 @@ from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
     get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
-    constellation_create_dirs
+    constellation_create_dirs, get_argo_infra_namespace_name
 from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -124,7 +124,7 @@ def generate_cluster_spec(ctx,
                 'TALOS_VERSION': cluster_cfg.talos,
                 'CPEM_VERSION': cluster_cfg.cpem,
                 'KUBERNETES_VERSION': cluster_cfg.kubernetes,
-                'namespace': 'argo-infra'
+                'namespace': get_argo_infra_namespace_name()
             }
         data.update(secrets)
 
@@ -343,7 +343,7 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     The following is a workaround:
     """
     ctx.run('kubectl -n {} create secret generic {}-talosconfig --from-file="{}"'.format(
-        'argo-infra',  # ToDo: Fix: Magic String - argo namespace
+        get_argo_infra_namespace_name(),
         cluster_name,
         talosconfig_path
     ))
@@ -497,4 +497,7 @@ def clusterctl_move(ctx):
     constellation = get_constellation()
     bary_kubeconfig = os.path.join(
         get_secrets_dir(), constellation.bary.name, constellation.bary.name + '.kubeconfig')
-    ctx.run("clusterctl move --to-kubeconfig=" + bary_kubeconfig, echo=True)
+    ctx.run("clusterctl --namespace {} move --to-kubeconfig={}".format(
+        get_argo_infra_namespace_name(),
+        bary_kubeconfig
+    ), echo=True)
