@@ -2,6 +2,7 @@ import glob
 import os
 import re
 import shutil
+import time
 
 import jinja2
 import yaml
@@ -334,9 +335,6 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
         kubeconfig_path
     ), echo=True)
 
-    ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
-    ctx.run("kconf use " + cluster_name, echo=True, pty=True)
-
     """
     With current deployment method - TalosControlPlane throws an error:
     {"namespace": "argo-infra", "talosControlPlane": "saturn-control-plane", "error": "Secret \"saturn-talosconfig\" not found"}
@@ -347,6 +345,9 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
         cluster_name,
         talosconfig_path
     ))
+
+    ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
+    ctx.run("kconf use admin@" + cluster_name, echo=True, pty=True)
 
 
 @task()
