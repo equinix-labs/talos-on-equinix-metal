@@ -341,10 +341,10 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     The following is a workaround:
     """
     ctx.run('kubectl -n {} create secret generic {}-talosconfig --from-file="{}"'.format(
-        get_argo_infra_namespace_name(),
+        'cacppt-system',
         cluster_name,
         talosconfig_path
-    ))
+    ), echo=True)
 
     ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
     ctx.run("kconf use admin@" + cluster_name, echo=True, pty=True)

@@ -316,7 +316,7 @@ def install_network_service_dependencies(ctx):
 
 
 @task(hack_fix_bgp_peer_routs)
-def install_network_service(ctx):
+def install_network_service(ctx, install=False):
     """
     Deploys apps/network-services chart, with BGP VIP pool configuration, based on
     VIPs registered in EquinixMetal. As of now the assumption is 1 GlobalIPv4 for ingress,
@@ -325,19 +325,21 @@ def install_network_service(ctx):
     cluster_spec = get_cluster_spec_from_context(ctx)
     app_name = 'network-services'
     data = {
-        'cluster_name': cluster_spec.name,
-        'vips': {
-            str(VipRole.mesh): dict(),
-            str(VipRole.ingress): dict()
+        'values': {
+            'cluster_name': cluster_spec.name,
+            'vips': {
+                str(VipRole.mesh): dict(),
+                str(VipRole.ingress): dict()
+            }
         }
     }
 
-    for role in data['vips']:
+    for role in data['values']['vips']:
         with open(get_ip_addresses_file_path(cluster_spec, role)) as ip_addresses_file:
-            data['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
+            data['values']['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
 
     values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-    helm_install(ctx, values_file, app_name, namespace=app_name)
+    helm_install(ctx, values_file, app_name, namespace=app_name, install=install)
 
 
 @task()

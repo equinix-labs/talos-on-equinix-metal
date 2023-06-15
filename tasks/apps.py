@@ -477,10 +477,12 @@ def observability(ctx):
     secrets = get_secrets()
 
     data = {
-        'jaeger_fqdn': get_fqdn('jaeger', secrets, cluster_spec),
-        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
-        'grafana_fqdn': get_fqdn('grafana', secrets, cluster_spec),
-        'cluster_name': cluster_spec.name + '.local'
+        'values': {
+            'jaeger_fqdn': get_fqdn('jaeger', secrets, cluster_spec),
+            'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+            'grafana_fqdn': get_fqdn('grafana', secrets, cluster_spec),
+            'cluster_name': cluster_spec.name + '.local'
+        }
     }
     data.update(secrets['grafana'])
 
@@ -489,7 +491,7 @@ def observability(ctx):
 
 
 @task()
-def ingress_controller(ctx):
+def ingress_controller(ctx, install=False):
     """
     Install Helm chart apps/ingress-bundle
     """
@@ -511,14 +513,16 @@ def ingress_controller(ctx):
         target_file_name = 'values.global.yaml'
 
     data = {
-        'address_pool_name': address_pool_name,
-        'ingress_class_name': ingress_class_name,
-        'ingress_class_default': ingress_class_default
+        'values': {
+            'address_pool_name': address_pool_name,
+            'ingress_class_name': ingress_class_name,
+            'ingress_class_default': ingress_class_default
+        }
     }
 
     values_file = render_values(ctx, cluster_spec, app_name, data,
                                 target_file_name=target_file_name, namespace=app_name)
-    helm_install(ctx, values_file, app_name, namespace=app_name)
+    helm_install(ctx, values_file, app_name, namespace=app_name, install=install)
 
 
 @task()
