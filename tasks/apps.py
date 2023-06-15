@@ -12,7 +12,7 @@ from tasks.ReservedVIPs import ReservedVIPs
 from tasks.constellation_v01 import Cluster, VipRole
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
     get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path, \
-    get_constellation_clusters
+    get_constellation_clusters, get_cluster_spec
 
 
 def render_values_file(ctx, source: str, target: str, data: dict):
@@ -27,6 +27,7 @@ def render_values_file(ctx, source: str, target: str, data: dict):
 
 
 def render_values(ctx, cluster: Cluster, app_folder_name, data,
+                  namespace,
                   apps_dir_name='apps',
                   template_file_name='values.jinja.yaml',
                   target_file_name='values.yaml') -> dict:
@@ -46,11 +47,29 @@ def render_values(ctx, cluster: Cluster, app_folder_name, data,
                        target,
                        data['values'])
 
+    render_values_file(
+        ctx,
+        os.path.join('templates', 'argo', 'application.jinja.yaml'),
+        os.path.join(get_cluster_secrets_dir(cluster), 'argo', 'apps', app_folder_name + '.yaml'),
+        {
+            'name': app_folder_name,
+            'namespace': 'argo-apps',
+            'destination': 'in-cluster',
+            'target_namespace': namespace,
+            'project': cluster.name,
+            'path': os.path.join(cluster.name, 'apps', app_folder_name),
+            'repo_url': "http://gitea-http.gitea:3000/gocy/saturn.git"
+        }
+    )
+
     targets = {
         'apps': list(),
         'deps': list()
     }
     targets['apps'].append(target)
+
+    if 'deps' not in data:
+        return targets
 
     for template_path in template_paths:
         for dependency_name, dependency_data in data['deps'].items():
@@ -205,7 +224,7 @@ def dns_and_tls(ctx):
 
 
 @task()
-def whoami(ctx, oauth: bool = False):
+def whoami(ctx, oauth: bool = False, install: bool = False):
     """
     Install Helm chart apps/whoami
     """
@@ -219,18 +238,24 @@ def whoami(ctx, oauth: bool = False):
         fqdn = get_fqdn('whoami', secrets, cluster_spec)
 
     data = {
-        'whoami_fqdn': fqdn,
-        'name': cluster_spec.name,
-        'oauth_enabled': oauth,
-        'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec)
+        'values': {
+            'whoami_fqdn': fqdn,
+            'name': cluster_spec.name,
+            'oauth_enabled': oauth,
+            'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec)
+        }
     }
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
-    helm_install(ctx, values_file, app_name, 'test-application')
+    helm_install(ctx,
+                 render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
+                 , app_name, app_name, install=install)
 
 
 @task
 def argo(ctx):
+    """
+    Install ArgoCD
+    """
     app_name = 'argo'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -250,10 +275,29 @@ def argo(ctx):
         }
     }
 
-    value_files = render_values(ctx, cluster_spec, app_name, data)
+    value_files = render_values(ctx, cluster_spec, app_name, data, namespace='argocd')
     helm_install(ctx, value_files, app_name, namespace='argocd')
 
-    ctx.run('kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d')
+
+@task
+def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
+    """
+    With ArgoCD present on the cluster add connections to other constellation clusters.
+    """
+    cluster_spec = get_cluster_spec(ctx, name)
+    secrets = get_secrets()
+
+    argo_admin_pass = ctx.run('kubectl --namespace '
+                              + argocd_namespace
+                              + ' get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d',
+                              hide='stdout', echo=True).stdout
+
+    ctx.run('argocd --grpc-web login --username admin --password {} {}'.format(
+        argo_admin_pass,
+        get_fqdn('argo', secrets, cluster_spec)
+    ), echo=False)
+    ctx.run('argocd --grpc-web cluster add admin@{} --name {}'.format(cluster_spec.name, cluster_spec.name), echo=True)
+
 
 @task
 def gitea(ctx):
@@ -271,7 +315,7 @@ def gitea(ctx):
     }
     data.update(secrets['gitea'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
+    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
     helm_install(ctx, values_file, app_name)
 
 
@@ -382,7 +426,11 @@ def _helm_install(ctx, values_file_path: str, app_name: str,
             ), echo=True)
 
 
-def helm_install(ctx, values_files: dict, app_name, namespace=None, namespace_file_name='namespace.yaml'):
+def helm_install(ctx, values_files: dict, app_name,
+                 namespace=None, namespace_file_name='namespace.yaml', install: bool = False):
+    if not install:
+        return
+
     for dependency in values_files['deps']:
         _helm_install(ctx, dependency, app_name + '-dep', namespace, namespace_file_name, True)
 
@@ -403,7 +451,7 @@ def dashboards(ctx):
         'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
     }
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
+    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
     helm_install(ctx, values_file, app_name)
 
 
@@ -418,7 +466,7 @@ def harbor(ctx):
     }
     data.update(secrets['harbor'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
+    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
     helm_install(ctx, values_file, app_name)
 
 
@@ -436,7 +484,7 @@ def observability(ctx):
     }
     data.update(secrets['grafana'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
+    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
     helm_install(ctx, values_file, app_name)
 
 
@@ -468,7 +516,8 @@ def ingress_controller(ctx):
         'ingress_class_default': ingress_class_default
     }
 
-    values_file = render_values(ctx, cluster_spec, app_name, data, target_file_name=target_file_name)
+    values_file = render_values(ctx, cluster_spec, app_name, data,
+                                target_file_name=target_file_name, namespace=app_name)
     helm_install(ctx, values_file, app_name, namespace=app_name)
 
 

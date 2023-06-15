@@ -30,7 +30,7 @@ def get_cfg(value, default):
     return value
 
 
-def get_cluster_spec(ctx, name):
+def get_cluster_spec(ctx, name: str) -> Cluster:
     for cluster_spec in get_constellation_clusters():
         if cluster_spec.name == name:
             return cluster_spec
