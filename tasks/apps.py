@@ -317,7 +317,9 @@ def gitea_port_forward(ctx):
     """
     Port forward gitea to localhost. Execute in a separate terminal, prior to apps.gitea-provision.
     """
-    ctx.run("kubectl -n gitea port-forward statefulsets/gitea 3000:3000", echo=True)
+    ctx.run("kubectl --context=admin@{} --namespace gitea port-forward statefulsets/gitea 3000:3000".format(
+        get_constellation().bary.name
+    ), echo=True)
 
 
 @task(gitea)
@@ -438,10 +440,12 @@ def dashboards(ctx, install: bool = False):
     secrets = get_secrets()
 
     data = {
-        'k8s_dashboard_fqdn': get_fqdn(['k8s', 'dash'], secrets, cluster_spec),
-        'rook_fqdn': get_fqdn(['rook', 'dash'], secrets, cluster_spec),
-        'hubble_fqdn': get_fqdn(['hubble', 'dash'], secrets, cluster_spec),
-        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+        'values': {
+            'k8s_dashboard_fqdn': get_fqdn(['k8s', 'dash'], secrets, cluster_spec),
+            'rook_fqdn': get_fqdn(['rook', 'dash'], secrets, cluster_spec),
+            'hubble_fqdn': get_fqdn(['hubble', 'dash'], secrets, cluster_spec),
+            'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+        }
     }
 
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
@@ -514,7 +518,7 @@ def ingress(ctx, install: bool = False):
         values_file = render_values(ctx, cluster_spec, app_name + '-global', data,
                                     app_dir_name=app_name,
                                     target_app_suffix="global", namespace=app_name)
-        helm_install(ctx, values_file, app_name + '-global', namespace=app_name, install=install)
+        helm_install(ctx, values_file, app_name + '-global', namespace=app_name + '-global', install=install)
 
 
 @task()
