@@ -142,7 +142,7 @@ def get_oidc_kubeconfig(ctx, cluster_name=None):
     data = {
         'cluster_name': cluster_name
     }
-    data.update(secrets['idp_auth']['oidc'])
+    data.update(secrets['idp_auth']['k8s_oidc'])
 
     oidc_user = yaml.safe_load(oidc_user_tpl.render(data))
 

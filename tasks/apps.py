@@ -533,24 +533,6 @@ def storage(ctx, install: bool = False):
 
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
-    # app_directory = os.path.join('apps', 'persistent-storage-dependencies')
-    # with ctx.cd(app_directory):
-    #     ctx.run("kubectl apply -f namespace.yaml", echo=True)
-    #     ctx.run("helm upgrade "
-    #             "--dependency-update "
-    #             "--install "
-    #             "--namespace persistent-storage "
-    #             "persistent-storage ./", echo=True)
-    #
-    # app_directory = os.path.join('apps', 'persistent-storage')
-    # with ctx.cd(app_directory):
-    #     ctx.run("helm upgrade "
-    #             "--install "
-    #             "--namespace persistent-storage "
-    #             "--set rook-ceph-cluster.operatorNamespace=persistent-storage "
-    #             "persistent-storage-cluster ./",
-    #             echo=True)
-
 
 def idp_auth_chart(ctx, cluster: Cluster, secrets):
     app_directory = os.path.join('apps', 'idp-auth')
@@ -565,8 +547,8 @@ def idp_auth_chart(ctx, cluster: Cluster, secrets):
             "--namespace idp-auth "
             "--values {} "
             "idp-auth {}".format(
-        values_file,
-        app_directory), echo=True)
+                values_file,
+                app_directory), echo=True)
 
 
 def idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
@@ -592,8 +574,8 @@ def idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja,
             "--create-namespace "
             "--values {} "
             "idp-auth-kubelogin {}".format(
-        idp_auth_values_yaml,
-        app_directory), echo=True)
+                idp_auth_values_yaml,
+                app_directory), echo=True)
 
 
 @task()
