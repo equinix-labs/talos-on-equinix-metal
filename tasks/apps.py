@@ -518,7 +518,7 @@ def ingress(ctx, install: bool = False):
         values_file = render_values(ctx, cluster_spec, app_name + '-global', data,
                                     app_dir_name=app_name,
                                     target_app_suffix="global", namespace=app_name)
-        helm_install(ctx, values_file, app_name + '-global', namespace=app_name + '-global', install=install)
+        helm_install(ctx, values_file, app_name + '-global', namespace=app_name, install=install)
 
 
 @task()

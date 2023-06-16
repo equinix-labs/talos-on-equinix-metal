@@ -1,4 +1,6 @@
 ingress-nginx:
+  nameOverride: {{ ingress_class_name }}
+  fullnameOverride: {{ ingress_class_name }}
   controller:
     service:
       annotations:
@@ -8,3 +10,4 @@ ingress-nginx:
     ingressClassResource:
       name: {{ ingress_class_name }}
       default: {{ ingress_class_default }}
+      controllerValue: "k8s.metalkube.net/{{ ingress_class_name }}"
