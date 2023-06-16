@@ -1,4 +1,5 @@
 rook-ceph-cluster:
+  operatorNamespace: {{ operator_namespace }}
   clusterName: rook-ceph
   cephClusterSpec:
     placement:

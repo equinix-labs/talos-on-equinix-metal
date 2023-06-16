@@ -516,27 +516,40 @@ def ingress(ctx, install: bool = False):
 
 
 @task()
-def persistent_storage(ctx):
+def storage(ctx, install: bool = False):
     """
-    Install persistent-storage
+    Install storage
     """
-    app_directory = os.path.join('apps', 'persistent-storage-dependencies')
-    with ctx.cd(app_directory):
-        ctx.run("kubectl apply -f namespace.yaml", echo=True)
-        ctx.run("helm upgrade "
-                "--dependency-update "
-                "--install "
-                "--namespace persistent-storage "
-                "persistent-storage ./", echo=True)
+    app_name = 'storage'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    data = {
+        'values': {
+            'operator_namespace': app_name
+        },
+        'deps': {
+            'rook': {}
+        }
+    }
 
-    app_directory = os.path.join('apps', 'persistent-storage')
-    with ctx.cd(app_directory):
-        ctx.run("helm upgrade "
-                "--install "
-                "--namespace persistent-storage "
-                "--set rook-ceph-cluster.operatorNamespace=persistent-storage "
-                "persistent-storage-cluster ./",
-                echo=True)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
+
+    # app_directory = os.path.join('apps', 'persistent-storage-dependencies')
+    # with ctx.cd(app_directory):
+    #     ctx.run("kubectl apply -f namespace.yaml", echo=True)
+    #     ctx.run("helm upgrade "
+    #             "--dependency-update "
+    #             "--install "
+    #             "--namespace persistent-storage "
+    #             "persistent-storage ./", echo=True)
+    #
+    # app_directory = os.path.join('apps', 'persistent-storage')
+    # with ctx.cd(app_directory):
+    #     ctx.run("helm upgrade "
+    #             "--install "
+    #             "--namespace persistent-storage "
+    #             "--set rook-ceph-cluster.operatorNamespace=persistent-storage "
+    #             "persistent-storage-cluster ./",
+    #             echo=True)
 
 
 def idp_auth_chart(ctx, cluster: Cluster, secrets):
