@@ -17,7 +17,7 @@ from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_se
 
 def render_values_file(ctx, source: str, target: str, data: dict):
     jinja = get_jinja()
-    ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
+    # ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
     with open(source) as source_file:
         template = jinja.from_string(source_file.read())
 
@@ -26,16 +26,28 @@ def render_values_file(ctx, source: str, target: str, data: dict):
         target_file.write(os.linesep.join(rendered_list))
 
 
-def render_values(ctx, cluster: Cluster, app_folder_name, data,
+def render_values(ctx, cluster: Cluster, app_name, data,
                   namespace,
                   apps_dir_name='apps',
+                  app_dir_name=None,
+                  target_app_suffix=None,
                   template_file_name='values.jinja.yaml',
                   target_file_name='values.yaml') -> dict:
     """
     Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
     """
-    source_apps_path = os.path.join(apps_dir_name, app_folder_name)
-    target_apps_path = os.path.join(get_cluster_secrets_dir(cluster), source_apps_path)
+    if app_dir_name is None:
+        app_dir_name = app_name
+
+    source_apps_path = os.path.join(apps_dir_name, app_dir_name)
+    target_apps_path = os.path.join(
+        get_cluster_secrets_dir(cluster),
+        os.path.join(
+            apps_dir_name,
+            app_dir_name if not target_app_suffix else app_dir_name + "-" + target_app_suffix
+        )
+    )
+    os.makedirs(target_apps_path, exist_ok=True)
     copytree(source_apps_path, target_apps_path,
              ignore=ignore_patterns(template_file_name, 'charts'), dirs_exist_ok=True)
 
@@ -50,14 +62,14 @@ def render_values(ctx, cluster: Cluster, app_folder_name, data,
     render_values_file(
         ctx,
         os.path.join('templates', 'argo', 'application.jinja.yaml'),
-        os.path.join(get_cluster_secrets_dir(cluster), 'argo', 'apps', app_folder_name + '.yaml'),
+        os.path.join(get_cluster_secrets_dir(cluster), 'argo', 'apps', app_dir_name + '.yaml'),
         {
-            'name': app_folder_name,
+            'name': app_name,
             'namespace': 'argo-apps',
-            'destination': 'in-cluster',
+            'destination': cluster.name,
             'target_namespace': namespace,
             'project': cluster.name,
-            'path': os.path.join(cluster.name, 'apps', app_folder_name),
+            'path': os.path.join(cluster.name, 'apps', app_dir_name),
             'repo_url': "http://gitea-http.gitea:3000/gocy/saturn.git"
         }
     )
@@ -153,14 +165,6 @@ def get_dns_tls_namespace_name():
 
 
 @task()
-def create_dns_tls_namespace(ctx):
-    """
-    Create namespace to be shared by external-dns and cert-manager
-    """
-    ctx.run('kubectl create namespace {} | true'.format(get_dns_tls_namespace_name()), echo=True)
-
-
-@task()
 def gcloud_login(ctx):
     """
     If you rae using gcp and your DNS provider, you can use this to log in to the console.
@@ -168,11 +172,13 @@ def gcloud_login(ctx):
     ctx.run("gcloud auth login", echo=True)
 
 
-@task(create_dns_tls_namespace)
+@task
 def deploy_dns_management_token(ctx, provider='google'):
     """
     Creates the DNS token secret to be used by external-dns and cert-manager
     """
+    ctx.run('kubectl create namespace {} | true'.format(get_dns_tls_namespace_name()), echo=True)
+
     if provider == 'google':
         get_google_dns_token(ctx)
 
@@ -237,13 +243,11 @@ def whoami(ctx, oauth: bool = False, install: bool = False):
         }
     }
 
-    helm_install(ctx,
-                 render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-                 , app_name, app_name, install=install)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 @task
-def argo(ctx, install=False):
+def argo(ctx, install: bool = False):
     """
     Install ArgoCD
     """
@@ -266,8 +270,7 @@ def argo(ctx, install=False):
         }
     }
 
-    value_files = render_values(ctx, cluster_spec, app_name, data, namespace='argocd')
-    helm_install(ctx, value_files, app_name, namespace='argocd', install=install)
+    install_app(ctx, app_name, cluster_spec, data, 'argocd', install)
 
 
 @task
@@ -291,7 +294,7 @@ def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
 
 
 @task
-def gitea(ctx):
+def gitea(ctx, install: bool = False):
     """
     Install gitea
     """
@@ -306,8 +309,7 @@ def gitea(ctx):
     }
     data.update(secrets['gitea'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-    helm_install(ctx, values_file, app_name)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 @task()
@@ -430,7 +432,7 @@ def helm_install(ctx, values_files: dict, app_name,
 
 
 @task
-def dashboards(ctx):
+def dashboards(ctx, install: bool = False):
     app_name = 'dashboards'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -442,12 +444,11 @@ def dashboards(ctx):
         'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
     }
 
-    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-    helm_install(ctx, values_file, app_name)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 @task
-def harbor(ctx):
+def harbor(ctx, install: bool = False):
     app_name = 'harbor'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -457,12 +458,11 @@ def harbor(ctx):
     }
     data.update(secrets['harbor'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-    helm_install(ctx, values_file, app_name)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 @task
-def observability(ctx):
+def observability(ctx, install: bool = False):
     app_name = 'observability'
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
@@ -477,43 +477,42 @@ def observability(ctx):
     }
     data.update(secrets['grafana'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-    helm_install(ctx, values_file, app_name)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 @task()
-def ingress_controller(ctx, install=False):
+def ingress(ctx, install: bool = False):
     """
     Install Helm chart apps/ingress-bundle
     """
-    app_name = 'ingress-bundle'
+    app_name = 'ingress'
     cluster_spec = get_cluster_spec_from_context(ctx)
 
     with open(get_ip_addresses_file_path(cluster_spec, VipRole.ingress)) as ip_addresses_file:
         ingress_vips = ReservedVIPs().parse_raw(ip_addresses_file.read())
 
-    address_pool_name = 'ingress-public-ipv4'
-    ingress_class_name = 'nginx'
-    ingress_class_default = True
-    target_file_name = 'values.yaml'
-
-    if len(ingress_vips.global_ipv4) > 0:
-        address_pool_name = 'ingress-global-ipv4'
-        ingress_class_name = 'nginx-global'
-        ingress_class_default = False
-        target_file_name = 'values.global.yaml'
-
     data = {
         'values': {
-            'address_pool_name': address_pool_name,
-            'ingress_class_name': ingress_class_name,
-            'ingress_class_default': ingress_class_default
+            'address_pool_name': 'ingress-public-ipv4',
+            'ingress_class_name': 'nginx',
+            'ingress_class_default': True
         }
     }
 
-    values_file = render_values(ctx, cluster_spec, app_name, data,
-                                target_file_name=target_file_name, namespace=app_name)
-    helm_install(ctx, values_file, app_name, namespace=app_name, install=install)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
+
+    if len(ingress_vips.global_ipv4) > 0:
+        data = {
+            'values': {
+                'address_pool_name': 'ingress-global-ipv4',
+                'ingress_class_name': 'nginx-global',
+                'ingress_class_default': False
+            }
+        }
+        values_file = render_values(ctx, cluster_spec, app_name + '-global', data,
+                                    app_dir_name=app_name,
+                                    target_app_suffix="global", namespace=app_name)
+        helm_install(ctx, values_file, app_name + '-global', namespace=app_name, install=install)
 
 
 @task()
