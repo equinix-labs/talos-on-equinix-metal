@@ -186,41 +186,32 @@ def deploy_dns_management_token(ctx, provider='google'):
         print("Unsupported DNS provider: " + provider)
 
 
+def install_app(ctx, app_name: str, cluster: Cluster, data: dict, namespace: str, install: bool):
+    value_files = render_values(ctx, cluster, app_name, data, namespace=namespace)
+    helm_install(ctx, value_files, app_name, namespace=namespace, install=install)
+
+
 @task(deploy_dns_management_token)
-def dns_and_tls_dependencies(ctx):
-    """
-    Install Helm chart apps/dns-and-tls-dependencies
-    """
-    dns_tls_directory = os.path.join('apps', 'dns-and-tls-dependencies')
-    secrets = get_secret_envs()
-    with ctx.cd(dns_tls_directory):
-        ctx.run("helm dependency build", echo=True)
-        ctx.run("helm upgrade --wait --install --namespace {} "
-                "--set external_dns.provider.google.google_project={} "
-                "--set external_dns.provider.google.domain_filter={} "
-                "dns-and-tls-dependencies ./".format(
-                    get_dns_tls_namespace_name(),
-                    secrets['GCP_PROJECT_ID'],
-                    secrets['GOCY_DOMAIN']
-                ), echo=True)
-
-
-@task(dns_and_tls_dependencies)
-def dns_and_tls(ctx):
+def dns_tls(ctx, install: bool = False):
     """
     Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
     """
-    dns_tls_directory = os.path.join('apps', 'dns-and-tls')
-    secrets = get_secret_envs()
-    with ctx.cd(dns_tls_directory):
-        ctx.run("helm upgrade --install --namespace {} "
-                "--set letsencrypt.email={} "
-                "--set letsencrypt.google.project_id={} "
-                "dns-and-tls ./".format(
-                    get_dns_tls_namespace_name(),
-                    secrets['GOCY_ADMIN_EMAIL'],
-                    secrets['GCP_PROJECT_ID']
-                ), echo=True)
+    app_name = 'dns-and-tls'
+    cluster_spec = get_cluster_spec_from_context(ctx)
+    secrets = get_secrets()
+    data = {
+        'values': {
+            'admin_email': secrets['env']['GOCY_ADMIN_EMAIL'],
+            'project_id': secrets['env']['GCP_PROJECT_ID']
+        },
+        'deps': {
+            'dns-tls': {
+                'google_project': secrets['env']['GCP_PROJECT_ID'],
+                'domain_filter': secrets['env']['GOCY_DOMAIN']
+            }
+        }
+    }
+    install_app(ctx, app_name, cluster_spec, data, get_dns_tls_namespace_name(), install)
 
 
 @task()

@@ -1,7 +1,7 @@
 letsencrypt:
   enabled: true
   ClusterIssuerName: letsencrypt-gcp
-  email: # ToDo: Admin email address
+  email: {{ admin_email }}
   google:
     enabled: true
-    project_id: # ToDo: GCP project ID
+    project_id: {{ project_id }}

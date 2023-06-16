@@ -7,5 +7,5 @@ external_dns:
   provider:
     google:
       enabled: true
-      google_project: passed via CLI
-      domain_filter: passed via CLI
+      google_project: {{ google_project }}
+      domain_filter: {{ domain_filter }}
