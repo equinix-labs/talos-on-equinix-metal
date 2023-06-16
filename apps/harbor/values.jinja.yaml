@@ -12,7 +12,7 @@ harbor:
       hosts:
         core: {{ harbor_fqdn }}
         notary: notary.{{ harbor_fqdn }}
-      className: nginx
+      className: nginx-global
       harbor:
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-gcp

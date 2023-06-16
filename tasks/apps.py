@@ -454,9 +454,11 @@ def harbor(ctx, install: bool = False):
     secrets = get_secrets()
 
     data = {
-        'harbor_fqdn': get_fqdn('harbor', secrets, cluster_spec)
+        'values': {
+            'harbor_fqdn': get_fqdn('harbor', secrets, cluster_spec)
+        }
     }
-    data.update(secrets['harbor'])
+    data['values'].update(secrets['harbor'])
 
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
