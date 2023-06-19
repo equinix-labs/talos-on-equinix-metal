@@ -1,6 +1,6 @@
 apiVersion: v2
-name: gitea
-description: Chart tracks compatible versions of keydb and cockroachdb
+name: dashboards
+description: Chart tracks compatible versions of dashboards
 
 type: application
 version: 0.1.0
