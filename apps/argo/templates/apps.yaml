@@ -11,7 +11,7 @@ spec:
   destinations:
     - name: {{ .Values.app_of_apps.project.destination_name }}
       namespace: "*"
-      server: {{ .Values.app_of_apps.project.destination_server }}
+      server: "*"
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
@@ -49,7 +49,7 @@ metadata:
   name: {{ $app.metadata_name }}-infra
 spec:
   destination:
-    name: {{ $app.destination_name }}
+    name: {{ $app.bary_name }}
     namespace: {{ $app.destination_namespace | quote }}
   project: {{ $app.project }}
   source:

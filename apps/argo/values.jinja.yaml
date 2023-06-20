@@ -6,6 +6,7 @@ app_of_apps:
   applications:
     {% for cluster in clusters %}
     - metadata_name: {{ cluster.name }} # saturn
+      bary_name: {{ bary_name }}
       destination_name: {{ cluster.name }}
       destination_namespace: "*"
       project: {{ constellation_name }}

@@ -220,7 +220,7 @@ def dns_tls(ctx, install: bool = False):
 
 
 @task()
-def whoami(ctx, oauth: bool = False, install: bool = False):
+def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool = False):
     """
     Install Helm chart apps/whoami
     """
@@ -238,7 +238,8 @@ def whoami(ctx, oauth: bool = False, install: bool = False):
             'whoami_fqdn': fqdn,
             'name': cluster_spec.name,
             'oauth_enabled': oauth,
-            'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec)
+            'oauth_fqdn': 'https://' + get_fqdn('oauth', secrets, cluster_spec),
+            'ingress_class_name': 'nginx-global' if global_ingress else 'nginx'
         }
     }
 
@@ -272,6 +273,11 @@ def argo(ctx, install: bool = False):
             }
         }
     }
+
+    # ToDo:
+    # on satellites:
+    # kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.3/manifests/crds/application-crd.yaml
+    # kubectl create namespace argo-apps
 
     install_app(ctx, app_name, cluster_spec, data, 'argocd', install)
 

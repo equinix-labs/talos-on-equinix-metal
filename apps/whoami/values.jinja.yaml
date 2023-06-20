@@ -1,4 +1,5 @@
 test_app:
+  ingressClassName: {{ ingress_class_name }}
   fqdn: {{ whoami_fqdn }}
   name: {{ name }}
   oauth:

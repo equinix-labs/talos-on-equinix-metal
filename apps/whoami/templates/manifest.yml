@@ -103,7 +103,7 @@ metadata:
   name: whoami-test-app
   namespace: {{ .Release.Namespace }}
 spec:
-  ingressClassName: nginx
+  ingressClassName: {{ .Values.test_app.ingressClassName }}
   rules:
     - host: {{ .Values.test_app.fqdn }}
       http:
