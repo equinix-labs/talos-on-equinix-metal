@@ -1,6 +1,5 @@
 import os
 from glob import glob
-from pathlib import Path
 from shutil import copytree, ignore_patterns
 
 import yaml
@@ -255,10 +254,14 @@ def argo(ctx, install: bool = False):
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
+    constellation = get_constellation()
+    clusters = get_constellation_clusters(constellation)
+
     data = {
         'values': {
-            'constellation_name': get_ccontext(),
-            'clusters': get_constellation_clusters()
+            'constellation_name': constellation.name,
+            'bary_name': constellation.bary.name,
+            'clusters': clusters
         },
         'deps': {
             'argo': {
@@ -303,11 +306,13 @@ def gitea(ctx, install: bool = False):
     secrets = get_secrets()
 
     data = {
-        'cluster_domain': cluster_spec.name + '.local',
-        'gitea_fqdn': get_fqdn('gitea', secrets, cluster_spec),
-        'dex_url': get_fqdn('bouncer', secrets, cluster_spec),
+        'values': {
+            'cluster_domain': cluster_spec.name + '.local',
+            'gitea_fqdn': get_fqdn('gitea', secrets, cluster_spec),
+            'dex_url': get_fqdn('bouncer', secrets, cluster_spec),
+        }
     }
-    data.update(secrets['gitea'])
+    data['values'].update(secrets['gitea'])
 
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
@@ -372,10 +377,12 @@ def dbs(ctx):
     secrets = get_secrets()
 
     data = {
-        'cluster_domain': cluster_spec.name + '.local',
-        'cluster_name': cluster_spec.name,
-        'cockroach_fqdn': get_fqdn('cockroach', secrets, cluster_spec),
-        'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+        'values': {
+            'cluster_domain': cluster_spec.name + '.local',
+            'cluster_name': cluster_spec.name,
+            'cockroach_fqdn': get_fqdn('cockroach', secrets, cluster_spec),
+            'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
+        }
     }
     data.update(secrets['dbs'])
 
@@ -441,9 +448,9 @@ def dashboards(ctx, install: bool = False):
 
     data = {
         'values': {
-            'k8s_dashboard_fqdn': get_fqdn(['k8s', 'dash'], secrets, cluster_spec),
-            'rook_fqdn': get_fqdn(['rook', 'dash'], secrets, cluster_spec),
-            'hubble_fqdn': get_fqdn(['hubble', 'dash'], secrets, cluster_spec),
+            'k8s_dashboard_fqdn': get_fqdn(['k8s', cluster_spec.name, 'dash'], secrets, cluster_spec),
+            'rook_fqdn': get_fqdn(['rook', cluster_spec.name, 'dash'], secrets, cluster_spec),
+            'hubble_fqdn': get_fqdn(['hubble', cluster_spec.name, 'dash'], secrets, cluster_spec),
             'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
         }
     }
