@@ -540,70 +540,40 @@ def storage(ctx, install: bool = False):
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
-def idp_auth_chart(ctx, cluster: Cluster, secrets):
-    app_directory = os.path.join('apps', 'idp-auth')
-    values_file = render_values(ctx, cluster, 'idp-auth', secrets)
-
-    ctx.run("kubectl apply -f {}".format(
-        os.path.join(app_directory, 'namespace.yaml')
-    ), echo=True)
-    ctx.run("helm upgrade "
-            "--dependency-update "
-            "--install "
-            "--namespace idp-auth "
-            "--values {} "
-            "idp-auth {}".format(
-                values_file,
-                app_directory), echo=True)
+def idp_auth_chart(ctx, app_name, cluster: Cluster, data: dict, install: bool):
+    install_app(ctx, app_name, cluster, data, app_name, install)
 
 
-def idp_auth_kubelogin_chart(ctx, cluster: Cluster, values_template_file, jinja, secrets):
-    app_directory = os.path.join('apps', 'idp-auth-kubelogin')
-
-    if values_template_file is None:
-        values_template_file = os.path.join(app_directory, 'values.jinja.yaml')
-
-    with open(values_template_file) as values_file:
-        values_yaml = values_file.read()
-
-    cluster_yaml_tpl = jinja.from_string(values_yaml)
-    values_yaml = cluster_yaml_tpl.render(secrets)
-
-    idp_auth_values_yaml = os.path.join(get_secrets_dir(), cluster.name, 'idp-auth-kubelogin-values.yaml')
-    with open(idp_auth_values_yaml, 'w') as idp_auth_values_yaml_file:
-        idp_auth_values_yaml_file.write(values_yaml)
-
-    ctx.run("helm upgrade "
-            "--dependency-update "
-            "--install "
-            "--namespace idp-auth "
-            "--create-namespace "
-            "--values {} "
-            "idp-auth-kubelogin {}".format(
-                idp_auth_values_yaml,
-                app_directory), echo=True)
+def idp_auth_kubelogin_chart(ctx, cluster: Cluster, namespace: str, data: dict, install: bool):
+    app_name = 'idp-auth-kubelogin'
+    install_app(ctx, app_name, cluster, data=data, namespace=namespace, install=install)
 
 
 @task()
-def idp_auth(ctx, values_template_file=None):
+def idp_auth(ctx, install: bool = False):
     """
     Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
     """
-
-    data = get_secrets()
+    secrets = get_secrets()
     jinja = get_jinja()
     cluster = get_cluster_spec_from_context(ctx)
     constellation = get_constellation()
-    data['bouncer_fqdn'] = get_fqdn('bouncer', data, cluster)
-    data['oauth_fqdn'] = get_fqdn('oauth', data, cluster)
-    data['argo_fqdn'] = get_fqdn('argo', data, cluster)
-    data['gitea_fqdn'] = get_fqdn('gitea', data, cluster)
+    data = {
+        'values': {
+            'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster),
+            'oauth_fqdn': get_fqdn('oauth', secrets, cluster),
+            'argo_fqdn': get_fqdn('argo', secrets, cluster),
+            'gitea_fqdn': get_fqdn('gitea', secrets, cluster)
+        }
+    }
+    data['values'].update(secrets)
 
+    app_name = 'idp-auth'
     if cluster.name == constellation.bary.name:
-        idp_auth_chart(ctx, cluster, data)
+        idp_auth_chart(ctx, app_name, cluster, data, install)
 
-    idp_auth_kubelogin_chart(ctx, cluster, values_template_file, jinja, data)
+    idp_auth_kubelogin_chart(ctx, cluster, app_name, data, install)
 
     with open(os.path.join(
             'templates',
@@ -612,7 +582,7 @@ def idp_auth(ctx, values_template_file=None):
             'control-plane.jinja.yaml')) as talos_oidc_patch_file:
         talos_oidc_patch_tpl = jinja.from_string(talos_oidc_patch_file.read())
 
-    talos_oidc_patch = talos_oidc_patch_tpl.render(data)
+    talos_oidc_patch = talos_oidc_patch_tpl.render(data['values'])
     talos_oidc_patch_dir = os.path.join(get_secrets_dir(), 'patch', 'oidc')
 
     ctx.run("mkdir -p " + talos_oidc_patch_dir, echo=True)

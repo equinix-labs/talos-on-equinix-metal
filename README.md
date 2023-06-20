@@ -14,7 +14,7 @@ We will have encrypted traffic between the nodes, thanks to [KubeSpan](https://w
 as well as Pod2Pod communication across clusters thanks to [cilium Cluster Mesh](https://docs.cilium.io/en/stable/network/clustermesh/clustermesh/)
 
 ```mermaid
-graph LR    
+graph LR
     subgraph "ManagementCluster"
         subgraph "MCHardware"
             subgraph "MCmasters"
@@ -89,8 +89,6 @@ graph LR
 
     client2([client])-. MetalLB-managed <br> load balancer <br> anycast .->WCAIngress[Ingress];
     client2([client])-. MetalLB-managed <br> load balancer <br> anycast .->WCBIngress[Ingress];
-
-
 ```
 
 - [Quick setup](#quick-setup)

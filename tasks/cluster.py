@@ -340,8 +340,8 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     {"namespace": "argo-infra", "talosControlPlane": "saturn-control-plane", "error": "Secret \"saturn-talosconfig\" not found"}
     The following is a workaround:
     """
-    ctx.run('kubectl -n {} create secret generic {}-talosconfig --from-file="{}"'.format(
-        'cacppt-system',
+    ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
+        get_argo_infra_namespace_name(),
         cluster_name,
         talosconfig_path
     ), echo=True)
