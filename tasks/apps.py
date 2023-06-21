@@ -7,6 +7,7 @@ from gitea import *
 from invoke import task
 from tabulate import tabulate
 
+from tasks.Namespaces import Namespace
 from tasks.ReservedVIPs import ReservedVIPs
 from tasks.constellation_v01 import Cluster, VipRole
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
@@ -64,7 +65,7 @@ def render_values(ctx, cluster: Cluster, app_name, data,
         os.path.join(get_cluster_secrets_dir(cluster), 'argo', 'apps', app_dir_name + '.yaml'),
         {
             'name': app_name,
-            'namespace': 'argo-apps',
+            'namespace': Namespace.argocd.value,
             'destination': cluster.name,
             'target_namespace': namespace,
             'project': cluster.name,
@@ -196,6 +197,11 @@ def install_app(ctx, app_name: str, cluster: Cluster, data: dict, namespace: str
     helm_install(ctx, value_files, app_name, namespace=namespace, install=install)
 
 
+@task()
+def dummy_test(ctx):
+    print(Namespace.dns_tls)
+
+
 @task(deploy_dns_management_token)
 def dns_tls(ctx, install: bool = False):
     """
@@ -262,7 +268,8 @@ def argo(ctx, install: bool = False):
         'values': {
             'constellation_name': constellation.name,
             'bary_name': constellation.bary.name,
-            'clusters': clusters
+            'clusters': clusters,
+            'destination_namespace': Namespace.argocd
         },
         'deps': {
             'argo': {
@@ -277,13 +284,13 @@ def argo(ctx, install: bool = False):
     # ToDo:
     # on satellites:
     # kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.3/manifests/crds/application-crd.yaml
-    # kubectl create namespace argo-apps
+    # kubectl create namespace argocd
 
-    install_app(ctx, app_name, cluster_spec, data, 'argocd', install)
+    install_app(ctx, app_name, cluster_spec, data, Namespace.argocd.value, install)
 
 
 @task()
-def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
+def argo_add_cluster(ctx, name):
     """
     With ArgoCD present on the cluster add connections to other constellation clusters.
     """
@@ -291,7 +298,7 @@ def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
     secrets = get_secrets()
 
     argo_admin_pass = ctx.run('kubectl --namespace '
-                              + argocd_namespace
+                              + Namespace.argocd.value
                               + ' get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d',
                               hide='stdout', echo=True).stdout
 
@@ -376,9 +383,11 @@ def gitea_provision(ctx, ingress=False):
 
 
 @task()
-def dbs(ctx):
+def dbs(ctx, install: bool = False):
+    """
+    Install shared databases
+    """
     app_name = 'dbs'
-    app_directory = os.path.join('apps', app_name)
     cluster_spec = get_cluster_spec_from_context(ctx)
     secrets = get_secrets()
 
@@ -390,20 +399,9 @@ def dbs(ctx):
             'oauth_fqdn': get_fqdn('oauth', secrets, cluster_spec),
         }
     }
-    data.update(secrets['dbs'])
+    data['values'].update(secrets['dbs'])
 
-    values_file = render_values(ctx, cluster_spec, app_name, data)
-
-    namespace_file = os.path.join(app_directory, 'namespace.yaml')
-    if os.path.isfile(namespace_file):
-        ctx.run("kubectl apply -f " + namespace_file, echo=True)
-
-    ctx.run("helm upgrade --dependency-update --install --namespace dbs "
-            "--values={} "
-            "dbs {} ".format(
-                values_file,
-                app_directory
-            ), echo=True)
+    install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
 def _helm_install(ctx, values_file_path: str, app_name: str,

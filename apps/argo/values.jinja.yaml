@@ -8,7 +8,7 @@ app_of_apps:
     - metadata_name: {{ cluster.name }} # saturn
       bary_name: {{ bary_name }}
       destination_name: {{ cluster.name }}
-      destination_namespace: "*"
+      destination_namespace: {{ destination_namespace }}
       project: {{ constellation_name }}
       source_path: {{ cluster.name }}/argo
       source_repo_url: http://gitea-http.gitea:3000/gocy/saturn.git

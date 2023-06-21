@@ -4,10 +4,10 @@ kind: AppProject
 metadata:
   name: {{ .Values.app_of_apps.project.metadata_name }}
 spec:
-  app_of_appsResourceWhitelist:
+  description: {{ .Values.app_of_apps.project.metadata_name }} root project.
+  clusterResourceWhitelist:
     - group: "*"
       kind: "*"
-  description: This is just an root-project example.
   destinations:
     - name: {{ .Values.app_of_apps.project.destination_name }}
       namespace: "*"
