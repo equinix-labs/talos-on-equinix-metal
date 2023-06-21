@@ -171,7 +171,7 @@ def gcloud_login(ctx):
     ctx.run("gcloud auth login", echo=True)
 
 
-@task
+@task()
 def deploy_dns_management_token(ctx, provider='google'):
     """
     Creates the DNS token secret to be used by external-dns and cert-manager
@@ -246,7 +246,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
-@task
+@task()
 def argo(ctx, install: bool = False):
     """
     Install ArgoCD
@@ -282,7 +282,7 @@ def argo(ctx, install: bool = False):
     install_app(ctx, app_name, cluster_spec, data, 'argocd', install)
 
 
-@task
+@task()
 def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
     """
     With ArgoCD present on the cluster add connections to other constellation clusters.
@@ -302,7 +302,7 @@ def argo_add_cluster(ctx, name, argocd_namespace='argocd'):
     ctx.run('argocd --grpc-web cluster add admin@{} --name {}'.format(cluster_spec.name, cluster_spec.name), echo=True)
 
 
-@task
+@task()
 def gitea(ctx, install: bool = False):
     """
     Install gitea
@@ -375,7 +375,7 @@ def gitea_provision(ctx, ingress=False):
     )
 
 
-@task
+@task()
 def dbs(ctx):
     app_name = 'dbs'
     app_directory = os.path.join('apps', app_name)
@@ -446,7 +446,7 @@ def helm_install(ctx, values_files: dict, app_name,
         _helm_install(ctx, app, app_name, namespace, namespace_file_name)
 
 
-@task
+@task()
 def dashboards(ctx, install: bool = False):
     app_name = 'dashboards'
     cluster_spec = get_cluster_spec_from_context(ctx)
@@ -464,7 +464,7 @@ def dashboards(ctx, install: bool = False):
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
-@task
+@task()
 def harbor(ctx, install: bool = False):
     app_name = 'harbor'
     cluster_spec = get_cluster_spec_from_context(ctx)
@@ -480,7 +480,7 @@ def harbor(ctx, install: bool = False):
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
 
-@task
+@task()
 def observability(ctx, install: bool = False):
     app_name = 'observability'
     cluster_spec = get_cluster_spec_from_context(ctx)
