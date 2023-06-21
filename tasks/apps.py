@@ -494,7 +494,7 @@ def observability(ctx, install: bool = False):
             'cluster_name': cluster_spec.name + '.local'
         }
     }
-    data.update(secrets['grafana'])
+    data['values'].update(secrets['grafana'])
 
     install_app(ctx, app_name, cluster_spec, data, app_name, install)
 
