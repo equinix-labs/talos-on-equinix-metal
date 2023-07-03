@@ -1,7 +1,7 @@
 import ipcalc
 from pydantic_yaml import YamlModel
 
-from tasks.constellation_v01 import VipType
+from tasks.models.ConstellationSpecV01 import VipType
 
 
 class ReservedVIPs(YamlModel):

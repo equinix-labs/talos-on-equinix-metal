@@ -4,8 +4,8 @@ import os
 import yaml
 from invoke import task
 
-from tasks.ReservedVIPs import ReservedVIPs
-from tasks.constellation_v01 import Cluster, VipRole, VipType, Vip
+from tasks.models.ReservedVIPs import ReservedVIPs
+from tasks.models.ConstellationSpecV01 import Cluster, VipRole, VipType, Vip
 from tasks.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_constellation_clusters, get_constellation, get_ip_addresses_file_path
 

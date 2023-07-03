@@ -7,12 +7,13 @@ from gitea import *
 from invoke import task
 from tabulate import tabulate
 
-from tasks.Namespaces import Namespace
-from tasks.ReservedVIPs import ReservedVIPs
-from tasks.constellation_v01 import Cluster, VipRole
+
 from tasks.helpers import get_secrets_dir, get_cluster_spec_from_context, get_secret_envs, get_nodes_ips, get_secrets, \
     get_constellation, get_jinja, get_fqdn, get_cluster_secrets_dir, get_ccontext, get_ip_addresses_file_path, \
     get_constellation_clusters, get_cluster_spec
+from tasks.models.ConstellationSpecV01 import Cluster, VipRole
+from tasks.models.Namespaces import Namespace
+from tasks.models.ReservedVIPs import ReservedVIPs
 
 
 def render_values_file(ctx, source: str, target: str, data: dict):

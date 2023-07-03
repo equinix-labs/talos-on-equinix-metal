@@ -7,8 +7,8 @@ import git
 import jinja2
 import yaml
 
-from tasks.ReservedVIPs import ReservedVIPs
-from tasks.constellation_v01 import Constellation, Cluster, VipRole
+from tasks.models.ReservedVIPs import ReservedVIPs
+from tasks.models.ConstellationSpecV01 import Constellation, Cluster, VipRole
 
 CONSTELLATION_FILE_SUFFIX = '.constellation.yaml'
 
@@ -271,3 +271,13 @@ def get_fqdn(name, secrets: dict, cluster: Cluster):
         cluster.domain_prefix,
         secrets['env']['GOCY_DOMAIN']
     )
+
+
+def user_confirmed(msg=None) -> bool:
+    if msg is None:
+        msg = 'Continue ?'
+
+    msg += ' [y/N] '
+
+    user_input = input(msg)
+    return user_input.strip().lower() == 'y'

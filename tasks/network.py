@@ -5,13 +5,13 @@ import os
 import yaml
 from invoke import task
 
-from tasks.ReservedVIPs import ReservedVIPs
 from tasks.apps import render_values, helm_install
-from tasks.constellation_v01 import VipRole
 from tasks.gocy import context_set_bary
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
     get_cluster_spec_from_context, get_constellation_clusters, get_file_content_as_b64, get_constellation, \
     get_ip_addresses_file_path
+from tasks.models.ConstellationSpecV01 import VipRole
+from tasks.models.ReservedVIPs import ReservedVIPs
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump

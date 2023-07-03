@@ -1,6 +1,6 @@
 import os
 
-from tasks.constellation_v01 import Constellation, Cluster, VipType, Vip, VipRole, Node
+from tasks.models.ConstellationSpecV01 import Constellation, Cluster, VipType, Vip, VipRole, Node
 
 
 def get_demo_constellation_file_name():
@@ -85,5 +85,22 @@ def test_constellation_is_loadable():
     with open(get_demo_constellation_file_name()) as cfg_file:
         constellation = Constellation.parse_raw(cfg_file.read())
 
-        assert type(constellation).__module__ == 'tasks.constellation_v01'
+        assert type(constellation).__module__ == 'tasks.models.ConstellationSpecV01'
         assert type(constellation).__name__ == 'Constellation'
+
+
+def test_constellation_knows_contains():
+    callisto = Cluster(name='callisto')
+    assert callisto in get_demo_constellation()
+
+
+def test_constellation_can_iterate():
+    demo = get_demo_constellation()
+    assert 3 == len(list(demo))
+    for index, cluster in enumerate(get_demo_constellation()):
+        if index == 0:
+            assert cluster.name == 'jupiter'
+        if index == 1:
+            assert cluster.name == 'ganymede'
+        if index == 3:
+            assert cluster.name == 'callisto'

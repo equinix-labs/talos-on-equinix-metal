@@ -8,8 +8,8 @@ import jinja2
 import yaml
 from invoke import task
 
-from tasks.constellation_v01 import Cluster, Constellation
-from tasks.equinix_metal import generate_cpem_config, register_vips
+from tasks.models.ConstellationSpecV01 import Cluster, Constellation
+from tasks.metal import generate_cpem_config, register_vips
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \

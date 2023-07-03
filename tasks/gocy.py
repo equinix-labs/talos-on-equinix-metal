@@ -6,11 +6,11 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
-from tasks.constellation_v01 import Constellation
 from tasks.helpers import get_config_dir, get_secrets_file_name, get_constellation_spec_file_paths, \
     get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
-    get_secrets, get_cluster_secrets_dir
+    get_secrets
 from tasks.helpers import get_constellation_clusters, get_constellation
+from tasks.models.ConstellationSpecV01 import Constellation
 
 KIND_CLUSTER_NAME = 'kind-toem-capi-local'
 

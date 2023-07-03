@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from typing import Optional
+
 from pydantic_yaml import YamlStrEnum, YamlModel
 
 
@@ -13,19 +14,19 @@ class VipRole(YamlStrEnum):
     mesh = 'mesh'
 
 
-class Vip(BaseModel):
+class Vip(YamlModel):
     role: VipRole = None
     count: int = 0
     vipType: VipType = None
     reserved: list[dict] = list()
 
 
-class Node(BaseModel):
+class Node(YamlModel):
     count: int = 0
     plan: str = ''
 
 
-class Cluster(BaseModel):
+class Cluster(YamlModel):
     name: str = ''
     metro: str = ''
     cpem: str = ''
@@ -40,6 +41,8 @@ class Cluster(BaseModel):
 
 
 class Constellation(YamlModel):
+    index: Optional[int] = -1
+
     # https://docs.pydantic.dev/latest/
     name: str = 'name'
     capi: str = 'capi'
@@ -50,3 +53,30 @@ class Constellation(YamlModel):
     bary: Cluster = None
     satellites: list[Cluster] = []
 
+    def __contains__(self, cluster: Cluster):
+        if self.bary.name == cluster.name:
+            return True
+
+        for satellite in self.satellites:
+            if satellite.name == cluster.name:
+                return True
+
+        return False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Cluster:
+        if self.index < 0:
+            self.index += 1
+            return self.bary
+        else:
+            # ToDo: FIX THIS !!! !!!OMG!!!NO!!! Facepalm :(((
+            count = len(self.satellites)
+            if self.index >= count:
+                raise StopIteration
+
+            for index, item in enumerate(self.satellites):
+                if index == self.index:
+                    self.index += 1
+                    return item
