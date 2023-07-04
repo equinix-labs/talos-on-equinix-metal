@@ -35,10 +35,15 @@ class ConstellationCtrl:
         logging.fatal("Cluster: {} not specified in constellation {}".format(cluster_name, self.constellation.name))
 
 
-def get_constellation_spec_file_paths(constellation_dir, constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
+def get_constellation_spec_file_paths(
+        project_paths: ProjectPaths = None,
+        constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
+    if project_paths is None:
+        project_paths = ProjectPaths()
+
     available_constellation_config_file_names = glob(
         os.path.join(
-            constellation_dir,
+            project_paths.project_root(),
             constellation_wildcard)
     )
 

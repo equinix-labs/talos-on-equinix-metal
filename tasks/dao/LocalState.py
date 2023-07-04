@@ -1,11 +1,10 @@
 import os
 import shutil
-from typing import Any
 
-from pydantic import ConfigDict
+from pydantic import ValidationError
 from pydantic_yaml import YamlModel
 
-from tasks.controllers.ConstellationCtrl import ConstellationCtrl
+from tasks.controllers.ConstellationCtrl import ConstellationCtrl, get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import mkdirs, ProjectPaths, RepoPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
 from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME
@@ -76,6 +75,21 @@ class LocalState:
     def constellation(self, constellation: Constellation):
         self._local_state.constellation_context = constellation.name
         self._save()
+
+    def constellation_set(self, constellation_name: str):
+        written = True
+
+        for available_constellation in get_constellation_spec_file_paths():
+            try:
+                constellation = Constellation.parse_raw(available_constellation.read())
+                if constellation.name == constellation_name:
+                    self.constellation = constellation
+                    written = True
+            except ValidationError:
+                pass
+        if not written:
+            print("Context not set, make sure the NAME is correct,"
+                  " and matches spec file ~/[GOCY_DIR]/[NAME].constellation.yaml")
 
     @property
     def cluster(self) -> Cluster:

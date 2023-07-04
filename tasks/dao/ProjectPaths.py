@@ -46,8 +46,8 @@ class ProjectPaths:
                     root
                 )
 
-    def project_root(self):
-        return os.path.join(self._root)
+    def project_root(self, *paths):
+        return os.path.join(self._root, *paths)
 
     def secrets_file(self):
         return os.path.join(self.project_root(), 'secrets.yaml')

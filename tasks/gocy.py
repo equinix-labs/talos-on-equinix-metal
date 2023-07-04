@@ -6,9 +6,10 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
+from tasks.controllers.ConstellationCtrl import get_constellation_spec_file_paths
 from tasks.dao.LocalState import LocalState
-from tasks.helpers import get_secrets_file_name, get_constellation_spec_file_paths, \
-    get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
+from tasks.dao.ProjectPaths import ProjectPaths
+from tasks.helpers import get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
 from tasks.helpers import get_constellation_clusters, get_constellation
 from tasks.models.ConstellationSpecV01 import Constellation
@@ -20,22 +21,9 @@ def init(ctx):
     """
     Create gocy config dir, by default: ${HOME}/.gocy
     defined in .env -> GOCY_DEFAULT_ROOT
-    and populate with default data, remember to update those files with your spec
+    and populate with initial files; default constellation spec, secrets template, local state file.
     """
     LocalState()
-    # if os.path.isdir(get_config_dir()):
-    #     print("Config directory {} already exists, skipping.".format(get_config_dir()))
-    #     return
-    #
-    # ctx.run("mkdir {}".format(get_config_dir()), echo=True)
-    # ctx.run("cp {} {}".format(
-    #     os.path.join('templates', 'secrets.yaml'),
-    #     os.path.join(get_config_dir())
-    # ), echo=True)
-    # ctx.run("cp {} {}".format(
-    #     os.path.join('templates', 'jupiter.constellation.yaml'),
-    #     os.path.join(get_config_dir())
-    # ), echo=True)
 
 
 @task()
@@ -46,16 +34,14 @@ def secret_source(ctx):
         in current context
     """
     source = []
-    with open(get_secrets_file_name()) as secrets_file:
+    ppaths = ProjectPaths()
+
+    with open(ppaths.secrets_file()) as secrets_file:
         secrets = dict(yaml.safe_load(secrets_file))
         for name, value in secrets['env'].items():
             source.append('export {}={}'.format(name, value))
 
-    source.append('export {}={}'.format('TALOSCONFIG',
-                                        os.path.join(
-                                            get_secrets_dir(),
-                                            'talosconfig'
-                                        )))
+    source.append('export {}={}'.format('TALOSCONFIG', ppaths.project_root('talosconfig')))
 
     print("\n".join(source))
 
@@ -65,20 +51,7 @@ def constellation_set(ctx, ccontext: str):
     """
     Set Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
-    written = False
-    for available_constellation in get_constellation_spec_file_paths():
-        try:
-            constellation = Constellation.parse_raw(available_constellation.read())
-            if constellation.name == ccontext:
-                with open(get_constellation_context_file_name(), 'w') as cc_file:
-                    cc_file.write(ccontext)
-                    written = True
-        except ValidationError:
-            pass
-
-    if not written:
-        print("Context not set, make sure the name is correct,"
-              " and matches those defined in ~/[GOCY_DIR]/*.constellation.yaml")
+    LocalState().constellation_set(ccontext)
 
 
 @task()
@@ -87,7 +60,7 @@ def constellation_get(ctx):
     Get Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
     default - jupiter
     """
-    print(get_ccontext())
+    print(LocalState().constellation.name)
 
 
 @task()
@@ -95,14 +68,14 @@ def constellation_list(ctx):
     """
     List available constellation config specs from ~/[GOCY_DIR]/*.constellation.yaml
     """
-    headers = ['ccontext', 'name', 'file', 'version']
+    headers = ['current', 'name', 'file', 'version']
     table = []
-    ccontext = get_ccontext()
+    state = LocalState()
     for constellation_spec_file_path in get_constellation_spec_file_paths():
         row = []
         try:
             constellation = Constellation.parse_raw(constellation_spec_file_path.read())
-            if ccontext == constellation.name:
+            if state.constellation == constellation:
                 row.append("*")
             else:
                 row.append("")
