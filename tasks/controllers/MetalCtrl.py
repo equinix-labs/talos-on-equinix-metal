@@ -13,33 +13,33 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 class MetalCtrl:
     constellation: Constellation
-    cluster: Cluster
     ppaths: ProjectPaths
     echo: bool
 
-    def __init__(self, constellation: Constellation, cluster: Cluster, echo: bool):
+    def __init__(self, constellation: Constellation, echo: bool, project_paths: ProjectPaths = None):
         self.constellation = constellation
-        self.cluster = cluster
-        self.ppaths = ProjectPaths(self.constellation, self.cluster)
         self.echo = echo
+
+        if project_paths is None:
+            self.ppaths = ProjectPaths(self.constellation.name, self.constellation.bary.name)
+        else:
+            self.ppaths = project_paths
 
     def register_vips(self, ctx):
         """
         Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
         """
-        ppaths = ProjectPaths(self.constellation, self.cluster)
         
-        project_vips_file_path = ppaths.project_vips_file()
+        project_vips_file_path = self.ppaths.project_vips_file()
         ctx.run("metal ip get -o yaml > {}".format(project_vips_file_path), echo=self.echo)
 
         with open(project_vips_file_path) as project_vips_file:
             project_vips = list(yaml.safe_load(project_vips_file))
 
         global_vip = None
-
-        for cluster_spec in self.constellation:
-            for vip_spec in cluster_spec.vips:
-                vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
+        for cluster in self.constellation:
+            for vip_spec in cluster.vips:
+                vip_tags = get_vip_tags(vip_spec.role, cluster)
                 for project_vip in project_vips:
                     if 'tags' in project_vip:
                         if project_vip['type'] == vip_spec.vipType and vip_spec.vipType == VipType.global_ipv4:
@@ -53,16 +53,16 @@ class MetalCtrl:
 
                         if project_vip['type'] == vip_spec.vipType and vip_spec.vipType == VipType.public_ipv4:
                             if project_vip.get('tags') == vip_tags \
-                                    and 'metro' in project_vip and project_vip['metro']['code'] == cluster_spec.metro:
+                                    and 'metro' in project_vip and project_vip['metro']['code'] == cluster.metro:
                                 vip_spec.reserved.append(project_vip)
 
-            for vip_spec in cluster_spec.vips:
-                vip_tags = get_vip_tags(vip_spec.role, cluster_spec)
+            for vip_spec in cluster.vips:
+                vip_tags = get_vip_tags(vip_spec.role, cluster)
                 if len(vip_spec.reserved) == 0:
                     # Register missing VIPs
                     if vip_spec.vipType == VipType.public_ipv4:
                         vip_spec.reserved.extend(
-                            self.register_public_vip(ctx, vip_spec, vip_tags)
+                            register_public_vip(ctx, cluster, vip_spec, vip_tags)
                         )
                     else:
                         if global_vip is None:
@@ -70,16 +70,16 @@ class MetalCtrl:
 
                         vip_spec.reserved.extend(global_vip)
 
-            self.render_vip_addresses_file()
+            self.render_vip_addresses_file(cluster)
 
-    def render_vip_addresses_file(self):
+    def render_vip_addresses_file(self, cluster: Cluster):
         data = {
             VipRole.cp: ReservedVIPs(),
             VipRole.mesh: ReservedVIPs(),
             VipRole.ingress: ReservedVIPs()
         }
 
-        for vip in self.cluster.vips:
+        for vip in cluster.vips:
             data[vip.role].extend(vip.reserved)
 
             with open(self.ppaths.vips_file_by_role(vip.role), 'w') as ip_addresses_file:
@@ -97,65 +97,23 @@ class MetalCtrl:
         if type(cluster_name_from_tag) is not str:
             print("Tags: {} are not what was expected".format(tags))
 
-        for cluster in self.constellation:
-            if cluster.name == cluster_name_from_tag:
-                return True
+        if Cluster(name=cluster_name_from_tag) in self.constellation:
+            return True
 
         return False
 
-    def register_public_vip(self, ctx, vip: Vip, tags: list):
-        result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
-            VipType.public_ipv4,
-            vip.count,
-            self.cluster.metro,
-            ",".join(tags)
-        ), hide='stdout', echo=True).stdout
-        if vip.count > 1:
-            return [dict(yaml.safe_load(result))]
-        else:
-            return list(yaml.safe_load_all(result))
 
-
-# @task()
-# def generate_cpem_config(ctx, cpem_config_file_name="cpem/cpem.yaml"):
-#     """
-#     Produces [secrets_dir]/cpem/cpem.yaml - 'Cloud Provider for Equinix Metal' config spec
-#     """
-#     cpem_config = get_cpem_config()
-#     ctx.run("mkdir -p {}".format(
-#         os.path.join(
-#             get_secrets_dir(),
-#             'cpem'
-#         )
-#     ), echo=True)
-#
-#     command = "kubectl create -o yaml \
-#     --dry-run='client' secret generic -n kube-system metal-cloud-config \
-#     --from-literal='cloud-sa.json={}'"
-#
-#     print(command.format('[REDACTED]'))
-#     k8s_secret = ctx.run(command.format(
-#         json.dumps(cpem_config)
-#     ), hide='stdout', echo=False)
-#
-#     yaml_k8s_secret = yaml.safe_load(k8s_secret.stdout)
-#     del yaml_k8s_secret['metadata']['creationTimestamp']
-#
-#     with open(os.path.join(get_secrets_dir(), cpem_config_file_name), 'w') as cpem_config_file:
-#         yaml.dump(yaml_k8s_secret, cpem_config_file)
-
-
-# @task()
-# def create_config_dirs(ctx):
-#     """
-#     Produces [secrets_dir]/[cluster_name...] config directories based of spec defined in invoke.yaml
-#     """
-#     cluster_spec = get_constellation_clusters()
-#     for cluster in cluster_spec:
-#         ctx.run("mkdir -p {}".format(os.path.join(
-#             get_secrets_dir(),
-#             cluster.name
-#         )), echo=True)
+def register_public_vip(ctx, cluster: Cluster, vip: Vip, tags: list):
+    result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
+        VipType.public_ipv4,
+        vip.count,
+        cluster.metro,
+        ",".join(tags)
+    ), hide='stdout', echo=True).stdout
+    if vip.count > 1:
+        return [dict(yaml.safe_load(result))]
+    else:
+        return list(yaml.safe_load_all(result))
 
 
 def register_global_vip(ctx, vip: Vip, tags: list):

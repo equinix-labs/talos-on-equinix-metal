@@ -44,7 +44,6 @@ class LocalState:
 
     def _handle_initial_run(self):
         repo_paths = RepoPaths()
-
         mkdirs(self._project_paths.project_root())
         shutil.copy(
             repo_paths.templates_dir('secrets.yaml'),
@@ -60,6 +59,7 @@ class LocalState:
             self._local_state = LocalStateModel.parse_raw(local_state_file.read())
 
     def _save(self):
+        mkdirs(self._project_paths.constellation_dir())
         with open(self._project_paths.state_file(), 'w') as local_state_file:
             local_state_file.write(self._local_state.yaml())
 
@@ -77,13 +77,13 @@ class LocalState:
         self._save()
 
     def constellation_set(self, constellation_name: str):
-        written = True
-
-        for available_constellation in get_constellation_spec_file_paths():
+        written = False
+        for constellation_spec_file in get_constellation_spec_file_paths():
             try:
-                constellation = Constellation.parse_raw(available_constellation.read())
+                constellation = Constellation.parse_raw(constellation_spec_file.read())
                 if constellation.name == constellation_name:
                     self.constellation = constellation
+                    mkdirs(ProjectPaths(constellation_name=constellation_name).constellation_dir())
                     written = True
             except ValidationError:
                 pass

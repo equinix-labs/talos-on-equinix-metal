@@ -104,3 +104,17 @@ def test_constellation_can_iterate():
             assert cluster.name == 'ganymede'
         if index == 3:
             assert cluster.name == 'callisto'
+
+
+def test_constellation_can_read_and_iterate():
+    with open(get_demo_constellation_file_name()) as cfg_file:
+        demo = Constellation.parse_raw(cfg_file.read())
+
+    assert 3 == len(list(demo))
+    for index, cluster in enumerate(get_demo_constellation()):
+        if index == 0:
+            assert cluster.name == 'jupiter'
+        if index == 1:
+            assert cluster.name == 'ganymede'
+        if index == 3:
+            assert cluster.name == 'callisto'

@@ -92,13 +92,16 @@ class ProjectPaths:
         return os.path.join(self.cluster_dir(), "vips-{}.yaml".format(address_role))
 
     def project_vips_file(self):
-        return os.path.join(self.cluster_dir(), 'vips-project.yaml')
+        return os.path.join(mkdirs(self.cluster_dir()), 'vips-project.yaml')
 
     def capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), 'cluster-manifest.yaml')
 
 
-def mkdirs(project_path: str):
-    if not os.path.isdir(project_path):
-        os.makedirs(project_path)
-        logging.info("Created directory: " + project_path)
+def mkdirs(project_dir: str) -> str:
+    if not os.path.isdir(project_dir):
+        os.makedirs(project_dir, exist_ok=True)
+        logging.info("Created directory: " + project_dir)
+
+    return project_dir
+
