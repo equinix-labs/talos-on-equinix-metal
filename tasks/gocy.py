@@ -6,13 +6,13 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
-from tasks.helpers import get_config_dir, get_secrets_file_name, get_constellation_spec_file_paths, \
+from tasks.dao.LocalState import LocalState
+from tasks.helpers import get_secrets_file_name, get_constellation_spec_file_paths, \
     get_constellation_context_file_name, get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
 from tasks.helpers import get_constellation_clusters, get_constellation
 from tasks.models.ConstellationSpecV01 import Constellation
-
-KIND_CLUSTER_NAME = 'kind-toem-capi-local'
+from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
 @task()
@@ -22,19 +22,20 @@ def init(ctx):
     defined in .env -> GOCY_DEFAULT_ROOT
     and populate with default data, remember to update those files with your spec
     """
-    if os.path.isdir(get_config_dir()):
-        print("Config directory {} already exists, skipping.".format(get_config_dir()))
-        return
-
-    ctx.run("mkdir {}".format(get_config_dir()), echo=True)
-    ctx.run("cp {} {}".format(
-        os.path.join('templates', 'secrets.yaml'),
-        os.path.join(get_config_dir())
-    ), echo=True)
-    ctx.run("cp {} {}".format(
-        os.path.join('templates', 'jupiter.constellation.yaml'),
-        os.path.join(get_config_dir())
-    ), echo=True)
+    LocalState()
+    # if os.path.isdir(get_config_dir()):
+    #     print("Config directory {} already exists, skipping.".format(get_config_dir()))
+    #     return
+    #
+    # ctx.run("mkdir {}".format(get_config_dir()), echo=True)
+    # ctx.run("cp {} {}".format(
+    #     os.path.join('templates', 'secrets.yaml'),
+    #     os.path.join(get_config_dir())
+    # ), echo=True)
+    # ctx.run("cp {} {}".format(
+    #     os.path.join('templates', 'jupiter.constellation.yaml'),
+    #     os.path.join(get_config_dir())
+    # ), echo=True)
 
 
 @task()

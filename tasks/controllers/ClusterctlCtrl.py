@@ -1,4 +1,4 @@
-from tasks.Controllers.LocalStateCtrl import LocalStateCtrl
+from tasks.dao.LocalStateCtrl import LocalStateCtrl
 from tasks.helpers import user_confirmed
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
 

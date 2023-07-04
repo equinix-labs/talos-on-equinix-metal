@@ -2,13 +2,12 @@ import os
 
 import yaml
 
-from tasks.Controllers.EquinixCtrl import EquinixCtrl
-from tasks.Controllers.LocalStateCtrl import LocalStateCtrl
-from tasks.Controllers.ProjectPathCtrl import ProjectPathCtrl
+from tasks.controllers.MetalCtrl import MetalCtrl
+from tasks.dao.LocalState import LocalState
+from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
 from tasks.models.Defaults import KIND_CLUSTER_NAME
-from tasks.models.DirTree import DirTree
 from tasks.models.Namespaces import Namespace
 
 _CLUSTER_MANIFEST_FILE_NAME = "cluster-manifest.yaml"
@@ -18,13 +17,13 @@ _CLUSTER_MANIFEST_STATIC_FILE_NAME = "cluster-manifest.static-config.yaml"
 class ClusterCtrl:
     constellation: Constellation
     cluster: Cluster
-    ppaths: ProjectPathCtrl
+    ppaths: ProjectPaths
     echo: bool
 
     def __init__(self, constellation: Constellation, cluster: Cluster, echo: bool):
         self.constellation = constellation
         self.cluster = cluster
-        self.ppaths = ProjectPathCtrl(self.constellation, self.cluster)
+        self.ppaths = ProjectPaths()
         self.echo = echo
 
     def patch_cluster_spec_network(self, cluster_manifest: list):
@@ -58,9 +57,9 @@ class ClusterCtrl:
         """
         Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
         """
-        equinix = EquinixCtrl(self.constellation, self.cluster, self.echo)
+        equinix = MetalCtrl(self.constellation, self.cluster, self.echo)
 
-        with ctx.cd(self.ppaths.get_cluster_path()):
+        with ctx.cd(self.ppaths.cluster_dir()):
             ctx.run(
                 "talosctl gen config {} https://{}:6443 | true".format(
                     self.cluster.name,
@@ -70,9 +69,11 @@ class ClusterCtrl:
             )
 
     def build_capi_manifest(self, secrets, cluster_jinja_template, _md_yaml):
+        metal_ctrl = MetalCtrl(self.constellation, self.cluster, True)
+
         data = {
             'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
-            'TOEM_CP_ENDPOINT': get_cp_vip_address(self.cluster),
+            'TOEM_CP_ENDPOINT': metal_ctrl.get_vips(VipRole.cp).public_ipv4[0],
             'SERVICE_DOMAIN': "{}.local".format(self.cluster.name),
             'CLUSTER_NAME': self.cluster.name,
             'METRO': self.cluster.metro,
@@ -102,11 +103,11 @@ class ClusterCtrl:
 
         self.patch_cluster_spec_network(cluster_manifest)
 
-        with open(self.ppaths.get_capi_manifest_file_path(), 'w') as cluster_template_file:
+        with open(self.ppaths.capi_manifest_file(), 'w') as cluster_template_file:
             yaml.dump_all(cluster_manifest, cluster_template_file)
 
     def talos_apply_config_patch(self, ctx):
-        cluster_secrets_dir = self.ppaths.get_cluster_path()
+        cluster_secrets_dir = self.ppaths.cluster_dir()
         cluster_manifest_file_name = os.path.join(cluster_secrets_dir, _CLUSTER_MANIFEST_FILE_NAME)
 
         # ToDo: Fix Magic strings in path
@@ -189,20 +190,20 @@ class ClusterCtrl:
         this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
         This is why we go with some custom python + jinja template solution.
         """
-        repo_dir_tree = DirTree(repo=True)
 
-        with open(repo_dir_tree.templates(path=['cluster', cluster_file_name])) as cluster_file:
+        repo_dir = RepoPaths()
+
+        with open(repo_dir.templates_dir('cluster', 'cluster_file_name')) as cluster_file:
             control_plane_template_yaml = cluster_file.read()
 
-        with open(repo_dir_tree.templates(path=['cluster', md_file_name])) as md_file:
+        with open(repo_dir.templates_dir('cluster', md_file_name)) as md_file:
             machine_template_yaml = md_file.read()
 
         secrets = get_secret_envs()
 
         self.build_capi_manifest(
             secrets,
-            control_plane_template_yaml, machine_template_yaml,
-            DirTree(constellation=constellation, cluster=cluster)
+            control_plane_template_yaml, machine_template_yaml
         )
 
     def build_manifest(self, ctx, dev_mode: bool):
@@ -218,7 +219,7 @@ def set_context(ctx, cluster: Cluster, echo=True):
         ctx.run("talosctl config context " + cluster.name, echo=echo)
 
 
-def context_set_bary(ctx, local_state: LocalStateCtrl):
+def context_set_bary(ctx, local_state: LocalState):
     """
     Switch k8s context to management(bary) cluster
     """

@@ -7,10 +7,10 @@ import git
 import jinja2
 import yaml
 
+from tasks.models.ClusterNodes import ClusterNodes
+from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX
 from tasks.models.ReservedVIPs import ReservedVIPs
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster, VipRole
-
-CONSTELLATION_FILE_SUFFIX = '.constellation.yaml'
 
 
 def str_presenter(dumper, data):
@@ -22,12 +22,6 @@ def str_presenter(dumper, data):
     if len(lines) > 1:  # check for multiline string
         return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
-
-
-def get_cfg(value, default):
-    if value is None:
-        return default
-    return value
 
 
 def get_cluster_spec(ctx, name: str) -> Cluster:
@@ -195,21 +189,6 @@ def get_constellation_clusters(constellation: Constellation = None) -> list[Clus
     clusters.append(constellation.bary)
     clusters.extend(constellation.satellites)
     return clusters
-
-
-class ClusterNodes:
-
-    control_plane: list
-    machines: list
-
-    def __init__(self):
-        self.control_plane = list()
-        self.machines = list()
-
-    def all(self) -> list:
-        all_nodes = self.control_plane.copy()
-        all_nodes.extend(self.machines)
-        return all_nodes
 
 
 def get_nodes_ips(ctx, talosconfig_file_name='talosconfig') -> ClusterNodes:

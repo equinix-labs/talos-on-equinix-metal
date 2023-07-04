@@ -2,19 +2,18 @@ import glob
 import os
 import re
 import shutil
-import time
 
 import jinja2
 import yaml
 from invoke import task
 
-from tasks.models.ConstellationSpecV01 import Cluster, Constellation
-from tasks.metal import generate_cpem_config, register_vips
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
     get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
-    constellation_create_dirs, get_argo_infra_namespace_name
+    constellation_create_dirs, get_argo_infra_namespace_name, user_confirmed
+from tasks.metal import generate_cpem_config, register_vips
+from tasks.models.ConstellationSpecV01 import Cluster, Constellation
 from tasks.network import build_network_service_dependencies_manifest
 
 yaml.add_representer(str, str_presenter)
@@ -381,11 +380,6 @@ def kind_clusterctl_init(ctx, name='toem-capi-local'):
     Produces local management(kind) k8s cluster and inits it with ClusterAPI
     """
     ctx.run("kind create cluster --name {}".format(name), echo=True)
-
-
-def user_confirmed():
-    user_input = input('Continue y/N ?')
-    return user_input.strip().lower() == 'y'
 
 
 def clean_constellation_dir():

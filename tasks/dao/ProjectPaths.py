@@ -1,0 +1,104 @@
+import logging
+import os.path
+from typing import Any
+
+from tasks.models.ConstellationSpecV01 import VipRole
+from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX
+
+
+def get_repo_dir() -> str:
+    return os.getcwd()
+
+
+class RepoPaths:
+
+    _root: str
+
+    def __init__(self):
+        self._root = os.getcwd()
+
+    def templates_dir(self, *path):
+        return os.path.join(self._root, 'templates', *path)
+
+    def apps_dir(self, *path):
+        return os.path.join(self._root, 'apps', *path)
+
+
+class ProjectPaths:
+    _constellation_name: str
+    _cluster_name: str
+    _root: str
+
+    def __init__(self, constellation_name: str = None, cluster_name: str = None, root=None):
+        self._constellation_name = constellation_name
+        self._cluster_name = cluster_name
+        if root is None:
+            self._root = os.environ.get('GOCY_ROOT', os.path.join(
+                os.path.expanduser('~'),
+                '.gocy'
+            ))
+        else:
+            if os.path.isabs(root):
+                self._root = root
+            else:
+                self._root = os.path.join(
+                    os.path.expanduser('~'),
+                    root
+                )
+
+    def project_root(self):
+        return os.path.join(self._root)
+
+    def secrets_file(self):
+        return os.path.join(self.project_root(), 'secrets.yaml')
+
+    def state_file(self):
+        return os.path.join(self.project_root(), 'state.yaml')
+
+    def constellation_dir(self):
+        return os.path.join(self.project_root(), self._constellation_name)
+
+    def constellation_file(self, name: str):
+        return os.path.join(self.project_root(), "{}{}".format(name, CONSTELLATION_FILE_SUFFIX))
+
+    def cluster_dir(self):
+        return os.path.join(self.constellation_dir(), self._cluster_name)
+
+    def k8s_manifests_dir(self):
+        return os.path.join(self.cluster_dir(), "k8s_manifests")
+
+    def patches_dir(self, *paths):
+        return os.path.join(self.cluster_dir(), "patch", *paths)
+
+    def templates_dir(self):
+        return os.path.join(self.cluster_dir(), "templates")
+
+    def apps_dir(self, *paths):
+        return os.path.join(self.cluster_dir(), "apps", *paths)
+
+    def talos_dir(self):
+        return os.path.join(self.cluster_dir(), "talos")
+
+    def access_dir(self):
+        return os.path.join(self.cluster_dir(), "access")
+
+    def argo_apps_dir(self):
+        return os.path.join(self.cluster_dir(), "argo", "apps")
+
+    def argo_infra_dir(self):
+        return os.path.join(self.cluster_dir(), "argo", "infra")
+
+    def vips_file_by_role(self, address_role: VipRole):
+        return os.path.join(self.cluster_dir(), "vips-{}.yaml".format(address_role))
+
+    def project_vips_file(self):
+        return os.path.join(self.cluster_dir(), 'vips-project.yaml')
+
+    def capi_manifest_file(self):
+        return os.path.join(self.cluster_dir(), 'cluster-manifest.yaml')
+
+
+def mkdirs(project_path: str):
+    if not os.path.isdir(project_path):
+        os.makedirs(project_path)
+        logging.info("Created directory: " + project_path)
