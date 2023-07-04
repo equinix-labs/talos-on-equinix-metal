@@ -22,11 +22,11 @@ class LocalState:
 
     def __init__(self, project_paths: ProjectPaths = None):
         if project_paths is None:
-            project_paths = ProjectPaths()
+            self._project_paths = ProjectPaths()
         else:
             self._project_paths = project_paths
 
-        if os.path.isfile(project_paths.state_file()):
+        if os.path.isfile(self._project_paths.state_file()):
             self._read()
             self._project_paths = ProjectPaths(
                 self._local_state.constellation_context,
