@@ -5,7 +5,7 @@ import yaml
 from invoke import task
 
 from tasks.controllers.MetalCtrl import MetalCtrl
-from tasks.dao.LocalState import LocalState
+from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import str_presenter, get_secrets_dir, \
     get_cpem_config, get_constellation
 
@@ -155,12 +155,12 @@ def generate_cpem_config(ctx, cpem_config_file_name="cpem/cpem.yaml"):
 
 # @task(create_config_dirs)
 @task()
-def register_vips(ctx, project_vips_file_name='project-ips.yaml'):
+def register_vips(ctx, echo: bool = False):
     """
     Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
     """
-    state = LocalState()
-    metal_ctrl = MetalCtrl(state.constellation, True)
+    state = SystemContext()
+    metal_ctrl = MetalCtrl(state, echo)
     metal_ctrl.register_vips(ctx)
 
 

@@ -22,7 +22,7 @@ class LocalStateModel(YamlModel):
     cluster_context: str = KIND_CLUSTER_NAME
 
 
-class LocalState:
+class SystemContext:
     _project_paths: ProjectPaths
     _local_state: LocalStateModel
 
@@ -71,6 +71,10 @@ class LocalState:
             local_state_file.write(self._local_state.yaml())
 
     @property
+    def project_paths(self) -> ProjectPaths:
+        return self._project_paths
+
+    @property
     def constellation(self) -> Constellation:
         const_ctrl = ConstellationCtrl(
             self._project_paths,
@@ -81,6 +85,7 @@ class LocalState:
     @constellation.setter
     def constellation(self, constellation: Constellation):
         self._local_state.constellation_context = constellation.name
+        self._local_state.cluster_context = constellation.bary.name
         self._save()
 
     def constellation_set(self, constellation_name: str):

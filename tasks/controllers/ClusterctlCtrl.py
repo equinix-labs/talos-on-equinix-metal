@@ -1,13 +1,13 @@
-from tasks.dao.LocalState import LocalState
+from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import user_confirmed
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
 class ClusterctlCtrl:
 
-    _state: LocalState
+    _state: SystemContext
 
-    def __init__(self, state: LocalState, echo: bool = False):
+    def __init__(self, state: SystemContext, echo: bool = False):
         self._state = state
         self._echo = echo
 

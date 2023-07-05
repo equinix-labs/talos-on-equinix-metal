@@ -2,6 +2,7 @@ import json
 
 import yaml
 
+from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.helpers import str_presenter
 from tasks.models.ConstellationSpecV01 import Cluster, VipRole, VipType, Vip, Constellation
@@ -16,14 +17,10 @@ class MetalCtrl:
     ppaths: ProjectPaths
     echo: bool
 
-    def __init__(self, constellation: Constellation, echo: bool, project_paths: ProjectPaths = None):
-        self.constellation = constellation
+    def __init__(self, state: SystemContext, echo: bool):
+        self.constellation = state.constellation
         self.echo = echo
-
-        if project_paths is None:
-            self.ppaths = ProjectPaths(self.constellation.name, self.constellation.bary.name)
-        else:
-            self.ppaths = project_paths
+        self.ppaths = state.project_paths
 
     def register_vips(self, ctx):
         """

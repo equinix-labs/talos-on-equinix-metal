@@ -1,6 +1,5 @@
 import logging
 import os.path
-from typing import Any
 
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX

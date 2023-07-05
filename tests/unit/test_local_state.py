@@ -2,7 +2,7 @@ import os.path
 
 import pytest
 
-from tasks.dao.LocalState import LocalState
+from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, CLUSTER_NAME
 
@@ -17,7 +17,7 @@ def test_project_dir_created_ini_files_resent(monkeypatch, tmp_abs_test_root):
 
     monkeypatch.setenv('GOCY_ROOT', project_dir)
 
-    LocalState(ProjectPaths(root=project_dir))
+    SystemContext(ProjectPaths(root=project_dir))
 
     assert os.path.isdir(project_dir)
 
@@ -30,7 +30,7 @@ def test_default_constellation_is_parsable(monkeypatch, tmp_abs_test_root):
 
     monkeypatch.setenv('GOCY_ROOT', project_dir)
 
-    local_state = LocalState(ProjectPaths(root=project_dir))
+    local_state = SystemContext(ProjectPaths(root=project_dir))
 
     assert local_state.constellation.name == CONSTELLATION_NAME
     assert local_state.bary_cluster.name == KIND_CLUSTER_NAME

@@ -6,15 +6,16 @@ import shutil
 import yaml
 from invoke import task
 
-from tasks.controllers.ConstellationCtrl import ConstellationCtrl
-from tasks.dao.LocalState import LocalState
+from tasks.controllers.ClusterCtrl import ClusterCtrl
+from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
 from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
+from tasks.dao.SystemContext import SystemContext
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_cluster_spec_from_context, get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
+    get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
     constellation_create_dirs, get_argo_infra_namespace_name, user_confirmed
-from tasks.metal import generate_cpem_config, register_vips
+from tasks.metal import register_vips
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation
 from tasks.network import build_network_service_dependencies_manifest
 
@@ -91,7 +92,8 @@ def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: li
     return cluster_template
 
 
-@task(register_vips, context_set_kind)
+# @task(register_vips, context_set_kind)
+@task()
 def render_capi_cluster_manifest(ctx):
     """
     Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
@@ -350,39 +352,6 @@ def get_cluster_secrets(ctx, talosconfig='talosconfig', cluster_name=None):
     ctx.run("kconf use admin@" + cluster_name, echo=True, pty=True)
 
 
-@task()
-def clusterctl_init(ctx):
-    """
-    Runs clusterctl init with our favourite provider set.
-    """
-    constellation = get_constellation()
-    cluster_spec = get_cluster_spec_from_context(ctx)
-    if cluster_spec is not None and cluster_spec.name == constellation.bary.name:
-        user_input = input('Is cert-manager present ? '
-                           '- did you run "invoke apps.install-dns-and-tls-dependencies" [y/N] ?')
-        if user_input.strip().lower() != 'y':
-            return
-
-    ctx.run("clusterctl init "
-            "--core=cluster-api:{} "
-            "--bootstrap=talos:{} "
-            "--control-plane=talos:{} "
-            "--infrastructure=packet:{}".format(
-                    constellation.capi,
-                    constellation.cabpt,
-                    constellation.cacppt,
-                    constellation.capp
-                ), echo=True)
-
-
-@task(post=[clusterctl_init])
-def kind_clusterctl_init(ctx, name='toem-capi-local'):
-    """
-    Produces local management(kind) k8s cluster and inits it with ClusterAPI
-    """
-    ctx.run("kind create cluster --name {}".format(name), echo=True)
-
-
 def clean_constellation_dir():
     files_to_remove = glob.glob(
         os.path.join(
@@ -449,28 +418,24 @@ def clean(ctx):
     clean_k8s_contexts(ctx, constellation)
 
 
-# ToDo: Fix or remove ?
-# @task(clean, use_kind_cluster_context, generate_cpem_config, register_vips, patch_template_with_cilium_manifest,
-#       clusterctl_generate_cluster, talos_apply_config_patches)
-# def build_manifests_inline_cni(ctx):
-#     """
-#     Produces cluster manifests with inline CNI - cilium
-#     """
-
-
-@task(clean, context_set_kind, generate_cpem_config, register_vips,
-      render_capi_cluster_manifest, talos_apply_config_patches)
-def build_manifests(ctx):
+# @task(clean, context_set_kind, generate_cpem_config, register_vips,
+#       render_capi_cluster_manifest, talos_apply_config_patches)
+@task()
+def build_manifests(ctx, echo: bool = False, dev_mode: bool = False):
     """
     Produces cluster manifests
     """
+    state = SystemContext()
+    cluster_ctrl = ClusterCtrl(state, echo)
+    cluster_ctrl.build_manifest(ctx, dev_mode)
+
 
 
 def create(ctx, cluster_name: str = None):
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
     """
-    state = LocalState()
+    state = SystemContext()
     project_paths = ProjectPaths(state.constellation.name)
 
     ctx.run("kubectl apply -f {}".format(
@@ -482,9 +447,13 @@ def clusterctl_move(ctx):
     """
     Move CAPI objects from local kind cluster to the management(bary) cluster
     """
-    context_set_bary(ctx)
-    clusterctl_init(ctx)
-    context_set_kind(ctx)
+    state = SystemContext()
+    context_set_bary(ctx)  # ToDo remove
+
+    clusterctl = ClusterctlCtrl(state)
+    clusterctl.init(ctx)
+
+    context_set_kind(ctx)  # ToDo remove
 
     constellation = get_constellation()
     bary_kubeconfig = os.path.join(

@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
 from tasks.controllers.ConstellationCtrl import get_constellation_spec_file_paths
-from tasks.dao.LocalState import LocalState
+from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.helpers import get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
@@ -24,7 +24,7 @@ def init(ctx, echo: bool = False):
     defined in .env -> GOCY_DEFAULT_ROOT
     and populate with initial files; default constellation spec, secrets template, local state file.
     """
-    state = LocalState()
+    state = SystemContext()
     clusterctl = ClusterctlCtrl(state, echo)
     clusterctl.kind_create(ctx)
 
@@ -54,7 +54,7 @@ def constellation_set(ctx, ccontext: str):
     """
     Set Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
-    LocalState().constellation_set(ccontext)
+    SystemContext().constellation_set(ccontext)
 
 
 @task()
@@ -63,7 +63,7 @@ def constellation_get(ctx):
     Get Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
     default - jupiter
     """
-    print(LocalState().constellation.name)
+    print(SystemContext().constellation.name)
 
 
 @task()
@@ -73,7 +73,7 @@ def constellation_list(ctx):
     """
     headers = ['current', 'name', 'file', 'version']
     table = []
-    state = LocalState()
+    state = SystemContext()
     for constellation_spec_file_path in get_constellation_spec_file_paths():
         row = []
         try:
