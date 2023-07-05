@@ -72,6 +72,9 @@ class ProjectPaths:
     def cluster_capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), "capi-manifest.yaml")
 
+    def cluster_capi_static_manifest_file(self):
+        return os.path.join(mkdirs(self.argo_infra_dir()), "capi-manifest.static.yaml")
+
     def k8s_manifests_dir(self):
         return os.path.join(self.cluster_dir(), "k8s_manifests")
 
@@ -85,7 +88,7 @@ class ProjectPaths:
         return os.path.join(self.cluster_dir(), "apps", *paths)
 
     def talos_dir(self):
-        return os.path.join(self.cluster_dir(), "talos")
+        return mkdirs(os.path.join(self.cluster_dir(), "talos"))
 
     def access_dir(self):
         return os.path.join(self.cluster_dir(), "access")
@@ -96,17 +99,11 @@ class ProjectPaths:
     def argo_infra_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "infra")
 
-    def cluster_capi_static_manifest_file(self):
-        return os.path.join(mkdirs(self.argo_infra_dir()), "capi-manifest.static.yaml")
-
     def vips_file_by_role(self, address_role: VipRole):
-        return os.path.join(self.cluster_dir(), "vips-{}.yaml".format(address_role))
+        return os.path.join(mkdirs(self.cluster_dir()), "vips-{}.yaml".format(address_role))
 
     def project_vips_file(self):
-        return os.path.join(mkdirs(self.cluster_dir()), 'vips-project.yaml')
-
-    def capi_manifest_file(self):
-        return os.path.join(self.cluster_dir(), 'cluster-manifest.yaml')
+        return os.path.join(mkdirs(self.constellation_dir()), 'vips-project.yaml')
 
 
 def mkdirs(project_dir: str) -> str:

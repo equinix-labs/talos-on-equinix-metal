@@ -61,7 +61,7 @@ class ClusterCtrl:
         """
         equinix = MetalCtrl(self.state, self.echo)
 
-        with ctx.cd(self.paths.cluster_dir()):
+        with ctx.cd(self.paths.talos_dir()):
             ctx.run(
                 "talosctl gen config {} https://{}:6443 | true".format(
                     self.cluster.name,
@@ -105,11 +105,11 @@ class ClusterCtrl:
 
         self.patch_cluster_spec_network(cluster_manifest)
 
-        with open(self.paths.capi_manifest_file(), 'w') as cluster_template_file:
+        with open(self.paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
             yaml.dump_all(cluster_manifest, cluster_template_file)
 
     def talos_apply_config_patch(self, ctx):
-        cluster_secrets_dir = self.paths.cluster_dir()
+        cluster_secrets_dir = self.paths.talos_dir()
         cluster_manifest_file_name = self.paths.cluster_capi_manifest_file()
 
         with open(cluster_manifest_file_name) as cluster_manifest_file:
@@ -166,7 +166,7 @@ class ClusterCtrl:
 
                 documents.append(document)
 
-        with open(cluster_manifest_static_file_name, 'w') as static_manifest:
+        with open(self.paths.cluster_capi_static_manifest_file(), 'w') as static_manifest:
             # yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
             # ToDo: pyyaml for some reason when used with safe_dump_all dumps the inner multiline string as
             # single line long string
@@ -205,6 +205,8 @@ class ClusterCtrl:
     def build_manifest(self, ctx, dev_mode: bool):
         # clean(ctx, constellation, cluster)
         self.generate_cluster_spec()
+        self.talosctl_gen_config(ctx)
+        self.talos_apply_config_patch(ctx)
 
 
 def set_context(ctx, cluster: Cluster, echo=True):

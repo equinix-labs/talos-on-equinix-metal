@@ -33,14 +33,14 @@ def test_dir_tree_repo():
 def test_config_dir_from_absolute_root_env(monkeypatch, constellation, tmp_abs_root_directory):
     monkeypatch.setenv('GOCY_ROOT', tmp_abs_root_directory)
 
-    cfg_dir = ProjectPaths()
-    assert cfg_dir.project_root() == str(tmp_abs_root_directory)
+    paths = ProjectPaths()
+    assert paths.project_root() == str(tmp_abs_root_directory)
 
 
 def test_config_dir_from_absolute_root(constellation):
     tmp_root = os.path.join("/tmp", "gocy")
-    ppath = ProjectPaths(constellation_name='saturn', cluster_name='saturn', root=tmp_root)
-    assert ppath.patches_dir() == os.path.join(
+    paths = ProjectPaths(constellation_name='saturn', cluster_name='saturn', root=tmp_root)
+    assert paths.patches_dir() == os.path.join(
             tmp_root,
             'saturn',
             'saturn',
@@ -49,9 +49,9 @@ def test_config_dir_from_absolute_root(constellation):
 
 
 def test_config_dir_constellation_root(constellation):
-    ppath = ProjectPaths(constellation_name=constellation.name, root='tmp_root')
+    paths = ProjectPaths(constellation_name=constellation.name, root='tmp_root')
 
-    assert ppath.constellation_dir() == os.path.join(
+    assert paths.constellation_dir() == os.path.join(
             os.path.expanduser('~'),
             'tmp_root',
             'saturn'
@@ -60,9 +60,9 @@ def test_config_dir_constellation_root(constellation):
 
 def test_config_dir_cluster_root(constellation):
     root = '.gocy_tmp_root'
-    ppath = ProjectPaths(constellation_name=constellation.name, cluster_name='titan', root=root)
+    paths = ProjectPaths(constellation_name=constellation.name, cluster_name='titan', root=root)
 
-    assert ppath.patches_dir() == os.path.join(
+    assert paths.patches_dir() == os.path.join(
             os.path.expanduser('~'),
             root,
             constellation.name,
@@ -72,8 +72,8 @@ def test_config_dir_cluster_root(constellation):
 
 
 def test_dir_tree_config_sub_dir(constellation):
-    ppath = ProjectPaths(constellation_name=constellation.name, cluster_name='rhea')
-    assert ppath.patches_dir('bgp') == os.path.join(
+    paths = ProjectPaths(constellation_name=constellation.name, cluster_name='rhea')
+    assert paths.patches_dir('bgp') == os.path.join(
             os.path.expanduser('~'),
             '.gocy',
             'saturn',
@@ -81,3 +81,13 @@ def test_dir_tree_config_sub_dir(constellation):
             'patch',
             'bgp'
         )
+
+
+def test_project_vips_location(constellation):
+    paths = ProjectPaths(constellation_name=constellation.name)
+    assert paths.project_vips_file() == os.path.join(
+        os.path.expanduser('~'),
+        '.gocy',
+        'saturn',
+        'vips-project.yaml'
+    )
