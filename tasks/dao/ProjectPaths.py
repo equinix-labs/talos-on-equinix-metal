@@ -20,6 +20,12 @@ class RepoPaths:
     def templates_dir(self, *path):
         return os.path.join(self._root, 'templates', *path)
 
+    def capi_control_plane_template(self):
+        return self.templates_dir('cluster', 'capi-control-plane.yaml')
+
+    def capi_machines_template(self):
+        return self.templates_dir('cluster', 'capi-machines.yaml')
+
     def apps_dir(self, *path):
         return os.path.join(self._root, 'apps', *path)
 
@@ -64,6 +70,9 @@ class ProjectPaths:
     def cluster_dir(self):
         return os.path.join(self.constellation_dir(), self._cluster_name)
 
+    def cluster_capi_manifest_file(self):
+        return os.path.join(self.cluster_dir(), "capi-manifest.yaml")
+
     def k8s_manifests_dir(self):
         return os.path.join(self.cluster_dir(), "k8s_manifests")
 
@@ -87,6 +96,9 @@ class ProjectPaths:
 
     def argo_infra_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "infra")
+
+    def cluster_capi_static_manifest_file(self):
+        return os.path.join(mkdirs(self.argo_infra_dir()), "capi-manifest.static.yaml")
 
     def vips_file_by_role(self, address_role: VipRole):
         return os.path.join(self.cluster_dir(), "vips-{}.yaml".format(address_role))

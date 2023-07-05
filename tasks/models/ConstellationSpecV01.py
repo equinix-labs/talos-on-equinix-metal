@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from pydantic_yaml import YamlStrEnum, YamlModel
 
@@ -53,12 +53,17 @@ class Constellation(YamlModel):
     bary: Cluster = None
     satellites: list[Cluster] = []
 
-    def __contains__(self, cluster: Cluster):
-        if self.bary.name == cluster.name:
+    def __contains__(self, cluster: Any):
+        if type(cluster) is Cluster:
+            cluster_name = cluster.name
+        else:
+            cluster_name = cluster
+
+        if self.bary.name == cluster_name:
             return True
 
         for satellite in self.satellites:
-            if satellite.name == cluster.name:
+            if satellite.name == cluster_name:
                 return True
 
         return False
@@ -71,7 +76,7 @@ class Constellation(YamlModel):
             self.index += 1
             return self.bary
         else:
-            # ToDo: FIX THIS !!! !!!OMG!!!NO!!! Facepalm :(((
+            # ToDo: FIX THIS !!! There has to be a better way to pull an element from list by index; Facepalm :(((
             count = len(self.satellites)
             if self.index >= count:
                 raise StopIteration

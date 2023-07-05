@@ -3,10 +3,12 @@ import os
 import re
 import shutil
 
-import jinja2
 import yaml
 from invoke import task
 
+from tasks.controllers.ConstellationCtrl import ConstellationCtrl
+from tasks.dao.LocalState import LocalState
+from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
 from tasks.gocy import context_set_kind, context_set_bary
 from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
     get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
@@ -19,7 +21,6 @@ from tasks.network import build_network_service_dependencies_manifest
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
-_CLUSTER_MANIFEST_FILE_NAME = "cluster-manifest.yaml"
 _CLUSTER_MANIFEST_STATIC_FILE_NAME = "cluster-manifest.static-config.yaml"
 
 
@@ -91,10 +92,7 @@ def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: li
 
 
 @task(register_vips, context_set_kind)
-def generate_cluster_spec(ctx,
-                          templates_dir=os.path.join('templates', 'cluster'),
-                          cluster_file_name='capi.yaml',
-                          md_file_name='machine-deployment.yaml'):
+def render_capi_cluster_manifest(ctx):
     """
     Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
     In this particular case we are dealing with two kind of config specifications. Cluster API one
@@ -102,15 +100,17 @@ def generate_cluster_spec(ctx,
     this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
     This is why we go with some custom python + jinja template solution.
     """
-    with open(os.path.join(templates_dir, cluster_file_name), 'r') as cluster_file:
-        _cluster_yaml = cluster_file.read()
+    repo_paths = RepoPaths()
+    project_paths = ProjectPaths()
 
-    with open(os.path.join(templates_dir, md_file_name), 'r') as md_file:
-        _md_yaml = md_file.read()
+    with open(repo_paths.capi_control_plane_template()) as cluster_file:
+        capi_control_plane_template_yaml = cluster_file.read()
+
+    with open(repo_paths.capi_machines_template()) as md_file:
+        capi_machines_template_yaml = md_file.read()
 
     secrets = get_secret_envs()
     constellation = get_constellation()
-    jinja2.is_undefined(True)
 
     for cluster_cfg in get_constellation_clusters(constellation):
         data = {
@@ -129,11 +129,11 @@ def generate_cluster_spec(ctx,
         data.update(secrets)
 
         jinja = get_jinja()
-        cluster_yaml_tpl = jinja.from_string(_cluster_yaml)
+        cluster_yaml_tpl = jinja.from_string(capi_control_plane_template_yaml)
         cluster_yaml = cluster_yaml_tpl.render(data)
 
         for worker_node in cluster_cfg.worker_nodes:
-            worker_yaml_tpl = jinja.from_string(_md_yaml)
+            worker_yaml_tpl = jinja.from_string(capi_machines_template_yaml)
             data['machine_name'] = "{}-machine-{}".format(
                 cluster_cfg.name,
                 worker_node.plan.replace('.', '-'))  # ToDo: CPEM blows up if there are dots in machine name
@@ -145,8 +145,7 @@ def generate_cluster_spec(ctx,
 
         patch_cluster_spec_network(cluster_cfg, cluster_spec)
 
-        with open(os.path.join(
-                get_secrets_dir(), cluster_cfg.name, _CLUSTER_MANIFEST_FILE_NAME), 'w') as cluster_template_file:
+        with open(project_paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
             yaml.dump_all(cluster_spec, cluster_template_file)
 
 
@@ -176,8 +175,10 @@ def add_talos_hashbang(filename):
 
 
 def _talos_apply_config_patch(ctx, cluster_spec: Cluster):
+    project_paths = ProjectPaths()
+
     cluster_secrets_dir = get_cluster_secrets_dir(cluster_spec)
-    cluster_manifest_file_name = os.path.join(cluster_secrets_dir, _CLUSTER_MANIFEST_FILE_NAME)
+    cluster_manifest_file_name = project_paths.cluster_capi_manifest_file()
     # ToDo: Fix Magic strings in path
     cluster_manifest_static_file_name = os.path.join(
         cluster_secrets_dir, 'argo', 'infra', _CLUSTER_MANIFEST_STATIC_FILE_NAME)
@@ -458,26 +459,22 @@ def clean(ctx):
 
 
 @task(clean, context_set_kind, generate_cpem_config, register_vips,
-      generate_cluster_spec, talos_apply_config_patches)
+      render_capi_cluster_manifest, talos_apply_config_patches)
 def build_manifests(ctx):
     """
     Produces cluster manifests
     """
 
 
-@task(context_set_kind)
-def apply_bary_manifest(ctx, cluster_manifest_static_file_name=_CLUSTER_MANIFEST_STATIC_FILE_NAME):
+def create(ctx, cluster_name: str = None):
     """
     Applies initial cluster manifest - the management cluster(CAPI) on local kind cluster.
     """
-    constellation = get_constellation()
+    state = LocalState()
+    project_paths = ProjectPaths(state.constellation.name)
+
     ctx.run("kubectl apply -f {}".format(
-        os.path.join(
-            get_secrets_dir(),
-            constellation.bary.name,
-            cluster_manifest_static_file_name
-        )
-    ), echo=True)
+        project_paths.cluster_capi_static_manifest_file()), echo=True)
 
 
 @task()

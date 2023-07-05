@@ -6,10 +6,11 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
+from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
 from tasks.controllers.ConstellationCtrl import get_constellation_spec_file_paths
 from tasks.dao.LocalState import LocalState
 from tasks.dao.ProjectPaths import ProjectPaths
-from tasks.helpers import get_ccontext, get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
+from tasks.helpers import get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
 from tasks.helpers import get_constellation_clusters, get_constellation
 from tasks.models.ConstellationSpecV01 import Constellation
@@ -17,13 +18,15 @@ from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
 @task()
-def init(ctx):
+def init(ctx, echo: bool = False):
     """
     Create gocy config dir, by default: ${HOME}/.gocy
     defined in .env -> GOCY_DEFAULT_ROOT
     and populate with initial files; default constellation spec, secrets template, local state file.
     """
-    LocalState()
+    state = LocalState()
+    clusterctl = ClusterctlCtrl(state, echo)
+    clusterctl.kind_create(ctx)
 
 
 @task()

@@ -22,12 +22,9 @@ class ConstellationCtrl:
             return Constellation.parse_raw(constellation_file.read())
 
     def get_cluster_by_name(self, cluster_name: str) -> Cluster:
-        if cluster_name == self.constellation.bary.name:
-            return self.constellation.bary
-
-        for satellite in self.constellation.satellites:
-            if satellite.name == cluster_name:
-                return satellite
+        for cluster in self.constellation:
+            if cluster.name == cluster_name:
+                return cluster
 
         if cluster_name == KIND_CLUSTER_NAME:
             return Cluster(name=KIND_CLUSTER_NAME)

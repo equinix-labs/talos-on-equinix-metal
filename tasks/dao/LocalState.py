@@ -1,5 +1,7 @@
+import logging
 import os
 import shutil
+from typing import Any
 
 from pydantic import ValidationError
 from pydantic_yaml import YamlModel
@@ -7,12 +9,17 @@ from pydantic_yaml import YamlModel
 from tasks.controllers.ConstellationCtrl import ConstellationCtrl, get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import mkdirs, ProjectPaths, RepoPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
-from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME
+from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME, CLUSTER_NAME
 
 
 class LocalStateModel(YamlModel):
+    # Name of the constellation that the user currently works on
     constellation_context: str = CONSTELLATION_NAME
+    # Name of the bary/management cluster, the one where CAPI is currently located
     bary_cluster_context: str = KIND_CLUSTER_NAME
+    # Cluster context, applies both to talos cluster and k8s as the contexts for both have the same name
+    # During the initial state the CAPI is installed on local kind cluster
+    cluster_context: str = KIND_CLUSTER_NAME
 
 
 class LocalState:
@@ -29,14 +36,14 @@ class LocalState:
             self._read()
             self._project_paths = ProjectPaths(
                 self._local_state.constellation_context,
-                self._local_state.bary_cluster_context,
+                self._local_state.cluster_context,
                 self._project_paths.project_root()
             )
         else:
             self._local_state = LocalStateModel()
             self._project_paths = ProjectPaths(
                 self._local_state.constellation_context,
-                self._local_state.bary_cluster_context,
+                self._local_state.cluster_context,
                 self._project_paths.project_root()
             )
             self._handle_initial_run()
@@ -94,9 +101,35 @@ class LocalState:
     @property
     def cluster(self) -> Cluster:
         const_ctrl = ConstellationCtrl(self._project_paths, self._local_state.constellation_context)
-        return const_ctrl.get_cluster_by_name(self._local_state.bary_cluster_context)
+        return const_ctrl.get_cluster_by_name(self._local_state.cluster_context)
 
     @cluster.setter
-    def cluster(self, cluster: Cluster):
-        self._local_state.bary_cluster_context = cluster.name
-        self._save()
+    def cluster(self, cluster: Any):
+        if cluster in self.constellation:
+            if type(cluster) is Cluster:
+                self._local_state.cluster_context = cluster.name
+            else:
+                self._local_state.cluster_context = cluster
+
+            self._save()
+        else:
+            logging.fatal(
+                "Cluster '{}' is not part of the constellation '{}'".format(
+                    cluster,
+                    self.constellation.name
+                )
+            )
+
+    @property
+    def bary_cluster(self) -> Cluster:
+        const_ctrl = ConstellationCtrl(self._project_paths, self._local_state.constellation_context)
+        return const_ctrl.get_cluster_by_name(self._local_state.bary_cluster_context)
+
+    @bary_cluster.setter
+    def bary_cluster(self, cluster_name: str):
+        if cluster_name == self.constellation.bary.name or cluster_name == KIND_CLUSTER_NAME:
+            self._local_state.bary_cluster_context = cluster_name
+            self._save()
+        else:
+            logging.fatal("Cluster {} is not a valid bary center for constellation {}".format(
+                cluster_name, self.constellation))
