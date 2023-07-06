@@ -18,6 +18,21 @@ from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
 @task()
+def generate_ca(ctx, echo=False):
+    """
+    Generate root CA, to be used by cilium and others
+    """
+    state = SystemContext()
+    ca_dir = state.project_paths.ca_dir()
+
+    ctx.run("cp -n templates/openssl.cnf " + ca_dir)
+    with ctx.cd(ca_dir):
+        ctx.run("openssl req -days 3560 -config openssl.cnf "
+                "-subj '/CN={} CA' -nodes -new -x509 -keyout ca.key -out ca.crt".format(
+                    os.environ.get('GOCY_DOMAIN')), echo=echo)
+
+
+@task(post=[generate_ca])
 def init(ctx, echo: bool = False):
     """
     Create gocy config dir, by default: ${HOME}/.gocy

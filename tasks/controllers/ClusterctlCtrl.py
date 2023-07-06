@@ -5,10 +5,10 @@ from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 class ClusterctlCtrl:
 
-    _state: SystemContext
+    _context: SystemContext
 
-    def __init__(self, state: SystemContext, echo: bool = False):
-        self._state = state
+    def __init__(self, context: SystemContext, echo: bool = False):
+        self._context = context
         self._echo = echo
 
     def init(self, ctx):
@@ -16,7 +16,7 @@ class ClusterctlCtrl:
         Run clusterctl init with predefined providers
         """
 
-        if self._state.cluster.name == self._state.constellation.bary.name:
+        if self._context.cluster.name == self._context.constellation.bary.name:
             if user_confirmed('Is cert-manager present ? - did you run "invoke apps.install-dns-and-tls-dependencies"'):
                 return
 
@@ -25,10 +25,10 @@ class ClusterctlCtrl:
                 "--bootstrap=talos:{} "
                 "--control-plane=talos:{} "
                 "--infrastructure=packet:{}".format(
-                        self._state.constellation.capi,
-                        self._state.constellation.cabpt,
-                        self._state.constellation.cacppt,
-                        self._state.constellation.capp
+                        self._context.constellation.capi,
+                        self._context.constellation.cabpt,
+                        self._context.constellation.cacppt,
+                        self._context.constellation.capp
                     ), echo=self._echo)
 
     def kind_create(self, ctx):

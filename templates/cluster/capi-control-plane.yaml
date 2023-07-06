@@ -61,7 +61,7 @@ spec:
       talosVersion: {{ TALOS_VERSION }}
       configPatches:
         - op: add
-          path: /cluster/inlineManifests/0
+          path: /cluster/inlineManifests/- # ToDo !!! '0' ? not '-' ?
           value:
             name: cpem-secret
             contents: |

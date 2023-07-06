@@ -28,6 +28,9 @@ class RepoPaths:
     def apps_dir(self, *path):
         return os.path.join(self._root, 'apps', *path)
 
+    def app_template_file(self, app_name):
+        return os.path.join(self.apps_dir(), app_name, 'values.jinja.yaml')
+
 
 class ProjectPaths:
     _constellation_name: str
@@ -63,6 +66,9 @@ class ProjectPaths:
     def constellation_dir(self):
         return os.path.join(self.project_root(), self._constellation_name)
 
+    def ca_dir(self):
+        return mkdirs(os.path.join(self.constellation_dir(), 'ca'))
+
     def constellation_file(self, name: str):
         return os.path.join(self.project_root(), "{}{}".format(name, CONSTELLATION_FILE_SUFFIX))
 
@@ -77,6 +83,9 @@ class ProjectPaths:
 
     def k8s_manifests_dir(self):
         return os.path.join(self.cluster_dir(), "k8s_manifests")
+
+    def k8s_manifests(self, *paths):
+        return os.path.join(mkdirs(self.k8s_manifests_dir()), *paths)
 
     def patches_dir(self, *paths):
         return os.path.join(self.cluster_dir(), "patch", *paths)
@@ -95,6 +104,9 @@ class ProjectPaths:
 
     def argo_apps_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "apps")
+
+    def argo_app(self, *path):
+        return os.path.join(mkdirs(self.argo_apps_dir()), *path)
 
     def argo_infra_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "infra")

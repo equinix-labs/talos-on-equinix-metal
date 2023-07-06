@@ -6,6 +6,14 @@ class Namespace(Enum):
     capi = 'capi'
     dns_tls = 'dns-tls'
     network_services = 'network-services'
+    apps = 'apps'
+    gitea = 'gitea'
+    database = 'database'
+    dashboards = 'dashboards'
+    ingress = 'ingress'
+    observability = 'observability'
+    storage = 'storage'
+    idp_auth = 'idp-auth'
 
     def __str__(self):
         return self.value

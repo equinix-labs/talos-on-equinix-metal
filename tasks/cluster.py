@@ -8,16 +8,14 @@ from invoke import task
 
 from tasks.controllers.ClusterCtrl import ClusterCtrl
 from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
-from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
+from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.gocy import context_set_kind, context_set_bary
-from tasks.helpers import str_presenter, get_cluster_name, get_secrets_dir, \
-    get_cpem_config_yaml, get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
-    get_constellation, get_secret_envs, get_jinja, get_cluster_secrets_dir, \
-    constellation_create_dirs, get_argo_infra_namespace_name, user_confirmed
+from tasks.helpers import str_presenter, get_secrets_dir, \
+    get_cp_vip_address, get_constellation_clusters, get_cluster_spec, \
+    get_constellation, get_argo_infra_namespace_name, user_confirmed
 from tasks.metal import register_vips
-from tasks.models.ConstellationSpecV01 import Cluster, Constellation
-from tasks.network import build_network_service_dependencies_manifest
+from tasks.models.ConstellationSpecV01 import Constellation
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -25,130 +23,63 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 _CLUSTER_MANIFEST_STATIC_FILE_NAME = "cluster-manifest.static-config.yaml"
 
 
-@task(build_network_service_dependencies_manifest)
-def patch_template_with_cilium_manifest(
-        ctx,
-        templates_dir='templates',
-        cluster_template_file_name='inline-cni.yaml',
-        manifest_name='network-services-dependencies.yaml'):
-    """
-    Patch talos machine config with cilium CNI manifest for inline installation method
-    https://www.talos.dev/v1.3/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
-    """
-
-    with open(os.path.join(get_secrets_dir(), manifest_name), 'r') as network_manifest_file:
-        network_manifest = list(yaml.safe_load_all(network_manifest_file))
-
-    network_manifest_yaml = yaml.safe_dump_all(network_manifest)
-    with open(os.path.join(templates_dir, cluster_template_file_name), 'r') as cluster_template_file:
-        _cluster_template = list(yaml.safe_load_all(cluster_template_file))
-        for document in _cluster_template:
-            if document['kind'] == 'TalosControlPlane':
-                for patch in document['spec']['controlPlaneConfig']['controlplane']['configPatches']:
-                    if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
-                        patch['value']['contents'] = network_manifest_yaml
-            if document['kind'] == 'TalosConfigTemplate':
-                for patch in document['spec']['template']['spec']['configPatches']:
-                    if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
-                        patch['value']['contents'] = network_manifest_yaml
-
-        with open(os.path.join(templates_dir, get_cluster_name() + '.yaml'), 'w') as target:
-            yaml.dump_all(_cluster_template, target)
-
-
-def patch_cluster_spec_network(cluster_cfg: Cluster, cluster_template: list):
-    """
-    Patches cluster template with corrected dnsDomain,podSubnets,serviceSubnets
-    As a result of a bug? settings in Cluster.spec.clusterNetwork do not affect the running cluster.
-    Those changes need to be put in the Talos config.
-    """
-    for document in cluster_template:
-        if document['kind'] == 'TalosControlPlane':
-            patches = document['spec']['controlPlaneConfig']['controlplane']['configPatches']
-            for patch in patches:
-                if patch['path'] == '/cluster/network':
-                    patch['value']['dnsDomain'] = "{}.local".format(cluster_cfg.name)
-                    patch['value']['podSubnets'] = cluster_cfg.pod_cidr_blocks
-                    patch['value']['serviceSubnets'] = cluster_cfg.service_cidr_blocks
-        if document['kind'] == 'TalosConfigTemplate':
-            patches = document['spec']['template']['spec']['configPatches']
-            for patch in patches:
-                if patch['path'] == '/cluster/network':
-                    patch['value']['dnsDomain'] = "{}.local".format(cluster_cfg.name)
-                    patch['value']['podSubnets'] = cluster_cfg.pod_cidr_blocks
-                    patch['value']['serviceSubnets'] = cluster_cfg.service_cidr_blocks
-        if document['kind'] == 'Cluster':
-            document['spec']['clusterNetwork']['pods']['cidrBlocks'] = cluster_cfg.pod_cidr_blocks
-            document['spec']['clusterNetwork']['services']['cidrBlocks'] = cluster_cfg.service_cidr_blocks
-
-    return cluster_template
-
-
-def patch_cluster_spec_machine_pools(cluster_spec: Cluster, cluster_template: list):
-    for document in cluster_template:
-        if document['kind'] == 'MachineDeployment':
-            machine_deployment = document['kind']
-
-    return cluster_template
-
-
 # @task(register_vips, context_set_kind)
-@task()
-def render_capi_cluster_manifest(ctx):
-    """
-    Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
-    In this particular case we are dealing with two kind of config specifications. Cluster API one
-    and Talos Linux one. As per official CAPI documentation https://cluster-api.sigs.k8s.io/tasks/using-kustomize.html,
-    this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
-    This is why we go with some custom python + jinja template solution.
-    """
-    repo_paths = RepoPaths()
-    project_paths = ProjectPaths()
-
-    with open(repo_paths.capi_control_plane_template()) as cluster_file:
-        capi_control_plane_template_yaml = cluster_file.read()
-
-    with open(repo_paths.capi_machines_template()) as md_file:
-        capi_machines_template_yaml = md_file.read()
-
-    secrets = get_secret_envs()
-    constellation = get_constellation()
-
-    for cluster_cfg in get_constellation_clusters(constellation):
-        data = {
-                'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
-                'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_cfg),
-                'SERVICE_DOMAIN': "{}.local".format(cluster_cfg.name),
-                'CLUSTER_NAME': cluster_cfg.name,
-                'METRO': cluster_cfg.metro,
-                'CONTROL_PLANE_NODE_TYPE': cluster_cfg.control_nodes[0].plan,
-                'CONTROL_PLANE_MACHINE_COUNT': cluster_cfg.control_nodes[0].count,
-                'TALOS_VERSION': cluster_cfg.talos,
-                'CPEM_VERSION': cluster_cfg.cpem,
-                'KUBERNETES_VERSION': cluster_cfg.kubernetes,
-                'namespace': get_argo_infra_namespace_name()
-            }
-        data.update(secrets)
-
-        jinja = get_jinja()
-        cluster_yaml_tpl = jinja.from_string(capi_control_plane_template_yaml)
-        cluster_yaml = cluster_yaml_tpl.render(data)
-
-        for worker_node in cluster_cfg.worker_nodes:
-            worker_yaml_tpl = jinja.from_string(capi_machines_template_yaml)
-            data['machine_name'] = "{}-machine-{}".format(
-                cluster_cfg.name,
-                worker_node.plan.replace('.', '-'))  # ToDo: CPEM blows up if there are dots in machine name
-            data['WORKER_NODE_TYPE'] = worker_node.plan
-            data['WORKER_MACHINE_COUNT'] = worker_node.count
-            cluster_yaml = "{}\n{}".format(cluster_yaml, worker_yaml_tpl.render(data))
-
-        cluster_spec = list(yaml.safe_load_all(cluster_yaml))
-
-        patch_cluster_spec_network(cluster_cfg, cluster_spec)
-
-        with open(project_paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
-            yaml.dump_all(cluster_spec, cluster_template_file)
+# @task()
+# def render_capi_cluster_manifest(ctx):
+#     """
+#     Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
+#     In this particular case we are dealing with two kind of config specifications. Cluster API one
+#     and Talos Linux one. As per official CAPI documentation https://cluster-api.sigs.k8s.io/tasks/using-kustomize.html,
+#     this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
+#     This is why we go with some custom python + jinja template solution.
+#     """
+#     repo_paths = RepoPaths()
+#     project_paths = ProjectPaths()
+#
+#     with open(repo_paths.capi_control_plane_template()) as cluster_file:
+#         capi_control_plane_template_yaml = cluster_file.read()
+#
+#     with open(repo_paths.capi_machines_template()) as md_file:
+#         capi_machines_template_yaml = md_file.read()
+#
+#     secrets = get_secret_envs()
+#     constellation = get_constellation()
+#
+#     for cluster_cfg in get_constellation_clusters(constellation):
+#         data = {
+#                 'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
+#                 'TOEM_CP_ENDPOINT': get_cp_vip_address(cluster_cfg),
+#                 'SERVICE_DOMAIN': "{}.local".format(cluster_cfg.name),
+#                 'CLUSTER_NAME': cluster_cfg.name,
+#                 'METRO': cluster_cfg.metro,
+#                 'CONTROL_PLANE_NODE_TYPE': cluster_cfg.control_nodes[0].plan,
+#                 'CONTROL_PLANE_MACHINE_COUNT': cluster_cfg.control_nodes[0].count,
+#                 'TALOS_VERSION': cluster_cfg.talos,
+#                 'CPEM_VERSION': cluster_cfg.cpem,
+#                 'KUBERNETES_VERSION': cluster_cfg.kubernetes,
+#                 'namespace': get_argo_infra_namespace_name()
+#             }
+#         data.update(secrets)
+#
+#         jinja = get_jinja()
+#         cluster_yaml_tpl = jinja.from_string(capi_control_plane_template_yaml)
+#         cluster_yaml = cluster_yaml_tpl.render(data)
+#
+#         for worker_node in cluster_cfg.worker_nodes:
+#             worker_yaml_tpl = jinja.from_string(capi_machines_template_yaml)
+#             data['machine_name'] = "{}-machine-{}".format(
+#                 cluster_cfg.name,
+#                 worker_node.plan.replace('.', '-'))  # ToDo: CPEM blows up if there are dots in machine name
+#             data['WORKER_NODE_TYPE'] = worker_node.plan
+#             data['WORKER_MACHINE_COUNT'] = worker_node.count
+#             cluster_yaml = "{}\n{}".format(cluster_yaml, worker_yaml_tpl.render(data))
+#
+#         cluster_spec = list(yaml.safe_load_all(cluster_yaml))
+#
+#         patch_cluster_spec_network(cluster_cfg, cluster_spec)
+#
+#         with open(project_paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
+#             yaml.dump_all(cluster_spec, cluster_template_file)
 
 
 @task(register_vips)
@@ -168,103 +99,95 @@ def talosctl_gen_config(ctx):
             )
 
 
-def add_talos_hashbang(filename):
-    with open(filename, 'r') as file:
-        data = file.read()
-
-    with open(filename, 'w') as file:
-        file.write("#!talos\n" + data)
-
-
-def _talos_apply_config_patch(ctx, cluster_spec: Cluster):
-    project_paths = ProjectPaths()
-
-    cluster_secrets_dir = get_cluster_secrets_dir(cluster_spec)
-    cluster_manifest_file_name = project_paths.cluster_capi_manifest_file()
-    # ToDo: Fix Magic strings in path
-    cluster_manifest_static_file_name = os.path.join(
-        cluster_secrets_dir, 'argo', 'infra', _CLUSTER_MANIFEST_STATIC_FILE_NAME)
-
-    constellation_create_dirs(cluster_spec)
-
-    with open(cluster_manifest_file_name) as cluster_manifest_file:
-        for document in yaml.safe_load_all(cluster_manifest_file):
-            if document['kind'] == 'TalosControlPlane':
-                with open(os.path.join(cluster_secrets_dir, 'controlplane-patches.yaml'), 'w') as cp_patches_file:
-                    yaml.dump(
-                        document['spec']['controlPlaneConfig']['controlplane']['configPatches'],
-                        cp_patches_file
-                    )
-            if document['kind'] == 'TalosConfigTemplate':
-                with open(os.path.join(cluster_secrets_dir, 'worker-patches.yaml'), 'w') as worker_patches_file:
-                    yaml.dump(
-                        document['spec']['template']['spec']['configPatches'],
-                        worker_patches_file
-                    )
-
-    with ctx.cd(cluster_secrets_dir):
-        worker_capi_file_name = "worker-capi.yaml"
-        cp_capi_file_name = "controlplane-capi.yaml"
-        ctx.run(
-            "talosctl machineconfig patch worker.yaml --patch @worker-patches.yaml -o {}".format(
-                worker_capi_file_name
-            ),
-            echo=True
-        )
-        ctx.run(
-            "talosctl machineconfig patch controlplane.yaml --patch @controlplane-patches.yaml -o {}".format(
-                cp_capi_file_name
-            ),
-            echo=True
-        )
-
-        add_talos_hashbang(os.path.join(cluster_secrets_dir, worker_capi_file_name))
-        add_talos_hashbang(os.path.join(cluster_secrets_dir, cp_capi_file_name))
-
-        ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
-        ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
-
-    with open(cluster_manifest_file_name) as cluster_manifest_file:
-        documents = list()
-        for document in yaml.safe_load_all(cluster_manifest_file):
-            if document['kind'] == 'TalosControlPlane':
-                del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
-                document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
-                with open(os.path.join(cluster_secrets_dir, cp_capi_file_name), 'r') as talos_cp_config_file:
-                    document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
-
-            if document['kind'] == 'TalosConfigTemplate':
-                del (document['spec']['template']['spec']['configPatches'])
-                document['spec']['template']['spec']['generateType'] = 'none'
-                with open(os.path.join(cluster_secrets_dir, worker_capi_file_name), 'r') as talos_worker_config_file:
-                    document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
-
-            documents.append(document)
-
-    with open(cluster_manifest_static_file_name, 'w') as static_manifest:
-        # yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
-        # ToDo: pyyaml for some reason when used with safe_dump_all dumps the inner multiline string as
-        # single line long string
-        # spec:
-        #   template:
-        #     spec:
-        #       data: "#!talos\ncluster:\n  ca:\n
-        #
-        # instead of a multiline string
-        yaml.dump_all(documents, static_manifest, sort_keys=True)
+# def _talos_apply_config_patch(ctx, cluster_spec: Cluster):
+#     project_paths = ProjectPaths()
+#
+#     cluster_secrets_dir = get_cluster_secrets_dir(cluster_spec)
+#     cluster_manifest_file_name = project_paths.cluster_capi_manifest_file()
+#     # ToDo: Fix Magic strings in path
+#     cluster_manifest_static_file_name = os.path.join(
+#         cluster_secrets_dir, 'argo', 'infra', _CLUSTER_MANIFEST_STATIC_FILE_NAME)
+#
+#     constellation_create_dirs(cluster_spec)
+#
+#     with open(cluster_manifest_file_name) as cluster_manifest_file:
+#         for document in yaml.safe_load_all(cluster_manifest_file):
+#             if document['kind'] == 'TalosControlPlane':
+#                 with open(os.path.join(cluster_secrets_dir, 'controlplane-patches.yaml'), 'w') as cp_patches_file:
+#                     yaml.dump(
+#                         document['spec']['controlPlaneConfig']['controlplane']['configPatches'],
+#                         cp_patches_file
+#                     )
+#             if document['kind'] == 'TalosConfigTemplate':
+#                 with open(os.path.join(cluster_secrets_dir, 'worker-patches.yaml'), 'w') as worker_patches_file:
+#                     yaml.dump(
+#                         document['spec']['template']['spec']['configPatches'],
+#                         worker_patches_file
+#                     )
+#
+#     with ctx.cd(cluster_secrets_dir):
+#         worker_capi_file_name = "worker-capi.yaml"
+#         cp_capi_file_name = "controlplane-capi.yaml"
+#         ctx.run(
+#             "talosctl machineconfig patch worker.yaml --patch @worker-patches.yaml -o {}".format(
+#                 worker_capi_file_name
+#             ),
+#             echo=True
+#         )
+#         ctx.run(
+#             "talosctl machineconfig patch controlplane.yaml --patch @controlplane-patches.yaml -o {}".format(
+#                 cp_capi_file_name
+#             ),
+#             echo=True
+#         )
+#
+#         add_talos_hashbang(os.path.join(cluster_secrets_dir, worker_capi_file_name))
+#         add_talos_hashbang(os.path.join(cluster_secrets_dir, cp_capi_file_name))
+#
+#         ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
+#         ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
+#
+#     with open(cluster_manifest_file_name) as cluster_manifest_file:
+#         documents = list()
+#         for document in yaml.safe_load_all(cluster_manifest_file):
+#             if document['kind'] == 'TalosControlPlane':
+#                 del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
+#                 document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
+#                 with open(os.path.join(cluster_secrets_dir, cp_capi_file_name), 'r') as talos_cp_config_file:
+#                     document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
+#
+#             if document['kind'] == 'TalosConfigTemplate':
+#                 del (document['spec']['template']['spec']['configPatches'])
+#                 document['spec']['template']['spec']['generateType'] = 'none'
+#                 with open(os.path.join(cluster_secrets_dir, worker_capi_file_name), 'r') as talos_worker_config_file:
+#                     document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
+#
+#             documents.append(document)
+#
+#     with open(cluster_manifest_static_file_name, 'w') as static_manifest:
+#         # yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
+#         # ToDo: pyyaml for some reason when used with safe_dump_all dumps the inner multiline string as
+#         # single line long string
+#         # spec:
+#         #   template:
+#         #     spec:
+#         #       data: "#!talos\ncluster:\n  ca:\n
+#         #
+#         # instead of a multiline string
+#         yaml.dump_all(documents, static_manifest, sort_keys=True)
 
 
-@task(talosctl_gen_config)
-def talos_apply_config_patches(ctx):
-    """
-    Produces [secrets_dir]/[cluster_name]/((controlplane)|(worker))-capi.yaml
-    as a talos cli compatible configuration files, to be used in benchmark deployment.
-    Validate configuration files with talosctl validate
-    Prepend #!talos as per
-    https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
-    """
-    for cluster_spec in get_constellation_clusters():
-        _talos_apply_config_patch(ctx, cluster_spec)
+# @task(talosctl_gen_config)
+# def talos_apply_config_patches(ctx):
+#     """
+#     Produces [secrets_dir]/[cluster_name]/((controlplane)|(worker))-capi.yaml
+#     as a talos cli compatible configuration files, to be used in benchmark deployment.
+#     Validate configuration files with talosctl validate
+#     Prepend #!talos as per
+#     https://www.talos.dev/v1.3/talos-guides/install/bare-metal-platforms/equinix-metal/#passing-in-the-configuration-as-user-data
+#     """
+#     for cluster_spec in get_constellation_clusters():
+#         _talos_apply_config_patch(ctx, cluster_spec)
 
 
 @task()
@@ -428,7 +351,6 @@ def build_manifests(ctx, echo: bool = False, dev_mode: bool = False):
     state = SystemContext()
     cluster_ctrl = ClusterCtrl(state, echo)
     cluster_ctrl.build_manifest(ctx, dev_mode)
-
 
 
 def create(ctx, cluster_name: str = None):

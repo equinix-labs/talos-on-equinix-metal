@@ -3,6 +3,7 @@ import os
 import shutil
 from typing import Any
 
+import yaml
 from pydantic import ValidationError
 from pydantic_yaml import YamlModel
 
@@ -138,3 +139,8 @@ class SystemContext:
         else:
             logging.fatal("Cluster {} is not a valid bary center for constellation {}".format(
                 cluster_name, self.constellation))
+
+    @property
+    def secrets(self) -> dict:
+        with open(self._project_paths.secrets_file()) as secrets_file:
+            return dict(yaml.safe_load(secrets_file))

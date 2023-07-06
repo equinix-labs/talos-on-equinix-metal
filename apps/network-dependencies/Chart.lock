@@ -1,0 +1,12 @@
+dependencies:
+- name: cilium
+  repository: https://helm.cilium.io/
+  version: 1.13.2
+- name: tetragon
+  repository: https://helm.cilium.io/
+  version: 0.9.0
+- name: metallb
+  repository: https://metallb.github.io/metallb
+  version: 0.13.9
+digest: sha256:e1cbda94150c50c742e5bb2df5b0ce17f914a1f01e4565e4c7b88476cb841f76
+generated: "2023-05-31T16:29:42.235736+02:00"

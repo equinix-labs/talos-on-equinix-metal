@@ -2,16 +2,18 @@ import os
 
 import yaml
 
+from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
-from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs
+from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.models.Namespaces import Namespace
 
-_CLUSTER_MANIFEST_FILE_NAME = "cluster-manifest.yaml"
-_CLUSTER_MANIFEST_STATIC_FILE_NAME = "cluster-manifest.static-config.yaml"
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
 
 class ClusterCtrl:
@@ -167,16 +169,50 @@ class ClusterCtrl:
                 documents.append(document)
 
         with open(self.paths.cluster_capi_static_manifest_file(), 'w') as static_manifest:
-            # yaml.safe_dump_all(documents, static_manifest, sort_keys=True)
-            # ToDo: pyyaml for some reason when used with safe_dump_all dumps the inner multiline string as
-            # single line long string
-            # spec:
-            #   template:
-            #     spec:
-            #       data: "#!talos\ncluster:\n  ca:\n
-            #
-            # instead of a multiline string
             yaml.dump_all(documents, static_manifest, sort_keys=True)
+
+    def patch_template_with_cilium_manifest(self, ctx, echo: bool):
+        """
+        Patch talos machine config with cilium CNI manifest for inline installation method
+        https://www.talos.dev/v1.3/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
+        """
+        app_name = 'network-dependencies'
+        app_ctrl = ApplicationsCtrl(ctx, self.state, echo)
+        hvf = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
+        helm_manifest_path = app_ctrl.render_helm_template(app_name, hvf, Namespace.network_services)
+        with open(helm_manifest_path) as helm_manifest_file:
+            helm_manifest = list(yaml.safe_load_all(helm_manifest_file))
+
+        """
+          op: add
+          path: /cluster/inlineManifests/- # ToDo !!! '0' ? not '-' ?
+          value:
+            name: cpem-secret
+            contents: |
+        """
+        patch = {
+            'op': 'add',
+            'path': '/cluster/inlineManifests/-',
+            'value': {
+                'name': 'cilium-cni',
+                'contents': yaml.dump_all(helm_manifest)
+            }
+        }
+
+        with open(self.paths.cluster_capi_manifest_file()) as cluster_template_file:
+            capi_cluster_manifest = list(yaml.safe_load_all(cluster_template_file))
+            for document in capi_cluster_manifest:
+                if document['kind'] == 'TalosControlPlane':
+                    document['spec']['controlPlaneConfig']['controlplane']['configPatches'].append(
+                        patch
+                    )
+                # if document['kind'] == 'TalosConfigTemplate':
+                #     for patch in document['spec']['template']['spec']['configPatches']:
+                #         if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
+                #             patch['value']['contents'] = helm_manifest
+
+        with open(self.paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
+            yaml.dump_all(capi_cluster_manifest, cluster_template_file)
 
     def generate_cluster_spec(self):
         """
@@ -186,7 +222,6 @@ class ClusterCtrl:
         this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
         This is why we go with some custom python + jinja template solution.
         """
-
         repo_paths = RepoPaths()
 
         with open(repo_paths.capi_control_plane_template()) as cluster_file:
@@ -206,6 +241,9 @@ class ClusterCtrl:
         # clean(ctx, constellation, cluster)
         self.generate_cluster_spec()
         self.talosctl_gen_config(ctx)
+        if dev_mode:
+            self.patch_template_with_cilium_manifest(ctx, self.echo)
+
         self.talos_apply_config_patch(ctx)
 
 
