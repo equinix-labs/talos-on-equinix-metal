@@ -13,11 +13,13 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 class MetalCtrl:
+    state: SystemContext
     constellation: Constellation
     ppaths: ProjectPaths
     echo: bool
 
     def __init__(self, state: SystemContext, echo: bool):
+        self.state = state
         self.constellation = state.constellation
         self.echo = echo
         self.ppaths = state.project_paths
@@ -78,8 +80,8 @@ class MetalCtrl:
 
         for vip in cluster.vips:
             data[vip.role].extend(vip.reserved)
-
-            with open(self.ppaths.vips_file_by_role(vip.role), 'w') as ip_addresses_file:
+            paths = ProjectPaths(self.state.constellation.name, cluster.name)
+            with open(paths.vips_file_by_role(vip.role), 'w') as ip_addresses_file:
                 ip_addresses_file.write(data[vip.role].yaml())
 
     def get_vips(self, vip_role: VipRole) -> ReservedVIPs:

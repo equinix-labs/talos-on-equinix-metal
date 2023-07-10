@@ -27,6 +27,9 @@ class Node(YamlModel):
 
 
 class Cluster(YamlModel):
+    nodes: Optional[list[Node]] = []
+    node_index: Optional[int] = 0
+
     name: str = ''
     metro: str = ''
     cpem: str = ''
@@ -39,9 +42,31 @@ class Cluster(YamlModel):
     control_nodes: list[Node] = []
     worker_nodes: list[Node] = []
 
+    def __iter__(self):
+        self.nodes = list()
+        for node in self.control_nodes:
+            for index in range(node.count):
+                self.nodes.append(Node(count=1, plan=node.plan))
+
+        for node in self.worker_nodes:
+            for index in range(node.count):
+                self.nodes.append(Node(count=1, plan=node.plan))
+
+        self.node_index = 0
+        return self
+
+    def __next__(self):
+        if self.node_index >= len(self.nodes):
+            raise StopIteration
+
+        item = self.nodes.__getitem__(self.node_index)
+        self.node_index += 1
+        return item
+
 
 class Constellation(YamlModel):
-    index: Optional[int] = -1
+    cluster_index: Optional[int] = 0
+    clusters: Optional[list[Cluster]] = []
 
     # https://docs.pydantic.dev/latest/
     name: str = 'name'
@@ -69,19 +94,16 @@ class Constellation(YamlModel):
         return False
 
     def __iter__(self):
+        self.clusters = [self.bary]
+        self.clusters.extend(self.satellites)
         return self
 
     def __next__(self) -> Cluster:
-        if self.index < 0:
-            self.index += 1
-            return self.bary
-        else:
-            # ToDo: FIX THIS !!! There has to be a better way to pull an element from list by index; Facepalm :(((
-            count = len(self.satellites)
-            if self.index >= count:
-                raise StopIteration
+        if self.cluster_index >= len(self.clusters):
+            raise StopIteration
 
-            for index, item in enumerate(self.satellites):
-                if index == self.index:
-                    self.index += 1
-                    return item
+        item = self.clusters.__getitem__(self.cluster_index)
+        self.cluster_index += 1
+        return item
+
+

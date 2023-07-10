@@ -1,4 +1,6 @@
+import logging
 import os
+from pprint import pprint
 
 import yaml
 
@@ -10,6 +12,10 @@ from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.models.Namespaces import Namespace
+
+
+CONTROL_PLANE_NODE = 'control-plane'
+WORKER_NODE = 'worker'
 
 
 yaml.add_representer(str, str_presenter)
@@ -241,10 +247,90 @@ class ClusterCtrl:
         # clean(ctx, constellation, cluster)
         self.generate_cluster_spec()
         self.talosctl_gen_config(ctx)
-        if dev_mode:
+        if not dev_mode:
             self.patch_template_with_cilium_manifest(ctx, self.echo)
 
         self.talos_apply_config_patch(ctx)
+
+    def nodes_exist(self, ctx) -> (bool, dict):
+        ctx.run("metal device get -o yaml > {}".format(
+            self.paths.device_list_file()), echo=self.echo)
+
+        ip_addresses = dict()
+
+        with open(self.paths.device_list_file()) as device_list_file:
+            for element in yaml.safe_load(device_list_file):
+                if self.cluster.name in element['hostname']:
+                    for ip_address in element['ip_addresses']:
+                        if ip_address['address_family'] == 4 and ip_address['public'] is True:
+                            if CONTROL_PLANE_NODE in element['hostname']:
+                                ip_addresses[ip_address['address']] = CONTROL_PLANE_NODE
+                            else:
+                                ip_addresses[ip_address['address']] = WORKER_NODE
+
+        all_nodes_accounted_for = False
+
+        if len(ip_addresses) == len(list(self.cluster)):
+            all_nodes_accounted_for = True
+
+        return all_nodes_accounted_for, ip_addresses
+
+    def get_secrets(self, ctx):
+        nodes_exist, nodes = self.nodes_exist(ctx)
+        if not nodes_exist:
+            logging.fatal("At least one of the requested cluster nodes are missing")
+            return
+
+        with open(self.paths.talosconfig_file()) as talos_config_file:
+            talos_config_data = yaml.safe_load(talos_config_file)
+            talos_config_data['contexts'][self.cluster.name]['nodes'] = list()
+            talos_config_data['contexts'][self.cluster.name]['endpoints'] = list()
+
+        control_plane_node = None
+        for key in nodes:
+            talos_config_data['contexts'][self.cluster.name]['nodes'].append(key)
+
+            if nodes[key] == CONTROL_PLANE_NODE:
+                talos_config_data['contexts'][self.cluster.name]['endpoints'].append(key)
+                control_plane_node = key
+
+        with open(self.paths.talosconfig_file(), 'w') as talos_config_file:
+            yaml.dump(talos_config_data, talos_config_file)
+
+        ctx.run("talosctl config merge " + self.paths.talosconfig_file(), echo=True)
+
+        kubeconfig_path = self.paths.kubeconfig_file()
+        if control_plane_node is None:
+            print('Could not produce ' + kubeconfig_path)
+            return
+
+        ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
+            self.paths.talosconfig_file(),
+            control_plane_node), echo=True)
+
+        metal = MetalCtrl(self.state, self.echo)
+        ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
+            self.paths.talosconfig_file(),
+            metal.get_vips(VipRole.cp).public_ipv4[0],
+            kubeconfig_path
+        ), echo=True)
+
+        """
+            Workaround for missing talosconfig secret, thrown in TalosControlPlane log
+            {   
+                "namespace": "argo-infra",
+                "talosControlPlane": "saturn-control-plane",
+                "error": "Secret \"saturn-talosconfig\" not found"
+            }
+            """
+        ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
+            Namespace.argocd,
+            self.cluster.name,
+            self.paths.talosconfig_file()
+        ), echo=True)
+
+        ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
+        ctx.run("kconf use admin@" + self.cluster.name, echo=True, pty=True)
 
 
 def set_context(ctx, cluster: Cluster, echo=True):

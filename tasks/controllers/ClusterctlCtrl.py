@@ -16,9 +16,9 @@ class ClusterctlCtrl:
         Run clusterctl init with predefined providers
         """
 
-        if self._context.cluster.name == self._context.constellation.bary.name:
-            if user_confirmed('Is cert-manager present ? - did you run "invoke apps.install-dns-and-tls-dependencies"'):
-                return
+        # if self._context.cluster.name == self._context.constellation.bary.name:
+        #     if user_confirmed('Is cert-manager present ? - did you run "invoke apps.install-dns-and-tls-dependencies"'):
+        #         return
 
         ctx.run("clusterctl init "
                 "--core=cluster-api:{} "
@@ -36,14 +36,20 @@ class ClusterctlCtrl:
         Create local kind k8s cluster and initialise clusterctl
         """
         kind_clusters = ctx.run("kind get clusters", hide='stdout', echo=self._echo).stdout.splitlines()
+        cluster_exists = False
         for kind_cluster in kind_clusters:
             if kind_cluster == KIND_CLUSTER_NAME:
-                kind_delete(ctx, self._echo)
+                cluster_exists = kind_delete(ctx, self._echo)
 
-        ctx.run("kind create cluster --name {}".format(KIND_CLUSTER_NAME), echo=self._echo)
+        if cluster_exists:
+            ctx.run("kind create cluster --name {}".format(KIND_CLUSTER_NAME), echo=self._echo)
+
         self.init(ctx)
 
 
-def kind_delete(ctx, echo=False):
+def kind_delete(ctx, echo=False) -> bool:
     if user_confirmed("Delete kind cluster {} ?".format(KIND_CLUSTER_NAME)):
         ctx.run("kind delete cluster --name {}".format(KIND_CLUSTER_NAME), echo=echo)
+        return True
+
+    return False

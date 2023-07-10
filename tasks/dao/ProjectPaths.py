@@ -75,8 +75,17 @@ class ProjectPaths:
     def cluster_dir(self):
         return os.path.join(self.constellation_dir(), self._cluster_name)
 
+    def talosconfig_file(self):
+        return os.path.join(self.talos_dir(), 'talosconfig')
+
+    def kubeconfig_file(self):
+        return os.path.join(self.access_dir(), 'kubeconfig')
+
     def cluster_capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), "capi-manifest.yaml")
+
+    def device_list_file(self):
+        return os.path.join(self.constellation_dir(), "device-list.yaml")
 
     def cluster_capi_static_manifest_file(self):
         return os.path.join(mkdirs(self.argo_infra_dir()), "capi-manifest.static.yaml")
