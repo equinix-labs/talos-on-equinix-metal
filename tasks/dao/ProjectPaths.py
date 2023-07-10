@@ -78,6 +78,9 @@ class ProjectPaths:
     def talosconfig_file(self):
         return os.path.join(self.talos_dir(), 'talosconfig')
 
+    def talosconfig_global_file(self):
+        return os.path.join(self.project_root(), 'talosconfig')
+
     def kubeconfig_file(self):
         return os.path.join(self.access_dir(), 'kubeconfig')
 

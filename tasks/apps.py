@@ -498,7 +498,8 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
         helm.install(values_file, app_name, install, Namespace.network_services)
 
 
-def network_service(ctx, install: bool = False, echo: bool = False):
+@task()
+def network_services(ctx, install: bool = False, echo: bool = False):
     """
     Deploys apps/network-services chart, with BGP VIP pool configuration, based on
     VIPs registered in EquinixMetal. As of now the assumption is 1 GlobalIPv4 for ingress,
@@ -520,8 +521,8 @@ def network_service(ctx, install: bool = False, echo: bool = False):
     }
 
     for role in data['values']['vips']:
-        with open(get_ip_addresses_file_path(cluster, role)) as ip_addresses_file:
+        with open(context.project_paths.vips_file_by_role(role)) as ip_addresses_file:
             data['values']['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.storage, install)
+        app_name, data, Namespace.network_services, install)

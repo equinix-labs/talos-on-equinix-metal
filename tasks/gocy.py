@@ -13,7 +13,7 @@ from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.helpers import get_cluster_spec_from_context, get_secrets_dir, get_jinja, \
     get_secrets
 from tasks.helpers import get_constellation_clusters, get_constellation
-from tasks.models.ConstellationSpecV01 import Constellation
+from tasks.models.ConstellationSpecV01 import Constellation, Cluster
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
@@ -196,9 +196,8 @@ def context_set_bary(ctx):
 
 
 @task()
-def context_set_kind(ctx, kind_cluster_name=KIND_CLUSTER_NAME):
+def context_set_kind(ctx):
     """
     Switch k8s context to local(kind) management(ClusterAPI) cluster
     """
-    set_cluster_context(ctx, kind_cluster_name)
-
+    context_set(ctx, Cluster(name='kind-' + KIND_CLUSTER_NAME))

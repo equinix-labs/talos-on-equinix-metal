@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from pprint import pprint
 
 import yaml
@@ -8,7 +9,7 @@ from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
-from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter
+from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter, user_confirmed
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.models.Namespaces import Namespace
@@ -334,28 +335,51 @@ class ClusterCtrl:
         ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
         ctx.run("kconf use admin@" + self.cluster.name, echo=True, pty=True)
 
+    def delete_directories(self):
+        cluster_dir = self.paths.cluster_dir()
+        if not os.path.isdir(cluster_dir):
+            return
 
-def set_context(ctx, cluster: Cluster, echo=True):
-    if 'kind' in cluster.name:
-        ctx.run("kconf use " + cluster.name, echo=echo)
-    else:
-        ctx.run("kconf use admin@" + cluster.name, echo=echo)
-        ctx.run("talosctl config context " + cluster.name, echo=echo)
+        print('Directory {}, will be removed together with its contents.'.format(cluster_dir))
+        if user_confirmed():
+            shutil.rmtree(cluster_dir)
 
+    def delete_k8s_contexts(self, ctx):
+        contexts_stdout = ctx.run("kconf list", hide='stdout', echo=self.echo).stdout
+        contexts = set([line.strip() for line in contexts_stdout.splitlines()])
+        trash_can = set()
 
-def context_set_bary(ctx, local_state: SystemContext):
-    """
-    Switch k8s context to management(bary) cluster
-    """
-    constellation = local_state.constellation
-    set_context(ctx, constellation.bary)
+        for context in contexts:
+            if "@" + self.cluster.name in context:
+                trash_can.add(context)
 
+        if len(trash_can) == 0:
+            return
 
-def context_set_kind(ctx):
-    """
-    Switch k8s context to local(kind) management(ClusterAPI) cluster
-    """
-    set_context(ctx, Cluster(name=KIND_CLUSTER_NAME))
+        print('Following k8s contexts will be removed:')
+        for trash in trash_can:
+            print(trash)
+
+        if user_confirmed():
+            difference = contexts.difference(trash_can)
+            ctx.run("kconf use " + difference.pop())
+            for trash in trash_can:
+                ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=True, pty=True)
+
+    def delete_talos_contexts(self, ctx):
+        with open(self.paths.talosconfig_global_file()) as talosconfig_file:
+            talosconfig = dict(yaml.safe_load(talosconfig_file))
+
+        for context_name, value in list(talosconfig['contexts'].items()):
+            if self.cluster.name in context_name:
+                del talosconfig['contexts'][context_name]
+
+        if self.cluster.name in talosconfig['context']:
+            talosconfig['context'] = ''
+
+        with open(self.paths.talosconfig_global_file(), 'w') as talosconfig_file:
+            yaml.safe_dump(talosconfig, talosconfig_file)
+
 
 
 def add_talos_hashbang(filename):
