@@ -270,7 +270,9 @@ class ClusterCtrl:
 
         all_nodes_accounted_for = False
 
-        if len(ip_addresses) == len(list(self.cluster)):
+        print("{} | {}".format(len(ip_addresses), len(list(self.cluster))))
+
+        if len(ip_addresses) >= len(list(self.cluster)):
             all_nodes_accounted_for = True
 
         return all_nodes_accounted_for, ip_addresses

@@ -9,15 +9,17 @@ class Helm:
 
     _ctx = None
     _echo: bool
+    _namespace_file_name: str
 
     def __init__(self, ctx, echo: bool):
         self._ctx = ctx
         self._echo = echo
+        self._namespace_file_name = 'namespace.yaml'
 
     def _install(self, values_file_path: str, app_name: str,
-                 namespace=None, namespace_file_name='namespace.yaml', wait=False):
+                 namespace=None, wait=False):
         app_directory = os.path.dirname(values_file_path)
-        namespace_file_path = os.path.join(app_directory, namespace_file_name)
+        namespace_file_path = os.path.join(app_directory, self._namespace_file_name)
 
         if os.path.isfile(namespace_file_path):
             self._ctx.run("kubectl apply -f " + namespace_file_path, echo=True)
@@ -32,9 +34,8 @@ class Helm:
             namespace_cmd = "--create-namespace --namespace " + namespace
 
         self._ctx.run(
-            "helm --dependency-update "
-            "{} "
-            "upgrade --install {} "
+            "helm {} "
+            "upgrade --dependency-update --install {} "
             "{} {} ".format(
                 "--wait " if wait else '',
                 namespace_cmd,
@@ -43,9 +44,9 @@ class Helm:
             ), echo=self._echo)
 
     def template(self, values_file_path: str, app_name: str,
-                 namespace=None, namespace_file_name='namespace.yaml') -> list:
+                 namespace=None) -> list:
         app_directory = os.path.dirname(values_file_path)
-        namespace_file_path = os.path.join(app_directory, namespace_file_name)
+        namespace_file_path = os.path.join(app_directory, self._namespace_file_name)
 
         result = list()
 
@@ -99,12 +100,12 @@ class Helm:
 
         return manifest
 
-    def install(self, hvf: HelmValueFiles, app_name,
-                namespace=None, namespace_file_name='namespace.yaml', install: bool = False):
+    def install(self, hvf: HelmValueFiles, app_name: str, install: bool, namespace=None):
         if not install:
             return
+        print('aaa')
 
         for dependency in hvf.deps:
-            self._install(dependency, app_name + '-dep', namespace, namespace_file_name, wait=True)
+            self._install(dependency, app_name + '-dep', namespace, wait=True)
 
-        self._install(hvf.app, app_name, namespace, namespace_file_name)
+        self._install(hvf.app, app_name, namespace)

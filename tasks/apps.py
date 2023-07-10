@@ -495,7 +495,7 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
 
     if install:
         helm = Helm(ctx, echo)
-        helm.install(values_file, app_name, Namespace.network_services, install)
+        helm.install(values_file, app_name, install, Namespace.network_services)
 
 
 def network_service(ctx, install: bool = False, echo: bool = False):
