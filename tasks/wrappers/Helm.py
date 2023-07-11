@@ -103,7 +103,6 @@ class Helm:
     def install(self, hvf: HelmValueFiles, app_name: str, install: bool, namespace=None):
         if not install:
             return
-        print('aaa')
 
         for dependency in hvf.deps:
             self._install(dependency, app_name + '-dep', namespace, wait=True)

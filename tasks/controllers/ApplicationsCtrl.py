@@ -120,6 +120,32 @@ class ApplicationsCtrl:
 
         return compatible_apps
 
+    def helm_namespace_fix(self, app_name: str, namespace: Namespace):
+        """
+        The following is a naive workaround for https://github.com/helm/helm/issues/10737#issuecomment-1062899126
+        The problem is that 'helm template' does not work well with '--namespace' in some cases.
+        It appears that MetalLB chart is susceptible to this issue. As a workaround we read the generated helm template
+        and update the namespaced resources with our namespace.
+        """
+        api_resources = self._ctx.run('kubectl api-resources --namespaced=true', echo=self._echo, hide='stdout').stdout
+        kinds = list()
+        for line in api_resources.splitlines():
+            columns = line.split()
+            for column, value in enumerate(columns):
+                if column == len(columns)-1:
+                    kinds.append(value)
+
+        manifest_file_path = self._paths.k8s_manifest_file(app_name)
+        with open(manifest_file_path) as manifest_file:
+            manifests = list(yaml.safe_load_all(manifest_file))
+
+        for manifest in manifests:
+            if manifest['kind'] in kinds:
+                manifest['metadata']['namespace'] = namespace.value
+
+        with open(manifest_file_path, 'w') as manifest_file:
+            yaml.safe_dump_all(manifests, manifest_file)
+
     def render_helm_template(self, app_name: str, hvf: HelmValueFiles, namespace: Namespace) -> str:
         """
         Produces [secrets_dir]/helm_template/manifest.yaml - Helm cilium manifest to be used
@@ -130,10 +156,12 @@ class ApplicationsCtrl:
         helm = Helm(self._ctx, self._echo)
         helm_tpl_data = helm.template(hvf.app, app_name, namespace)
 
-        manifest_file_path = self._paths.k8s_manifests(app_name + '.yaml')
+        manifest_file_path = self._paths.k8s_manifest_file(app_name)
 
         with open(manifest_file_path, 'w') as manifest_file:
             yaml.safe_dump_all(helm_tpl_data, manifest_file)
+
+        self.helm_namespace_fix(app_name, namespace)
 
         return manifest_file_path
 

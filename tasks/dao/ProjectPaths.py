@@ -102,8 +102,8 @@ class ProjectPaths:
     def k8s_manifests_dir(self):
         return os.path.join(self.cluster_dir(), "k8s_manifests")
 
-    def k8s_manifests(self, *paths):
-        return os.path.join(mkdirs(self.k8s_manifests_dir()), *paths)
+    def k8s_manifest_file(self, app_name):
+        return os.path.join(mkdirs(self.k8s_manifests_dir()), "{}.yaml".format(app_name))
 
     def patches_dir(self, *paths):
         return os.path.join(self.cluster_dir(), "patch", *paths)
