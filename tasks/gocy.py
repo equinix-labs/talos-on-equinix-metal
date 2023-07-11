@@ -5,7 +5,7 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
-from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
+from tasks.wrappers.Clusterctl import Clusterctl
 from tasks.controllers.ConstellationSpecCtrl import get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.dao.SystemContext import SystemContext
@@ -35,7 +35,7 @@ def init(ctx, echo: bool = False):
     and populate with initial files; default constellation spec, secrets template, local state file.
     """
     state = SystemContext(ctx, echo)
-    clusterctl = ClusterctlCtrl(state, echo)
+    clusterctl = Clusterctl(state, echo)
     clusterctl.kind_create(ctx)
 
 

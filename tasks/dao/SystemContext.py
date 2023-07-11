@@ -4,21 +4,21 @@ import shutil
 from typing import Any
 
 import yaml
-from invoke import Context
+from invoke import Context, Failure
 from pydantic import ValidationError
 from pydantic_yaml import YamlModel
 
 from tasks.controllers.ConstellationSpecCtrl import ConstellationSpecCtrl, get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import mkdirs, ProjectPaths, RepoPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
-from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME
+from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME, KIND_CONTEXT_NAME
 
 
 class LocalStateModel(YamlModel):
     # Name of the constellation that the user currently works on
     constellation_context: str = CONSTELLATION_NAME
     # Name of the bary/management cluster, the one where CAPI is currently located
-    bary_cluster_context: str = KIND_CLUSTER_NAME
+    bary_cluster_context: str = KIND_CONTEXT_NAME
     # Cluster context, applies both to talos cluster and k8s as the contexts for both have the same name
     # During the initial state the CAPI is installed on local kind cluster
     cluster_context: str = KIND_CLUSTER_NAME
@@ -116,7 +116,7 @@ class SystemContext:
         return const_ctrl.get_cluster_by_name(self._local_state.cluster_context)
 
     def set_cluster(self, cluster: Any):
-        if cluster in self.constellation:
+        if cluster in self.constellation or cluster in KIND_CONTEXT_NAME:
             if type(cluster) is Cluster:
                 self._local_state.cluster_context = cluster.name
             else:
@@ -154,8 +154,11 @@ class SystemContext:
             return dict(yaml.safe_load(secrets_file))
 
     def _context_apply(self, cluster_name: str):
-        if 'kind' in cluster_name or KIND_CLUSTER_NAME in cluster_name:
-            self._ctx.run("kconf use {} | true".format('kind-' + KIND_CLUSTER_NAME), echo=self._echo)
-        else:
-            self._ctx.run("kconf use admin@{} | true".format(cluster_name), echo=self._echo)
-            self._ctx.run("talosctl config context {} | true".format(cluster_name), echo=self._echo)
+        try:
+            if 'kind' in cluster_name or KIND_CLUSTER_NAME in cluster_name:
+                self._ctx.run("kconf use {}".format(KIND_CONTEXT_NAME), echo=self._echo, pty=True)
+            else:
+                self._ctx.run("kconf use admin@{}".format(cluster_name), echo=self._echo, pty=True)
+                self._ctx.run("talosctl config context {}".format(cluster_name), echo=self._echo, pty=True)
+        except Failure:
+            logging.fatal("Was cluster {} set up ?".format(cluster_name))

@@ -4,7 +4,7 @@ from glob import glob
 
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
-from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_FILE_SUFFIX
+from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CONTEXT_NAME
 
 
 class ConstellationSpecCtrl:
@@ -25,8 +25,8 @@ class ConstellationSpecCtrl:
             if cluster.name == cluster_name:
                 return cluster
 
-        if cluster_name == KIND_CLUSTER_NAME:
-            return Cluster(name=KIND_CLUSTER_NAME)
+        if cluster_name in KIND_CONTEXT_NAME:
+            return Cluster(name=KIND_CONTEXT_NAME)
 
         logging.fatal("Cluster: {} not specified in constellation {}".format(cluster_name, self.constellation.name))
 

@@ -69,7 +69,7 @@ class ClusterCtrl:
 
         with ctx.cd(self.paths.talos_dir()):
             ctx.run(
-                "talosctl gen config {} https://{}:6443 | true".format(
+                "talosctl gen config {} https://{}:6443".format(
                     self.cluster.name,
                     equinix.get_vips(VipRole.cp).public_ipv4[0]
                 ),
@@ -243,10 +243,9 @@ class ClusterCtrl:
         )
 
     def build_manifest(self, ctx, dev_mode: bool):
-        # clean(ctx, constellation, cluster)
         self.generate_cluster_spec()
         self.talosctl_gen_config(ctx)
-        if not dev_mode:
+        if dev_mode:
             self.patch_template_with_cilium_manifest(ctx, self.echo)
 
         self.talos_apply_config_patch(ctx)
@@ -393,7 +392,7 @@ class ClusterCtrl:
             difference = contexts.difference(trash_can)
             ctx.run("kconf use " + difference.pop())
             for trash in trash_can:
-                ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=True, pty=True)
+                ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=self.echo, pty=True)
 
     def delete_talos_contexts(self):
         with open(self.paths.talosconfig_global_file()) as talosconfig_file:

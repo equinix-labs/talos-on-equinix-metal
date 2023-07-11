@@ -3,7 +3,7 @@ from tasks.helpers import user_confirmed
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 
 
-class ClusterctlCtrl:
+class Clusterctl:
 
     _context: SystemContext
 
@@ -39,9 +39,9 @@ class ClusterctlCtrl:
         cluster_exists = False
         for kind_cluster in kind_clusters:
             if kind_cluster == KIND_CLUSTER_NAME:
-                cluster_exists = kind_delete(ctx, self._echo)
+                cluster_exists = not kind_delete(ctx, self._echo)
 
-        if cluster_exists:
+        if not cluster_exists:
             ctx.run("kind create cluster --name {}".format(KIND_CLUSTER_NAME), echo=self._echo)
 
         self.init(ctx)

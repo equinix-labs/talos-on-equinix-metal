@@ -48,7 +48,7 @@ def register_vips(ctx, echo: bool = False):
     """
     Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
     """
-    state = SystemContext()
+    state = SystemContext(ctx, echo)
     metal_ctrl = MetalCtrl(state, echo)
     metal_ctrl.register_vips(ctx)
 

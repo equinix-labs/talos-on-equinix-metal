@@ -4,7 +4,8 @@ import pytest
 
 from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths
-from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, CLUSTER_NAME
+from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, CLUSTER_NAME, \
+    KIND_CONTEXT_NAME
 
 
 @pytest.fixture(scope="session")
@@ -33,5 +34,5 @@ def test_default_constellation_is_parsable(monkeypatch, tmp_abs_test_root):
     local_state = SystemContext(ProjectPaths(root=project_dir))
 
     assert local_state.constellation.name == CONSTELLATION_NAME
-    assert local_state.bary_cluster.name == KIND_CLUSTER_NAME
-    assert local_state.cluster.name == KIND_CLUSTER_NAME
+    assert local_state.bary_cluster.name == KIND_CONTEXT_NAME
+    assert local_state.cluster.name == KIND_CONTEXT_NAME

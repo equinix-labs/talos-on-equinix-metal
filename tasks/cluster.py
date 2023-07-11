@@ -4,11 +4,11 @@ import yaml
 from invoke import task
 
 from tasks.controllers.ClusterCtrl import ClusterCtrl
-from tasks.controllers.ClusterctlCtrl import ClusterctlCtrl
+from tasks.wrappers.Clusterctl import Clusterctl
 from tasks.dao.ProjectPaths import RepoPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import str_presenter, get_secrets_dir, \
-    get_cp_vip_address, get_constellation_clusters, get_constellation, get_argo_infra_namespace_name
+    get_constellation, get_argo_infra_namespace_name
 from tasks.metal import register_vips
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 
@@ -17,20 +17,13 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 @task(register_vips)
-def talosctl_gen_config(ctx):
+def talosctl_gen_config(ctx, echo: bool = False):
     """
     Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
     """
-    for cluster_spec in get_constellation_clusters():
-        cluster_spec_dir = os.path.join(get_secrets_dir(), cluster_spec.name)
-        with ctx.cd(cluster_spec_dir):
-            ctx.run(
-                "talosctl gen config {} https://{}:6443 | true".format(
-                    cluster_spec.name,
-                    get_cp_vip_address(cluster_spec)
-                ),
-                echo=True
-            )
+    state = SystemContext(ctx, echo)
+    cluster_ctrl = ClusterCtrl(state, echo)
+    cluster_ctrl.talosctl_gen_config(ctx)
 
 
 @task()
@@ -90,7 +83,7 @@ def clusterctl_move(ctx, echo: bool = False):
     state = SystemContext(ctx, echo)
     state.set_bary_cluster(state.constellation.bary.name)
 
-    clusterctl = ClusterctlCtrl(state)
+    clusterctl = Clusterctl(state)
     clusterctl.init(ctx)
 
     state.set_bary_cluster(KIND_CLUSTER_NAME)
