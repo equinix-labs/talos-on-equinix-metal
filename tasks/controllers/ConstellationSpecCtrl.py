@@ -7,12 +7,11 @@ from tasks.models.ConstellationSpecV01 import Constellation, Cluster
 from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_FILE_SUFFIX
 
 
-class ConstellationCtrl:
-
+class ConstellationSpecCtrl:
     _project_path: ProjectPaths
     _constellation_name: str
 
-    def __init__(self, project_path: ProjectPaths, constellation_name: str):
+    def __init__(self, project_path: ProjectPaths = None, constellation_name: str = None):
         self._project_path = project_path
         self._constellation_name = constellation_name
 

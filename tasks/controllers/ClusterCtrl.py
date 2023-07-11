@@ -1,19 +1,16 @@
 import logging
 import os
 import shutil
-from pprint import pprint
 
 import yaml
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
-from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
+from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter, user_confirmed
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
-from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.models.Namespaces import Namespace
-
 
 CONTROL_PLANE_NODE = 'control-plane'
 WORKER_NODE = 'worker'
@@ -164,13 +161,13 @@ class ClusterCtrl:
                 if document['kind'] == 'TalosControlPlane':
                     del (document['spec']['controlPlaneConfig']['controlplane']['configPatches'])
                     document['spec']['controlPlaneConfig']['controlplane']['generateType'] = "none"
-                    with open(os.path.join(cluster_secrets_dir, cp_capi_file_name), 'r') as talos_cp_config_file:
+                    with open(os.path.join(cluster_secrets_dir, cp_capi_file_name)) as talos_cp_config_file:
                         document['spec']['controlPlaneConfig']['controlplane']['data'] = talos_cp_config_file.read()
 
                 if document['kind'] == 'TalosConfigTemplate':
                     del (document['spec']['template']['spec']['configPatches'])
                     document['spec']['template']['spec']['generateType'] = 'none'
-                    with open(os.path.join(cluster_secrets_dir, worker_capi_file_name), 'r') as talos_worker_config_file:
+                    with open(os.path.join(cluster_secrets_dir, worker_capi_file_name)) as talos_worker_config_file:
                         document['spec']['template']['spec']['data'] = talos_worker_config_file.read()
 
                 documents.append(document)
@@ -224,8 +221,9 @@ class ClusterCtrl:
     def generate_cluster_spec(self):
         """
         Produces ClusterAPI manifest - ~/.gocy/[Constellation_name][Cluster_name]/cluster_spec.yaml
-        In this particular case we are dealing with two kind of config specifications. Cluster API one
-        and Talos Linux one. As per official CAPI documentation https://cluster-api.sigs.k8s.io/tasks/using-kustomize.html,
+        In this particular case we are dealing with two kind of config specifications.
+        Cluster API one and Talos Linux one.
+        As per official CAPI documentation https://cluster-api.sigs.k8s.io/tasks/using-kustomize.html,
         this functionality is currently limited. As of now Kustomize alone can not produce satisfactory result.
         This is why we go with some custom python + jinja template solution.
         """
@@ -333,7 +331,38 @@ class ClusterCtrl:
         ), echo=True)
 
         ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
-        ctx.run("kconf use admin@" + self.cluster.name, echo=True, pty=True)
+        self.state.set_cluster(self.cluster.name)
+
+    def get_oidc_kubeconfig(self):
+        """
+        Generates oidc kubeconfigs to be shared with team members.
+        """
+        kubeconfig_file_path = self.paths.kubeconfig_file()
+
+        with open(kubeconfig_file_path) as kubeconfig_file:
+            kubeconfig = dict(yaml.safe_load(kubeconfig_file))
+
+        jinja = get_jinja()
+        repo_paths = RepoPaths()
+
+        with open(repo_paths.oidc_template_file()) as oidc_user_tpl_file:
+            oidc_user_tpl = jinja.from_string(oidc_user_tpl_file.read())
+
+        secrets = self.state.secrets
+        data = {
+            'cluster_name': self.cluster.name
+        }
+        data.update(secrets['idp_auth']['k8s_oidc'])
+
+        oidc_user = yaml.safe_load(oidc_user_tpl.render(data))
+
+        kubeconfig['users'] = [oidc_user]
+        kubeconfig['contexts'][0]['context']['user'] = oidc_user['name']
+        kubeconfig['contexts'][0]['name'] = "{}@{}".format('oidc', self.cluster.name)
+        kubeconfig['current-context'] = list(kubeconfig['contexts'])[0]['name']
+
+        with open(self.paths.kubeconfig_oidc_file(), 'w') as oidc_kubeconfig_file:
+            yaml.safe_dump(kubeconfig, oidc_kubeconfig_file)
 
     def delete_directories(self):
         cluster_dir = self.paths.cluster_dir()
@@ -366,7 +395,7 @@ class ClusterCtrl:
             for trash in trash_can:
                 ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=True, pty=True)
 
-    def delete_talos_contexts(self, ctx):
+    def delete_talos_contexts(self):
         with open(self.paths.talosconfig_global_file()) as talosconfig_file:
             talosconfig = dict(yaml.safe_load(talosconfig_file))
 
@@ -379,7 +408,6 @@ class ClusterCtrl:
 
         with open(self.paths.talosconfig_global_file(), 'w') as talosconfig_file:
             yaml.safe_dump(talosconfig, talosconfig_file)
-
 
 
 def add_talos_hashbang(filename):

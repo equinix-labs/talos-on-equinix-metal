@@ -5,7 +5,7 @@ from invoke import task
 from tabulate import tabulate
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
-from tasks.controllers.ConstellationCtrl import ConstellationCtrl
+from tasks.controllers.ConstellationSpecCtrl import ConstellationSpecCtrl
 from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import get_secrets_dir, get_secret_envs, get_nodes_ips, get_secrets, \
     get_constellation, get_jinja, get_fqdn, get_ccontext, get_ip_addresses_file_path
@@ -20,7 +20,7 @@ def print_available(ctx, echo: bool = False):
     """
     List compatible applications
     """
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     app_ctrl = ApplicationsCtrl(ctx, context, echo)
 
     print(tabulate(
@@ -104,7 +104,7 @@ def dns_tls(ctx, install: bool = False, echo: bool = False):
             }
         }
     }
-    ApplicationsCtrl(ctx, SystemContext(), echo).install_app(
+    ApplicationsCtrl(ctx, SystemContext(ctx, echo), echo).install_app(
         app_name, data, Namespace.dns_tls, install)
 
 
@@ -114,7 +114,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     Install Helm chart apps/whoami
     """
     app_name = 'whoami'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = get_secrets()
 
@@ -133,7 +133,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
         }
     }
 
-    ApplicationsCtrl(ctx, SystemContext(), echo).install_app(
+    ApplicationsCtrl(ctx, SystemContext(ctx, echo), echo).install_app(
         app_name, data, Namespace.apps, install)
 
 
@@ -143,7 +143,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
     Install ArgoCD
     """
     app_name = 'argo'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = get_secrets()
 
@@ -180,8 +180,8 @@ def argo_add_cluster(ctx, cluster_name: str, echo: bool = False):
     """
     With ArgoCD present on the cluster add connections to other constellation clusters.
     """
-    context = SystemContext()
-    constellation_ctrl = ConstellationCtrl(context.project_paths, context.constellation.name)
+    context = SystemContext(ctx, echo)
+    constellation_ctrl = ConstellationSpecCtrl(context.project_paths, context.constellation.name)
     cluster = constellation_ctrl.get_cluster_by_name(cluster_name)
     secrets = context.secrets
 
@@ -203,7 +203,7 @@ def gitea(ctx, install: bool = False, echo: bool = False):
     Install gitea
     """
     app_name = 'gitea'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -231,11 +231,11 @@ def gitea_port_forward(ctx, echo: bool = False):
 
 
 @task(gitea)
-def gitea_provision(ctx, ingres_enabled: bool = False):
+def gitea_provision(ctx, ingres_enabled: bool = False, echo: bool = False):
     """
     Provision local gitea, so that it works with Argo
     """
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -280,7 +280,7 @@ def dbs(ctx, install: bool = False, echo: bool = False):
     Install shared databases
     """
     app_name = 'dbs'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -301,7 +301,7 @@ def dbs(ctx, install: bool = False, echo: bool = False):
 @task()
 def dashboards(ctx, install: bool = False, echo: bool = False):
     app_name = 'dashboards'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -321,7 +321,7 @@ def dashboards(ctx, install: bool = False, echo: bool = False):
 @task()
 def harbor(ctx, install: bool = False, echo: bool = False):
     app_name = 'harbor'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -339,7 +339,7 @@ def harbor(ctx, install: bool = False, echo: bool = False):
 @task()
 def observability(ctx, install: bool = False, echo: bool = False):
     app_name = 'observability'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
 
@@ -363,7 +363,7 @@ def ingress(ctx, install: bool = False, echo: bool = False):
     Install Helm chart apps/ingress-bundle
     """
     app_name = 'ingress'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
 
     apps_ctrl = ApplicationsCtrl(ctx, context, echo)
@@ -406,7 +406,7 @@ def storage(ctx, install: bool = False, echo: bool = False):
     Install storage
     """
     app_name = 'storage'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
 
     data = {
         'values': {
@@ -437,7 +437,7 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
     """
     app_name = 'idp-auth'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
     jinja = get_jinja()
@@ -488,7 +488,7 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
     """
     app_name = 'network-dependencies'
 
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     app_ctrl = ApplicationsCtrl(ctx, context, echo)
 
     values_file = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
@@ -507,7 +507,7 @@ def network_services(ctx, install: bool = False, echo: bool = False):
     """
 
     app_name = 'network-services'
-    context = SystemContext()
+    context = SystemContext(ctx, echo)
     cluster = context.cluster
 
     data = {

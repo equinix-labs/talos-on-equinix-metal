@@ -4,13 +4,14 @@ import shutil
 from typing import Any
 
 import yaml
+from invoke import Context
 from pydantic import ValidationError
 from pydantic_yaml import YamlModel
 
-from tasks.controllers.ConstellationCtrl import ConstellationCtrl, get_constellation_spec_file_paths
+from tasks.controllers.ConstellationSpecCtrl import ConstellationSpecCtrl, get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import mkdirs, ProjectPaths, RepoPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
-from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME, CLUSTER_NAME
+from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CLUSTER_NAME
 
 
 class LocalStateModel(YamlModel):
@@ -26,8 +27,13 @@ class LocalStateModel(YamlModel):
 class SystemContext:
     _project_paths: ProjectPaths
     _local_state: LocalStateModel
+    _ctx: Context
+    _echo: bool
 
-    def __init__(self, project_paths: ProjectPaths = None):
+    def __init__(self, ctx: Context, echo: bool = False, project_paths: ProjectPaths = None):
+        self._ctx = ctx
+        self._echo = echo
+
         if project_paths is None:
             self._project_paths = ProjectPaths()
         else:
@@ -77,7 +83,7 @@ class SystemContext:
 
     @property
     def constellation(self) -> Constellation:
-        const_ctrl = ConstellationCtrl(
+        const_ctrl = ConstellationSpecCtrl(
             self._project_paths,
             self._local_state.constellation_context
         )
@@ -106,17 +112,17 @@ class SystemContext:
 
     @property
     def cluster(self) -> Cluster:
-        const_ctrl = ConstellationCtrl(self._project_paths, self._local_state.constellation_context)
+        const_ctrl = ConstellationSpecCtrl(self._project_paths, self._local_state.constellation_context)
         return const_ctrl.get_cluster_by_name(self._local_state.cluster_context)
 
-    @cluster.setter
-    def cluster(self, cluster: Any):
+    def set_cluster(self, cluster: Any):
         if cluster in self.constellation:
             if type(cluster) is Cluster:
                 self._local_state.cluster_context = cluster.name
             else:
                 self._local_state.cluster_context = cluster
 
+            self._context_apply(self._local_state.cluster_context)
             self._save()
         else:
             logging.fatal(
@@ -128,13 +134,15 @@ class SystemContext:
 
     @property
     def bary_cluster(self) -> Cluster:
-        const_ctrl = ConstellationCtrl(self._project_paths, self._local_state.constellation_context)
+        const_ctrl = ConstellationSpecCtrl(self._project_paths, self._local_state.constellation_context)
         return const_ctrl.get_cluster_by_name(self._local_state.bary_cluster_context)
 
-    @bary_cluster.setter
-    def bary_cluster(self, cluster_name: str):
-        if cluster_name == self.constellation.bary.name or cluster_name == KIND_CLUSTER_NAME:
+    def set_bary_cluster(self, cluster_name: str = None):
+        if cluster_name is None:
+            self._context_apply(self._local_state.bary_cluster_context)
+        elif cluster_name == self.constellation.bary.name or cluster_name == KIND_CLUSTER_NAME:
             self._local_state.bary_cluster_context = cluster_name
+            self._context_apply(self._local_state.bary_cluster_context)
             self._save()
         else:
             logging.fatal("Cluster {} is not a valid bary center for constellation {}".format(
@@ -144,3 +152,10 @@ class SystemContext:
     def secrets(self) -> dict:
         with open(self._project_paths.secrets_file()) as secrets_file:
             return dict(yaml.safe_load(secrets_file))
+
+    def _context_apply(self, cluster_name: str):
+        if 'kind' in cluster_name or KIND_CLUSTER_NAME in cluster_name:
+            self._ctx.run("kconf use {} | true".format('kind-' + KIND_CLUSTER_NAME), echo=self._echo)
+        else:
+            self._ctx.run("kconf use admin@{} | true".format(cluster_name), echo=self._echo)
+            self._ctx.run("talosctl config context {} | true".format(cluster_name), echo=self._echo)

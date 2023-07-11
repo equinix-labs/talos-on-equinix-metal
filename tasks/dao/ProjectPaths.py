@@ -31,6 +31,9 @@ class RepoPaths:
     def app_template_file(self, app_name):
         return os.path.join(self.apps_dir(), app_name, 'values.jinja.yaml')
 
+    def oidc_template_file(self):
+        return os.path.join(self.templates_dir('k8s_oidc_user.yaml'))
+
 
 class ProjectPaths:
     _constellation_name: str
@@ -83,6 +86,9 @@ class ProjectPaths:
 
     def kubeconfig_file(self):
         return os.path.join(self.access_dir(), 'kubeconfig')
+
+    def kubeconfig_oidc_file(self):
+        return os.path.join(self.access_dir(), 'oidc.kubeconfig')
 
     def cluster_capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), "capi-manifest.yaml")

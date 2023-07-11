@@ -5,9 +5,10 @@ import os
 import yaml
 from invoke import task
 
-from tasks.gocy import context_set_bary
+from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import str_presenter, get_secrets_dir, get_cp_vip_address, \
-    get_cluster_spec_from_context, get_constellation_clusters, get_constellation
+    get_cluster_spec_from_context
+from tasks.models.Namespaces import Namespace
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -198,176 +199,20 @@ def hack_fix_bgp_peer_routs(ctx, talosconfig_file_name='talosconfig', namespace=
                     ), echo=True)
 
 
-# @task()
-# def build_network_service_dependencies_manifest(ctx, manifest_name='network-services-dependencies'):
-#     """
-#     Produces [secrets_dir]/network-services-dependencies.yaml - Helm cilium manifest to be used
-#     as inlineManifest is Talos machine specification (Helm manifests inline install).
-#     https://www.talos.dev/v1.4/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
-#     """
-#     chart_directory = os.path.join('apps', manifest_name)
-#     manifest_file_name = os.path.join(
-#         get_secrets_dir(),
-#         manifest_name + '.yaml')
-#     with ctx.cd(chart_directory):
-#         ctx.run("helm dependencies update", echo=True)
-#         ctx.run("helm template --namespace network-services "
-#                 "--set cilium.bpf.masquerade=true "
-#                 "--set cilium.kubeProxyReplacement=strict "
-#                 "--set cilium.k8sServiceHost={} "
-#                 "--set cilium.k8sServicePort={} "
-#                 " {} ./ > {}".format(
-#                     get_cp_vip_address(),
-#                     '6443',
-#                     manifest_name,
-#                     manifest_file_name
-#                 ), echo=True)
-#
-#     # Talos controller chokes on the '\n' in yaml
-#     # [talos] controller failed {
-#     #       "component": "controller-runtime",
-#     #       "controller": "k8s.ExtraManifestController",
-#     #       "error": "1 error occurred:\x5cn\x5ct* error updating manifests:
-#     #           invalid Yaml document separator: null\x5cn\x5cn"
-#     #   }
-#     # Helm does not mind those, we need to fix them.
-#     manifest = list()
-#     with open(manifest_file_name, 'r') as manifest_file:
-#         _manifest = list(yaml.safe_load_all(manifest_file))
-#
-#         for document in _manifest:
-#             if document is not None:
-#                 if 'data' in document:
-#                     data_keys = document['data'].keys()
-#                     for key in data_keys:
-#                         if '\n' in document['data'][key]:
-#                             tmp_list = document['data'][key].split('\n')
-#                             for index, _ in enumerate(tmp_list):
-#                                 tmp_list[index] = tmp_list[index].rstrip()
-#                             document['data'][key] = "\n".join(tmp_list).strip()
-#                 manifest.append(document)
-#
-#     with open(manifest_file_name, 'w') as manifest_file:
-#         yaml.safe_dump_all(manifest, manifest_file)
-
-
-# def build_network_service_dependencies_manifest(ctx, manifest_name='network-dependencies') -> str:
-#     """
-#     Produces [secrets_dir]/helm_template/manifest.yaml - Helm cilium manifest to be used
-#     as inlineManifest is Talos machine specification (Helm manifests inline install).
-#     https://www.talos.dev/v1.4/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
-#     """
-#     helm_values = prepare_network_dependencies(ctx, manifest_name, Namespace.network_services)
-#     helm_tpl_data = helm_template(ctx, helm_values['apps'][0], manifest_name, Namespace.network_services)
-#
-#     manifest_dir = os.path.join(get_secrets_dir(), 'helm_template', manifest_name)
-#     manifest_file_path = os.path.join(manifest_dir, 'manifest.yaml')
-#     os.makedirs(manifest_dir, exist_ok=True)
-#
-#     with open(manifest_file_path, 'w') as manifest_file:
-#         yaml.safe_dump_all(helm_tpl_data, manifest_file)
-#
-#     return manifest_file_path
-
-# @task()
-# def generate_ca(ctx):
-#     """
-#     Generate root CA, to be used by cilium and others
-#     """
-#     if os.path.isdir(ctx.core.ca_dir):
-#         print("Directory already exists: " + ctx.core.ca_dir)
-#         return
-#
-#     ctx.run("mkdir -p " + ctx.core.ca_dir)
-#     ctx.run("cp -n templates/openssl.cnf " + ctx.core.ca_dir)
-#     with ctx.cd(ctx.core.ca_dir):
-#         ctx.run("openssl req -days 3560 -config openssl.cnf "
-#                 "-subj '/CN={} CA' -nodes -new -x509 -keyout ca.key -out ca.crt".format(
-#                     os.environ.get('GOCY_DOMAIN')))
-#
-#
-# @task(generate_ca)
-# def install_network_service_dependencies(ctx):
-#     """
-#     Deploy chart apps/network-services-dependencies containing Cilium and MetalLB
-#     """
-#     chart_directory = os.path.join('apps', 'network-services-dependencies')
-#     cluster_spec = get_cluster_spec_from_context(ctx)
-#     constellation_spec = get_constellation_clusters()
-#
-#     # We have to count form one
-#     # Error: Unable to connect cluster:
-#     #   local cluster has the default name (cluster name: jupiter) and/or ID 0 (cluster ID: 0)
-#     cluster_id = 1
-#     for index, value in enumerate(constellation_spec):
-#         if value == cluster_spec:
-#             cluster_id = cluster_id + index
-#
-#     ca_crt = get_file_content_as_b64(os.path.join(ctx.core.ca_dir, 'ca.crt'))
-#     ca_key = get_file_content_as_b64(os.path.join(ctx.core.ca_dir, 'ca.key'))
-#
-#     with ctx.cd(chart_directory):
-#         ctx.run("helm dependencies update", echo=True)
-#         ctx.run("kubectl apply -f namespace.yaml")
-#         ctx.run("helm upgrade --install "
-#                 "--set cilium.k8sServiceHost={} "
-#                 "--set cilium.k8sServicePort={} "
-#                 "--set cilium.cluster.name={} "
-#                 "--set cilium.cluster.id={} "
-#                 "--set cilium.hubble.peerService.clusterDomain={} "
-#                 "--set cilium.tls.ca.cert={} "
-#                 "--set cilium.tls.ca.key={} "
-#                 "--namespace network-services network-services-dependencies ./".format(
-#                     get_cp_vip_address(get_cluster_spec_from_context(ctx)),
-#                     '6443',
-#                     cluster_spec.name,
-#                     cluster_id,
-#                     cluster_spec.name + '.local',
-#                     ca_crt,
-#                     ca_key
-#                 ),
-#                 echo=True)
-
-
-# @task(hack_fix_bgp_peer_routs)
-# def install_network_service(ctx, install=False):
-#     """
-#     Deploys apps/network-services chart, with BGP VIP pool configuration, based on
-#     VIPs registered in EquinixMetal. As of now the assumption is 1 GlobalIPv4 for ingress,
-#     1 PublicIPv4 for Cilium Mesh API server.
-#     """
-#     cluster_spec = get_cluster_spec_from_context(ctx)
-#     app_name = 'network-services'
-#     data = {
-#         'values': {
-#             'cluster_name': cluster_spec.name,
-#             'vips': {
-#                 str(VipRole.mesh): dict(),
-#                 str(VipRole.ingress): dict()
-#             }
-#         }
-#     }
-#
-#     for role in data['values']['vips']:
-#         with open(get_ip_addresses_file_path(cluster_spec, role)) as ip_addresses_file:
-#             data['values']['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
-#
-#     values_file = render_values(ctx, cluster_spec, app_name, data, namespace=app_name)
-#     helm_install(ctx, values_file, app_name, namespace=app_name, install=install)
-
-
 @task()
-def enable_cluster_mesh(ctx, namespace='network-services'):
+def enable_cluster_mesh(ctx, echo: bool = False):
     """
     Enables Cilium ClusterMesh
     https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
     """
-    context_set_bary(ctx)
-    constellation = get_constellation()
-    for cluster in get_constellation_clusters():
+    state = SystemContext(ctx, echo)
+    state.set_bary_cluster()
+
+    constellation = state.constellation
+    for cluster in state.constellation:
         if cluster.name != constellation.bary.name:
             ctx.run("cilium --namespace {} --context {} clustermesh connect --destination-context {}".format(
-                namespace,
+                Namespace.network_services,
                 'admin@' + constellation.bary.name,
                 'admin@' + cluster.name
             ), echo=True)
