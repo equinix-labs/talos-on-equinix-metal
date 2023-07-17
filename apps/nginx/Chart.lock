@@ -1,0 +1,9 @@
+dependencies:
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.6.1
+- name: base
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.18.0
+digest: sha256:6294c5e19fb785ec21d448f4a1194f67b23bbd9f18dcffa87248b8bd2b9237de
+generated: "2023-07-13T18:28:42.511031+02:00"

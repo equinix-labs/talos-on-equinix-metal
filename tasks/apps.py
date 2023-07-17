@@ -90,7 +90,7 @@ def dns_tls(ctx, install: bool = False, echo: bool = False):
     """
     Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
     """
-    app_name = 'dns-and-tls'
+    application_directory = 'dns-and-tls'
     secrets = get_secrets()
     data = {
         'values': {
@@ -105,7 +105,7 @@ def dns_tls(ctx, install: bool = False, echo: bool = False):
         }
     }
     ApplicationsCtrl(ctx, SystemContext(ctx, echo), echo).install_app(
-        app_name, data, Namespace.dns_tls, install)
+        application_directory, data, Namespace.dns_tls, install)
 
 
 @task()
@@ -113,7 +113,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     """
     Install Helm chart apps/whoami
     """
-    app_name = 'whoami'
+    application_directory = 'whoami'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = get_secrets()
@@ -134,7 +134,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     }
 
     ApplicationsCtrl(ctx, SystemContext(ctx, echo), echo).install_app(
-        app_name, data, Namespace.apps, install)
+        application_directory, data, Namespace.apps, install)
 
 
 @task()
@@ -142,7 +142,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
     """
     Install ArgoCD
     """
-    app_name = 'argo'
+    application_directory = 'argo'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = get_secrets()
@@ -172,7 +172,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
     # kubectl create namespace argocd
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.dns_tls, install)
+        application_directory, data, Namespace.dns_tls, install)
 
 
 @task()
@@ -202,7 +202,7 @@ def gitea(ctx, install: bool = False, echo: bool = False):
     """
     Install gitea
     """
-    app_name = 'gitea'
+    application_directory = 'gitea'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -217,7 +217,7 @@ def gitea(ctx, install: bool = False, echo: bool = False):
     data['values'].update(secrets['gitea'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.gitea, install)
+        application_directory, data, Namespace.gitea, install)
 
 
 @task()
@@ -279,7 +279,7 @@ def dbs(ctx, install: bool = False, echo: bool = False):
     """
     Install shared databases
     """
-    app_name = 'dbs'
+    application_directory = 'dbs'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -295,12 +295,12 @@ def dbs(ctx, install: bool = False, echo: bool = False):
     data['values'].update(secrets['dbs'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.database, install)
+        application_directory, data, Namespace.database, install)
 
 
 @task()
 def dashboards(ctx, install: bool = False, echo: bool = False):
-    app_name = 'dashboards'
+    application_directory = 'dashboards'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -315,12 +315,12 @@ def dashboards(ctx, install: bool = False, echo: bool = False):
     }
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.dashboards, install)
+        application_directory, data, Namespace.dashboards, install)
 
 
 @task()
 def harbor(ctx, install: bool = False, echo: bool = False):
-    app_name = 'harbor'
+    application_directory = 'harbor'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -333,12 +333,12 @@ def harbor(ctx, install: bool = False, echo: bool = False):
     data['values'].update(secrets['harbor'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.apps, install)
+        application_directory, data, Namespace.apps, install)
 
 
 @task()
 def observability(ctx, install: bool = False, echo: bool = False):
-    app_name = 'observability'
+    application_directory = 'observability'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -354,7 +354,33 @@ def observability(ctx, install: bool = False, echo: bool = False):
     data['values'].update(secrets['grafana'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.observability, install)
+        application_directory, data, Namespace.observability, install)
+
+
+@task()
+def istio(ctx, install: bool = False, echo: bool = False):
+    """
+    Install Helm chart apps/ingress-bundle
+    """
+    application_directory = 'istio'
+    context = SystemContext(ctx, echo)
+    cluster = context.cluster
+
+    apps_ctrl = ApplicationsCtrl(ctx, context, echo)
+
+    with open(context.project_paths.vips_file_by_role(VipRole.ingress)) as ip_addresses_file:
+        ingress_vips = ReservedVIPs().parse_raw(ip_addresses_file.read())
+
+    data = {
+        'values': {},
+        'deps': {
+            '01-crds': {},
+            '02-istiod': {},
+            '03-gateway': {}
+        }
+    }
+
+    apps_ctrl.install_app(application_directory, data, Namespace.istio, install)
 
 
 @task()
@@ -362,13 +388,13 @@ def ingress(ctx, install: bool = False, echo: bool = False):
     """
     Install Helm chart apps/ingress-bundle
     """
-    app_name = 'ingress'
+    application_directory = 'nginx'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
 
     apps_ctrl = ApplicationsCtrl(ctx, context, echo)
 
-    with open(get_ip_addresses_file_path(cluster, VipRole.ingress)) as ip_addresses_file:
+    with open(context.project_paths.vips_file_by_role(VipRole.ingress)) as ip_addresses_file:
         ingress_vips = ReservedVIPs().parse_raw(ip_addresses_file.read())
 
     data = {
@@ -379,7 +405,7 @@ def ingress(ctx, install: bool = False, echo: bool = False):
         }
     }
 
-    apps_ctrl.install_app(app_name, data, Namespace.ingress, install)
+    apps_ctrl.install_app(application_directory, data, Namespace.ingress, install)
 
     if len(ingress_vips.global_ipv4) > 0:
         data = {
@@ -390,14 +416,15 @@ def ingress(ctx, install: bool = False, echo: bool = False):
             }
         }
         values_file = apps_ctrl.render_values(
-            app_name + '-global',
+            application_directory + '-global',
             data,
-            namespace=app_name,
-            app_dir_name=app_name,
+            namespace=Namespace.ingress,
+            application_name=application_directory,
             target_app_suffix="global"
         )
         helm = Helm(ctx, echo)
-        helm.install(values_file, app_name + '-global', namespace=app_name, install=install)
+        helm.install(values_file, app_name=application_directory + '-global',
+                     namespace=Namespace.ingress, install=install)
 
 
 @task()
@@ -405,12 +432,12 @@ def storage(ctx, install: bool = False, echo: bool = False):
     """
     Install storage
     """
-    app_name = 'storage'
+    application_directory = 'storage'
     context = SystemContext(ctx, echo)
 
     data = {
         'values': {
-            'operator_namespace': app_name
+            'operator_namespace': application_directory
         },
         'deps': {
             'rook': {}
@@ -418,16 +445,16 @@ def storage(ctx, install: bool = False, echo: bool = False):
     }
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.storage, install)
+        application_directory, data, Namespace.storage, install)
 
 
-def idp_auth_chart(apps_ctrl: ApplicationsCtrl, app_name, data: dict, install: bool):
-    apps_ctrl.install_app(app_name, data, app_name, install)
+def idp_auth_chart(apps_ctrl: ApplicationsCtrl, application_directory, data: dict, install: bool):
+    apps_ctrl.install_app(application_directory, data, application_directory, install)
 
 
 def idp_auth_kubelogin_chart(apps_ctrl: ApplicationsCtrl, namespace: Namespace, data: dict, install: bool):
-    app_name = 'idp-auth-kubelogin'
-    apps_ctrl.install_app(app_name, data=data, namespace=namespace, install=install)
+    application_directory = 'idp-auth-kubelogin'
+    apps_ctrl.install_app(application_directory, data=data, namespace=namespace, install=install)
 
 
 @task()
@@ -436,7 +463,7 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
     Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
     Uses it to install idp-auth. IDP should be installed on bary cluster only.
     """
-    app_name = 'idp-auth'
+    application_directory = 'idp-auth'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
     secrets = context.secrets
@@ -455,7 +482,7 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
     data['values'].update(secrets)
 
     if cluster.name == constellation.bary.name:
-        idp_auth_chart(apps_ctrl, app_name, data, install)
+        idp_auth_chart(apps_ctrl, application_directory, data, install)
 
     idp_auth_kubelogin_chart(apps_ctrl, Namespace.idp_auth, data, install)
 
@@ -486,16 +513,16 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
     """
     Deploy chart apps/network-services-dependencies containing Cilium and MetalLB
     """
-    app_name = 'network-dependencies'
+    application_directory = 'network-dependencies'
 
     context = SystemContext(ctx, echo)
     app_ctrl = ApplicationsCtrl(ctx, context, echo)
 
-    values_file = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
+    values_file = app_ctrl.prepare_network_dependencies(application_directory, Namespace.network_services)
 
     if install:
         helm = Helm(ctx, echo)
-        helm.install(values_file, app_name, install, Namespace.network_services)
+        helm.install(values_file, install, application_directory, Namespace.network_services)
 
 
 @task()
@@ -506,7 +533,7 @@ def network_services(ctx, install: bool = False, echo: bool = False):
     1 PublicIPv4 for Cilium Mesh API server.
     """
 
-    app_name = 'network-services'
+    application_directory = 'network-services'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
 
@@ -525,4 +552,4 @@ def network_services(ctx, install: bool = False, echo: bool = False):
             data['values']['vips'][role] = ReservedVIPs().parse_raw(ip_addresses_file.read()).dict()
 
     ApplicationsCtrl(ctx, context, echo).install_app(
-        app_name, data, Namespace.network_services, install)
+        application_directory, data, Namespace.network_services, install)

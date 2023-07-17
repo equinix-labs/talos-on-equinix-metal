@@ -1,5 +1,5 @@
 apiVersion: v2
-name: ingress-bundle
+name: observability
 description: Tracks compatible versions of jaeger, opentelemetry
 
 type: application

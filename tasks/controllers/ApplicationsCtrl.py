@@ -14,6 +14,12 @@ from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Helm import Helm
 
 
+def get_chart_name(dependency_folder_path: str) -> str:
+    with open(os.path.join(dependency_folder_path, 'Chart.yaml')) as dependency_chart_file:
+        chart = yaml.safe_load(dependency_chart_file)
+        return chart['name']
+
+
 class ApplicationsCtrl:
     _context: SystemContext
 
@@ -29,54 +35,57 @@ class ApplicationsCtrl:
 
     def render_values(
             self,
-            app_name,
-            data,
-            namespace,
-            app_dir_name=None,
-            target_app_suffix=None) -> HelmValueFiles:
+            application_directory: str,
+            data: dict,
+            namespace: Namespace,
+            application_name: str = None,
+            target_app_suffix: str = None) -> HelmValueFiles:
         """
-        Renders jinja style helm values templates to ~/.gocy/[constellation]/[cluster]/apps to be picked up by Argo.
+        Renders jinja templated helm values.jinja.yaml files to ~/.gocy/[constellation]/[cluster]/apps/[app_dir],
+        so that they can be later on picked to be picked up by Argo, once Argo is up.
         """
-        if app_dir_name is None:
-            app_dir_name = app_name
+        source_apps_path = self._repo_paths.apps_dir(application_directory)
+        if application_name is None:
+            application_name = get_chart_name(source_apps_path)
 
-        source_apps_path = self._repo_paths.apps_dir(app_name)
         target_apps_path = self._paths.apps_dir(
-            app_dir_name if not target_app_suffix else app_dir_name + "-" + target_app_suffix)
+            application_directory if not target_app_suffix else application_name + "-" + target_app_suffix)
 
         copytree(source_apps_path, target_apps_path,
                  ignore=ignore_patterns(self._template_file_name, 'charts'), dirs_exist_ok=True)
 
-        target = os.path.join(target_apps_path, self._target_file_name)
+        values_file_path = os.path.join(target_apps_path, self._target_file_name)
 
         render_values_file(
                            os.path.join(source_apps_path, self._template_file_name),
-                           target,
+                           values_file_path,
                            data['values']
+        )
+
+        hvf = HelmValueFiles(
+            application_name if application_name else get_chart_name(target_apps_path),
+            values_file_path
         )
 
         render_values_file(
             self._repo_paths.templates_dir('argo', 'application.jinja.yaml'),
-            self._paths.argo_app(app_dir_name + '.yaml'),
+            self._paths.argo_app(application_name + '.yaml'),
             {
-                'name': app_name,
+                'name': hvf.app.name,
                 'namespace': Namespace.argocd.value,
                 'destination': self._context.cluster.name,
-                'target_namespace': namespace,
+                'target_namespace': namespace.value,
                 'project': self._context.cluster.name,
-                'path': os.path.join(self._context.cluster.name, 'apps', app_dir_name),
+                'path': os.path.join(self._context.cluster.name, 'apps', application_name),
                 'repo_url': "http://gitea-http.gitea:3000/gocy/saturn.git"
             }
         )
 
-        hvf = HelmValueFiles()
-
-        hvf.app = target
-
         if 'deps' not in data:
             return hvf
 
-        template_paths = glob(os.path.join(source_apps_path, '**', self._target_file_name), recursive=True)
+        template_paths = glob(os.path.join(source_apps_path, '**', self._template_file_name), recursive=True)
+
         for template_path in template_paths:
             for dependency_name, dependency_data in data['deps'].items():
                 dependency_folder_path = os.path.join('deps', dependency_name)
@@ -86,26 +95,32 @@ class ApplicationsCtrl:
                         dependency_folder_path,
                         self._template_file_name
                     )
-                    target = os.path.join(
+                    values_file_path = os.path.join(
                         target_apps_path,
                         dependency_folder_path,
-                        self._template_file_name)
+                        self._target_file_name)
 
                     render_values_file(
                         source,
-                        target,
+                        values_file_path,
                         dependency_data
                     )
 
-                    hvf.deps.append(target)
+                    hvf.add_dependency(
+                        get_chart_name(os.path.join(target_apps_path, dependency_folder_path)),
+                        values_file_path
+                    )
 
         return hvf
 
-    def install_app(self, app_name: str, data: dict, namespace: Namespace, install: bool):
-        value_files = self.render_values(app_name, data, namespace)
+    def install_app(self, application_directory: str,
+                    data: dict, namespace: Namespace, install: bool,
+                    application_name: str = None, target_app_suffix: str = None):
+        hvf = self.render_values(application_directory, data, namespace, application_name, target_app_suffix)
 
         helm = Helm(self._ctx, self._echo)
-        helm.install(value_files, app_name, namespace=namespace.value, install=install)
+        if install:
+            helm.install(hvf, install, namespace.value)
 
     def get_available(self):
         apps_dirs = glob(self._paths.apps_dir('*'), recursive=True)
@@ -146,7 +161,7 @@ class ApplicationsCtrl:
         with open(manifest_file_path, 'w') as manifest_file:
             yaml.safe_dump_all(manifests, manifest_file)
 
-    def render_helm_template(self, app_name: str, hvf: HelmValueFiles, namespace: Namespace) -> str:
+    def render_helm_template(self, hvf: HelmValueFiles, namespace: Namespace) -> str:
         """
         Produces [secrets_dir]/helm_template/manifest.yaml - Helm cilium manifest to be used
         as inlineManifest is Talos machine specification (Helm manifests inline install).
@@ -154,14 +169,14 @@ class ApplicationsCtrl:
         """
         # helm_values = prepare_network_dependencies(ctx, manifest_name, Namespace.network_services)
         helm = Helm(self._ctx, self._echo)
-        helm_tpl_data = helm.template(hvf.app, app_name, namespace)
+        helm_tpl_data = helm.template(hvf.app, namespace)
 
-        manifest_file_path = self._paths.k8s_manifest_file(app_name)
+        manifest_file_path = self._paths.k8s_manifest_file(hvf.app.name)
 
         with open(manifest_file_path, 'w') as manifest_file:
             yaml.safe_dump_all(helm_tpl_data, manifest_file)
 
-        self.helm_namespace_fix(app_name, namespace)
+        self.helm_namespace_fix(hvf.app.name, namespace)
 
         return manifest_file_path
 

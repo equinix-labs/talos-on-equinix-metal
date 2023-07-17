@@ -1,6 +1,6 @@
 apiVersion: v2
-name: ingress-bundle
-description: nginx ingress
+name: nginx
+description: Opinionated deployment of ingress-nginx
 
 type: application
 version: 0.1.0

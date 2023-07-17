@@ -14,6 +14,7 @@ class Namespace(Enum):
     observability = 'observability'
     storage = 'storage'
     idp_auth = 'idp-auth'
+    istio = 'istio-system'
 
     def __str__(self):
         return self.value

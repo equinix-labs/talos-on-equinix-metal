@@ -183,7 +183,7 @@ class ClusterCtrl:
         app_name = 'network-dependencies'
         app_ctrl = ApplicationsCtrl(ctx, self.state, echo)
         hvf = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
-        helm_manifest_path = app_ctrl.render_helm_template(app_name, hvf, Namespace.network_services)
+        helm_manifest_path = app_ctrl.render_helm_template(hvf, Namespace.network_services)
         with open(helm_manifest_path) as helm_manifest_file:
             helm_manifest = list(yaml.safe_load_all(helm_manifest_file))
 

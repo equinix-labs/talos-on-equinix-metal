@@ -1,8 +1,9 @@
+import logging
 import os
 
 import yaml
 
-from tasks.models.HelmValueFiles import HelmValueFiles
+from tasks.models.HelmValueFiles import HelmValueFiles, HelmApp
 
 
 class Helm:
@@ -16,11 +17,12 @@ class Helm:
         self._echo = echo
         self._namespace_file_name = 'namespace.yaml'
 
-    def _install(self, values_file_path: str, app_name: str,
+    def _install(self, helm_app: HelmApp,
                  namespace=None, wait=False):
-        app_directory = os.path.dirname(values_file_path)
-        namespace_file_path = os.path.join(app_directory, self._namespace_file_name)
+        chart_dir_path = os.path.dirname(helm_app.values_file_path)
+        namespace_file_path = os.path.join(chart_dir_path, self._namespace_file_name)
 
+        print(namespace_file_path)
         if os.path.isfile(namespace_file_path):
             self._ctx.run("kubectl apply -f " + namespace_file_path, echo=True)
             with open(namespace_file_path) as namespace_file:
@@ -29,23 +31,22 @@ class Helm:
             namespace_cmd = "--namespace " + namespace
         else:
             if namespace is None:
-                namespace = app_name
+                namespace = helm_app.name
 
             namespace_cmd = "--create-namespace --namespace " + namespace
 
-        self._ctx.run(
-            "helm {} "
-            "upgrade --dependency-update --install {} "
-            "{} {} ".format(
-                "--wait " if wait else '',
-                namespace_cmd,
-                app_name,
-                app_directory
-            ), echo=self._echo)
+        command = "helm upgrade {} --dependency-update --install {} {} {} ".format(
+            "--wait " if wait else '',
+            namespace_cmd,
+            helm_app.name,
+            chart_dir_path
+        )
 
-    def template(self, values_file_path: str, app_name: str,
+        self._ctx.run(command, echo=self._echo)
+
+    def template(self, helm_app: HelmApp,
                  namespace=None) -> list:
-        app_directory = os.path.dirname(values_file_path)
+        app_directory = os.path.dirname(helm_app.values_file_path)
         namespace_file_path = os.path.join(app_directory, self._namespace_file_name)
 
         result = list()
@@ -60,7 +61,7 @@ class Helm:
             namespace_cmd = "--namespace " + namespace
         else:
             if namespace is None:
-                namespace = app_name
+                namespace = helm_app.name
 
             namespace_cmd = "--namespace " + namespace
 
@@ -69,7 +70,7 @@ class Helm:
         helm_manifest = list(yaml.safe_load_all(
             self._ctx.run("helm template {} {} {} ".format(
                 namespace_cmd,
-                app_name,
+                helm_app.name,
                 app_directory
             ), hide='stdout', echo=self._echo).stdout
         ))
@@ -100,11 +101,11 @@ class Helm:
 
         return manifest
 
-    def install(self, hvf: HelmValueFiles, app_name: str, install: bool, namespace=None):
+    def install(self, hvf: HelmValueFiles, install: bool, namespace=None):
         if not install:
             return
 
         for dependency in hvf.deps:
-            self._install(dependency, app_name + '-dep', namespace, wait=True)
+            self._install(dependency, namespace, wait=True)
 
-        self._install(hvf.app, app_name, namespace)
+        self._install(hvf.app, namespace)
