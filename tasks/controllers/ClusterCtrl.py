@@ -245,7 +245,7 @@ class ClusterCtrl:
     def build_manifest(self, ctx, dev_mode: bool):
         self.generate_cluster_spec()
         self.talosctl_gen_config(ctx)
-        if dev_mode:
+        if not dev_mode:
             self.patch_template_with_cilium_manifest(ctx, self.echo)
 
         self.talos_apply_config_patch(ctx)

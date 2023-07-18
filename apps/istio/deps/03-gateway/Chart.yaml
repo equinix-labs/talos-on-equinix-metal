@@ -9,4 +9,4 @@ appVersion: "1.16.0"
 dependencies:
   - name: gateway
     repository: https://istio-release.storage.googleapis.com/charts
-    version: 1.18.0
+    version: 1.18.1

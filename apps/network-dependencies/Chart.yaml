@@ -8,11 +8,11 @@ appVersion: "1.16.0"
 
 dependencies:
   - name: cilium
-    version: v1.13.2
+    version: v1.13.4
     repository: https://helm.cilium.io/
   - name: tetragon
-    version: v0.9.0
+    version: v0.10.0
     repository: https://helm.cilium.io/
   - name: metallb
-    version: 0.13.9
+    version: 0.13.10
     repository: https://metallb.github.io/metallb

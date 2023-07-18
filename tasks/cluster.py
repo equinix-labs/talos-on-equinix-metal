@@ -27,7 +27,7 @@ def talosctl_gen_config(ctx, echo: bool = False):
 
 
 @task()
-def get_cluster_secrets(ctx, echo: bool = False):
+def get_secrets(ctx, echo: bool = False):
     """
     Produces [secrets_dir]/[cluster_name].kubeconfig
     """
