@@ -5,10 +5,10 @@ from shutil import copytree, ignore_patterns
 import yaml
 
 from tasks.controllers.MetalCtrl import MetalCtrl
-from tasks.dao.ProjectPaths import RepoPaths
+from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import get_jinja, get_file_content_as_b64
-from tasks.models.ConstellationSpecV01 import VipRole
+from tasks.models.ConstellationSpecV01 import VipRole, Cluster
 from tasks.models.HelmValueFiles import HelmValueFiles
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Helm import Helm
@@ -23,10 +23,13 @@ def get_chart_name(dependency_folder_path: str) -> str:
 class ApplicationsCtrl:
     _context: SystemContext
 
-    def __init__(self, ctx, context: SystemContext, echo: bool = False):
+    def __init__(self, ctx, context: SystemContext, echo: bool = False, cluster: Cluster = None):
         self._context = context
         self._echo = echo
-        self._paths = self._context.project_paths
+        if cluster is None:
+            self._paths = self._context.project_paths
+        else:
+            self._paths = ProjectPaths(self._context.constellation.name, cluster.name)
         self._repo_paths = RepoPaths()
         self._ctx = ctx
 

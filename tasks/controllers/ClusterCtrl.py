@@ -140,13 +140,13 @@ class ClusterCtrl:
                 "talosctl machineconfig patch worker.yaml --patch @worker-patches.yaml -o {}".format(
                     worker_capi_file_name
                 ),
-                echo=True
+                echo=self._echo
             )
             ctx.run(
                 "talosctl machineconfig patch controlplane.yaml --patch @controlplane-patches.yaml -o {}".format(
                     cp_capi_file_name
                 ),
-                echo=True
+                echo=self._echo
             )
 
             add_talos_hashbang(os.path.join(cluster_secrets_dir, worker_capi_file_name))
@@ -181,7 +181,7 @@ class ClusterCtrl:
         https://www.talos.dev/v1.3/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
         """
         app_name = 'network-dependencies'
-        app_ctrl = ApplicationsCtrl(ctx, self._state, echo)
+        app_ctrl = ApplicationsCtrl(ctx, self._state, echo, self._cluster)
         hvf = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
         helm_manifest_path = app_ctrl.render_helm_template(hvf, Namespace.network_services)
         with open(helm_manifest_path) as helm_manifest_file:
@@ -297,7 +297,7 @@ class ClusterCtrl:
         with open(self._paths.talosconfig_file(), 'w') as talos_config_file:
             yaml.dump(talos_config_data, talos_config_file)
 
-        ctx.run("talosctl config merge " + self._paths.talosconfig_file(), echo=True)
+        ctx.run("talosctl config merge " + self._paths.talosconfig_file(), echo=self._echo)
 
         kubeconfig_path = self._paths.kubeconfig_file()
         if control_plane_node is None:
@@ -306,31 +306,34 @@ class ClusterCtrl:
 
         ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
             self._paths.talosconfig_file(),
-            control_plane_node), echo=True)
+            control_plane_node), echo=self._echo)
 
         metal = MetalCtrl(self._state, self._echo, self._cluster)
         ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
             self._paths.talosconfig_file(),
             metal.get_vips(VipRole.cp).public_ipv4[0],
             kubeconfig_path
-        ), echo=True)
+        ), echo=self._echo)
 
+        self.crete_missing_talosconfig(ctx)
+
+        ctx.run("kconf add " + kubeconfig_path, echo=self._echo, pty=True)
+        self._state.set_cluster(self._cluster.name)
+        
+    def crete_missing_talosconfig(self, ctx):
         """
-            Workaround for missing talosconfig secret, thrown in TalosControlPlane log
-            {   
-                "namespace": "argo-infra",
-                "talosControlPlane": "saturn-control-plane",
-                "error": "Secret \"saturn-talosconfig\" not found"
-            }
-            """
+                    Workaround for missing talosconfig secret, thrown in TalosControlPlane log
+                    {   
+                        "namespace": "argo-infra",
+                        "talosControlPlane": "saturn-control-plane",
+                        "error": "Secret \"saturn-talosconfig\" not found"
+                    }
+                    """
         ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
             Namespace.argocd,
             self._cluster.name,
             self._paths.talosconfig_file()
-        ), echo=True)
-
-        ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
-        self._state.set_cluster(self._cluster.name)
+        ), echo=self._echo)
 
     def get_oidc_kubeconfig(self):
         """

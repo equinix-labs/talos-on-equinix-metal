@@ -5,6 +5,9 @@ from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
+from tasks.controllers.ClusterCtrl import ClusterCtrl
+from tasks.controllers.MetalCtrl import MetalCtrl
+from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.wrappers.Clusterctl import Clusterctl
 from tasks.controllers.ConstellationSpecCtrl import get_constellation_spec_file_paths
 from tasks.dao.ProjectPaths import ProjectPaths
@@ -37,6 +40,28 @@ def init(ctx, echo: bool = False):
     state = SystemContext(ctx, echo)
     clusterctl = Clusterctl(state, echo)
     clusterctl.kind_create(ctx)
+    state.set_bary_cluster(KIND_CLUSTER_NAME)
+
+
+@task()
+def manifests(ctx, echo: bool = False, dev_mode: bool = False):
+    """
+    Produces cluster CAPI manifest
+    """
+    state = SystemContext(ctx, echo)
+    state.set_bary_cluster()
+
+    metal_ctrl = MetalCtrl(state, echo)
+    metal_ctrl.register_vips(ctx)
+
+    for cluster in state.constellation:
+        cluster_ctrl = ClusterCtrl(state, cluster, echo)
+
+        cluster_ctrl.delete_directories()
+        cluster_ctrl.delete_k8s_contexts(ctx)
+        cluster_ctrl.delete_talos_contexts()
+
+        cluster_ctrl.build_manifest(ctx, dev_mode)
 
 
 @task()
@@ -47,14 +72,14 @@ def secret_source(ctx):
         in current context
     """
     source = []
-    ppaths = ProjectPaths()
+    paths = ProjectPaths()
 
-    with open(ppaths.secrets_file()) as secrets_file:
+    with open(paths.secrets_file()) as secrets_file:
         secrets = dict(yaml.safe_load(secrets_file))
         for name, value in secrets['env'].items():
             source.append('export {}={}'.format(name, value))
 
-    source.append('export {}={}'.format('TALOSCONFIG', ppaths.project_root('talosconfig')))
+    source.append('export {}={}'.format('TALOSCONFIG', paths.project_root('talosconfig')))
 
     print("\n".join(source))
 

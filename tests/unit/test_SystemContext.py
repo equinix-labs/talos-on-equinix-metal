@@ -3,10 +3,9 @@ import os.path
 import pytest
 from invoke import Context
 
-from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths
-from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, CLUSTER_NAME, \
-    KIND_CONTEXT_NAME
+from tasks.dao.SystemContext import SystemContext
+from tasks.models.Defaults import CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CONTEXT_NAME
 
 
 @pytest.fixture(scope="session")

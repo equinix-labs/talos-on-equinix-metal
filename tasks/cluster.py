@@ -39,7 +39,7 @@ def clean(ctx, cluster_name: str, echo: bool = False):
 @task()
 def manifest(ctx, cluster_name: str, echo: bool = False, dev_mode: bool = False):
     """
-    Produces cluster manifests
+    Produces cluster CAPI manifest
     """
     state = SystemContext(ctx, echo)
     state.set_bary_cluster()
@@ -73,7 +73,7 @@ def create(ctx, cluster_name: str, echo: bool = False):
 
 
 @task()
-def clusterctl_move(ctx, echo: bool = False):
+def move(ctx, echo: bool = False):
     """
     Move CAPI objects from local kind cluster to the management(bary) cluster
     """
@@ -94,3 +94,6 @@ def clusterctl_move(ctx, echo: bool = False):
 
     state.set_bary_cluster(state.constellation.bary.name)
     state.set_cluster(state.constellation.bary)
+
+    cluster_ctrl = ClusterCtrl(state, state.constellation.bary, echo)
+    cluster_ctrl.crete_missing_talosconfig(ctx)
