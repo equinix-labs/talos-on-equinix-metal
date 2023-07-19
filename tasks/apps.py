@@ -71,7 +71,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     """
     application_directory = 'whoami'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     if oauth:
@@ -100,7 +100,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
     """
     application_directory = 'argo'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     constellation = context.constellation
@@ -160,7 +160,7 @@ def gitea(ctx, install: bool = False, echo: bool = False):
     """
     application_directory = 'gitea'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     data = {
@@ -192,7 +192,7 @@ def gitea_provision(ctx, ingres_enabled: bool = False, echo: bool = False):
     Provision local gitea, so that it works with Argo
     """
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     gitea_fqdn = 'localhost:3000'
@@ -237,7 +237,7 @@ def dbs(ctx, install: bool = False, echo: bool = False):
     """
     application_directory = 'dbs'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     data = {
@@ -258,7 +258,7 @@ def dbs(ctx, install: bool = False, echo: bool = False):
 def dashboards(ctx, install: bool = False, echo: bool = False):
     application_directory = 'dashboards'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     data = {
@@ -278,7 +278,7 @@ def dashboards(ctx, install: bool = False, echo: bool = False):
 def harbor(ctx, install: bool = False, echo: bool = False):
     application_directory = 'harbor'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     data = {
@@ -296,7 +296,7 @@ def harbor(ctx, install: bool = False, echo: bool = False):
 def observability(ctx, install: bool = False, echo: bool = False):
     application_directory = 'observability'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
 
     data = {
@@ -320,7 +320,7 @@ def istio(ctx, install: bool = False, echo: bool = False):
     """
     application_directory = 'istio'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
 
     apps_ctrl = ApplicationsCtrl(ctx, context, echo)
 
@@ -340,13 +340,13 @@ def istio(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def ingress(ctx, install: bool = False, echo: bool = False):
+def nginx(ctx, install: bool = False, echo: bool = False):
     """
     Install Helm chart apps/ingress-bundle
     """
     application_directory = 'nginx'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
 
     apps_ctrl = ApplicationsCtrl(ctx, context, echo)
 
@@ -372,15 +372,14 @@ def ingress(ctx, install: bool = False, echo: bool = False):
             }
         }
         values_file = apps_ctrl.render_values(
-            application_directory + '-global',
+            application_directory,
             data,
             namespace=Namespace.ingress,
-            application_name=application_directory,
+            application_name=application_directory + '-global',
             target_app_suffix="global"
         )
         helm = Helm(ctx, echo)
-        helm.install(values_file, app_name=application_directory + '-global',
-                     namespace=Namespace.ingress, install=install)
+        helm.install(values_file, install, Namespace.ingress)
 
 
 @task()
@@ -421,7 +420,7 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
     """
     application_directory = 'idp-auth'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
     secrets = context.secrets
     jinja = get_jinja()
     constellation = context.constellation
@@ -478,7 +477,7 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
 
     if install:
         helm = Helm(ctx, echo)
-        helm.install(values_file, install, application_directory, Namespace.network_services)
+        helm.install(values_file, install, Namespace.network_services)
 
 
 @task()
@@ -491,7 +490,7 @@ def network_services(ctx, install: bool = False, echo: bool = False):
 
     application_directory = 'network-services'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster
+    cluster = context.cluster()
 
     data = {
         'values': {

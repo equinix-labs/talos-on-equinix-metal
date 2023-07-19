@@ -16,7 +16,7 @@ class Clusterctl:
         Run clusterctl init with predefined providers
         """
 
-        # if self._context.cluster.name == self._context.constellation.bary.name:
+        # if self._context.cluster().name == self._context.constellation.bary.name:
         #     if user_confirmed('Is cert-manager present ? - did you run "invoke apps.install-dns-and-tls-dependencies"'):
         #         return
 

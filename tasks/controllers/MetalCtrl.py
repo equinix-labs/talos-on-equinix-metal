@@ -13,30 +13,36 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 class MetalCtrl:
-    state: SystemContext
-    constellation: Constellation
-    ppaths: ProjectPaths
-    echo: bool
+    _state: SystemContext
+    _constellation: Constellation
+    _cluster: Cluster
+    _paths: ProjectPaths
+    _echo: bool
 
-    def __init__(self, state: SystemContext, echo: bool):
-        self.state = state
-        self.constellation = state.constellation
-        self.echo = echo
-        self.ppaths = state.project_paths
+    def __init__(self, state: SystemContext, echo: bool, cluster: Cluster = None):
+        self._state = state
+        self._constellation = state.constellation
+        if cluster is not None:
+            self._cluster = cluster
+        else:
+            self._cluster = self._state.cluster()
+
+        self._echo = echo
+        self._paths = ProjectPaths(state.constellation.name, self._cluster.name)
 
     def register_vips(self, ctx):
         """
         Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
         """
         
-        project_vips_file_path = self.ppaths.project_vips_file()
-        ctx.run("metal ip get -o yaml > {}".format(project_vips_file_path), echo=self.echo)
+        project_vips_file_path = self._paths.project_vips_file()
+        ctx.run("metal ip get -o yaml > {}".format(project_vips_file_path), echo=self._echo)
 
         with open(project_vips_file_path) as project_vips_file:
             project_vips = list(yaml.safe_load(project_vips_file))
 
         global_vip = None
-        for cluster in self.constellation:
+        for cluster in self._constellation:
             for vip_spec in cluster.vips:
                 vip_tags = get_vip_tags(vip_spec.role, cluster)
                 for project_vip in project_vips:
@@ -80,12 +86,12 @@ class MetalCtrl:
 
         for vip in cluster.vips:
             data[vip.role].extend(vip.reserved)
-            paths = ProjectPaths(self.state.constellation.name, cluster.name)
+            paths = ProjectPaths(self._state.constellation.name, cluster.name)
             with open(paths.vips_file_by_role(vip.role), 'w') as ip_addresses_file:
                 ip_addresses_file.write(data[vip.role].yaml())
 
     def get_vips(self, vip_role: VipRole) -> ReservedVIPs:
-        with open(self.ppaths.vips_file_by_role(vip_role)) as cp_address:
+        with open(self._paths.vips_file_by_role(vip_role)) as cp_address:
             return ReservedVIPs.parse_raw(cp_address.read())
 
     # def get_cp_vip_address(cluster_spec):
@@ -96,7 +102,7 @@ class MetalCtrl:
         if type(cluster_name_from_tag) is not str:
             print("Tags: {} are not what was expected".format(tags))
 
-        if Cluster(name=cluster_name_from_tag) in self.constellation:
+        if Cluster(name=cluster_name_from_tag) in self._constellation:
             return True
 
         return False

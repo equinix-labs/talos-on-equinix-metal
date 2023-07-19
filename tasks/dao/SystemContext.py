@@ -110,10 +110,9 @@ class SystemContext:
             print("Context not set, make sure the NAME is correct,"
                   " and matches spec file ~/[GOCY_DIR]/[NAME].constellation.yaml")
 
-    @property
-    def cluster(self) -> Cluster:
+    def cluster(self, name: str = None) -> Cluster:
         const_ctrl = ConstellationSpecCtrl(self._project_paths, self._local_state.constellation_context)
-        return const_ctrl.get_cluster_by_name(self._local_state.cluster_context)
+        return const_ctrl.get_cluster_by_name(name if name else self._local_state.cluster_context)
 
     def set_cluster(self, cluster: Any):
         if cluster in self.constellation or cluster in KIND_CONTEXT_NAME:

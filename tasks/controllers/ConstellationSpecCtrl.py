@@ -4,7 +4,7 @@ from glob import glob
 
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.models.ConstellationSpecV01 import Constellation, Cluster
-from tasks.models.Defaults import KIND_CLUSTER_NAME, CONSTELLATION_FILE_SUFFIX, KIND_CONTEXT_NAME
+from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX, KIND_CONTEXT_NAME
 
 
 class ConstellationSpecCtrl:

@@ -21,18 +21,18 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 class ClusterCtrl:
-    state: SystemContext
-    constellation: Constellation
-    cluster: Cluster
-    paths: ProjectPaths
-    echo: bool
+    _state: SystemContext
+    _constellation: Constellation
+    _cluster: Cluster
+    _paths: ProjectPaths
+    _echo: bool
 
-    def __init__(self, state: SystemContext, echo: bool):
-        self.state = state
-        self.constellation = state.constellation
-        self.cluster = state.cluster
-        self.paths = state.project_paths
-        self.echo = echo
+    def __init__(self, state: SystemContext, cluster: Cluster, echo: bool):
+        self._state = state
+        self._constellation = state.constellation
+        self._cluster = cluster
+        self._paths = ProjectPaths(state.constellation.name, cluster.name)
+        self._echo = echo
 
     def patch_cluster_spec_network(self, cluster_manifest: list):
         """
@@ -45,19 +45,19 @@ class ClusterCtrl:
                 patches = resource['spec']['controlPlaneConfig']['controlplane']['configPatches']
                 for patch in patches:
                     if patch['path'] == '/cluster/network':
-                        patch['value']['dnsDomain'] = "{}.local".format(self.cluster.name)
-                        patch['value']['podSubnets'] = self.cluster.pod_cidr_blocks
-                        patch['value']['serviceSubnets'] = self.cluster.service_cidr_blocks
+                        patch['value']['dnsDomain'] = "{}.local".format(self._cluster.name)
+                        patch['value']['podSubnets'] = self._cluster.pod_cidr_blocks
+                        patch['value']['serviceSubnets'] = self._cluster.service_cidr_blocks
             if resource['kind'] == 'TalosConfigTemplate':
                 patches = resource['spec']['template']['spec']['configPatches']
                 for patch in patches:
                     if patch['path'] == '/cluster/network':
-                        patch['value']['dnsDomain'] = "{}.local".format(self.cluster.name)
-                        patch['value']['podSubnets'] = self.cluster.pod_cidr_blocks
-                        patch['value']['serviceSubnets'] = self.cluster.service_cidr_blocks
+                        patch['value']['dnsDomain'] = "{}.local".format(self._cluster.name)
+                        patch['value']['podSubnets'] = self._cluster.pod_cidr_blocks
+                        patch['value']['serviceSubnets'] = self._cluster.service_cidr_blocks
             if resource['kind'] == 'Cluster':
-                resource['spec']['clusterNetwork']['pods']['cidrBlocks'] = self.cluster.pod_cidr_blocks
-                resource['spec']['clusterNetwork']['services']['cidrBlocks'] = self.cluster.service_cidr_blocks
+                resource['spec']['clusterNetwork']['pods']['cidrBlocks'] = self._cluster.pod_cidr_blocks
+                resource['spec']['clusterNetwork']['services']['cidrBlocks'] = self._cluster.service_cidr_blocks
 
         return cluster_manifest
 
@@ -65,31 +65,31 @@ class ClusterCtrl:
         """
         Produces initial Talos machine configuration, that later on will be patched with custom cluster settings.
         """
-        equinix = MetalCtrl(self.state, self.echo)
+        equinix = MetalCtrl(self._state, self._echo, self._cluster)
 
-        with ctx.cd(self.paths.talos_dir()):
+        with ctx.cd(self._paths.talos_dir()):
             ctx.run(
                 "talosctl gen config {} https://{}:6443".format(
-                    self.cluster.name,
+                    self._cluster.name,
                     equinix.get_vips(VipRole.cp).public_ipv4[0]
                 ),
-                echo=self.echo
+                echo=self._echo
             )
 
     def build_capi_manifest(self, secrets, cluster_jinja_template, _md_yaml):
-        metal_ctrl = MetalCtrl(self.state, self.echo)
+        metal_ctrl = MetalCtrl(self._state, self._echo, self._cluster)
 
         data = {
             'TOEM_CPEM_SECRET': get_cpem_config_yaml(),
             'TOEM_CP_ENDPOINT': metal_ctrl.get_vips(VipRole.cp).public_ipv4[0],
-            'SERVICE_DOMAIN': "{}.local".format(self.cluster.name),
-            'CLUSTER_NAME': self.cluster.name,
-            'METRO': self.cluster.metro,
-            'CONTROL_PLANE_NODE_TYPE': self.cluster.control_nodes[0].plan,
-            'CONTROL_PLANE_MACHINE_COUNT': self.cluster.control_nodes[0].count,
-            'TALOS_VERSION': self.cluster.talos,
-            'CPEM_VERSION': self.cluster.cpem,
-            'KUBERNETES_VERSION': self.cluster.kubernetes,
+            'SERVICE_DOMAIN': "{}.local".format(self._cluster.name),
+            'CLUSTER_NAME': self._cluster.name,
+            'METRO': self._cluster.metro,
+            'CONTROL_PLANE_NODE_TYPE': self._cluster.control_nodes[0].plan,
+            'CONTROL_PLANE_MACHINE_COUNT': self._cluster.control_nodes[0].count,
+            'TALOS_VERSION': self._cluster.talos,
+            'CPEM_VERSION': self._cluster.cpem,
+            'KUBERNETES_VERSION': self._cluster.kubernetes,
             'namespace': Namespace.argocd
         }
         data.update(secrets)
@@ -98,10 +98,10 @@ class ClusterCtrl:
         cluster_yaml_tpl = jinja.from_string(cluster_jinja_template)
         cluster_yaml = cluster_yaml_tpl.render(data)
 
-        for worker_node in self.cluster.worker_nodes:
+        for worker_node in self._cluster.worker_nodes:
             worker_yaml_tpl = jinja.from_string(_md_yaml)
             data['machine_name'] = "{}-machine-{}".format(
-                self.cluster.name,
+                self._cluster.name,
                 worker_node.plan.replace('.', '-'))  # ToDo: CPEM blows up if there are dots in machine name
             data['WORKER_NODE_TYPE'] = worker_node.plan
             data['WORKER_MACHINE_COUNT'] = worker_node.count
@@ -111,12 +111,12 @@ class ClusterCtrl:
 
         self.patch_cluster_spec_network(cluster_manifest)
 
-        with open(self.paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
+        with open(self._paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
             yaml.dump_all(cluster_manifest, cluster_template_file)
 
     def talos_apply_config_patch(self, ctx):
-        cluster_secrets_dir = self.paths.talos_dir()
-        cluster_manifest_file_name = self.paths.cluster_capi_manifest_file()
+        cluster_secrets_dir = self._paths.talos_dir()
+        cluster_manifest_file_name = self._paths.cluster_capi_manifest_file()
 
         with open(cluster_manifest_file_name) as cluster_manifest_file:
             for document in yaml.safe_load_all(cluster_manifest_file):
@@ -172,7 +172,7 @@ class ClusterCtrl:
 
                 documents.append(document)
 
-        with open(self.paths.cluster_capi_static_manifest_file(), 'w') as static_manifest:
+        with open(self._paths.cluster_capi_static_manifest_file(), 'w') as static_manifest:
             yaml.dump_all(documents, static_manifest, sort_keys=True)
 
     def patch_template_with_cilium_manifest(self, ctx, echo: bool):
@@ -181,7 +181,7 @@ class ClusterCtrl:
         https://www.talos.dev/v1.3/kubernetes-guides/network/deploying-cilium/#method-4-helm-manifests-inline-install
         """
         app_name = 'network-dependencies'
-        app_ctrl = ApplicationsCtrl(ctx, self.state, echo)
+        app_ctrl = ApplicationsCtrl(ctx, self._state, echo)
         hvf = app_ctrl.prepare_network_dependencies(app_name, Namespace.network_services)
         helm_manifest_path = app_ctrl.render_helm_template(hvf, Namespace.network_services)
         with open(helm_manifest_path) as helm_manifest_file:
@@ -203,7 +203,7 @@ class ClusterCtrl:
             }
         }
 
-        with open(self.paths.cluster_capi_manifest_file()) as cluster_template_file:
+        with open(self._paths.cluster_capi_manifest_file()) as cluster_template_file:
             capi_cluster_manifest = list(yaml.safe_load_all(cluster_template_file))
             for document in capi_cluster_manifest:
                 if document['kind'] == 'TalosControlPlane':
@@ -215,7 +215,7 @@ class ClusterCtrl:
                 #         if 'name' in patch['value'] and patch['value']['name'] == 'network-services-dependencies':
                 #             patch['value']['contents'] = helm_manifest
 
-        with open(self.paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
+        with open(self._paths.cluster_capi_manifest_file(), 'w') as cluster_template_file:
             yaml.dump_all(capi_cluster_manifest, cluster_template_file)
 
     def generate_cluster_spec(self):
@@ -246,19 +246,19 @@ class ClusterCtrl:
         self.generate_cluster_spec()
         self.talosctl_gen_config(ctx)
         if not dev_mode:
-            self.patch_template_with_cilium_manifest(ctx, self.echo)
+            self.patch_template_with_cilium_manifest(ctx, self._echo)
 
         self.talos_apply_config_patch(ctx)
 
     def nodes_exist(self, ctx) -> (bool, dict):
         ctx.run("metal device get -o yaml > {}".format(
-            self.paths.device_list_file()), echo=self.echo)
+            self._paths.device_list_file()), echo=self._echo)
 
         ip_addresses = dict()
 
-        with open(self.paths.device_list_file()) as device_list_file:
+        with open(self._paths.device_list_file()) as device_list_file:
             for element in yaml.safe_load(device_list_file):
-                if self.cluster.name in element['hostname']:
+                if self._cluster.name in element['hostname']:
                     for ip_address in element['ip_addresses']:
                         if ip_address['address_family'] == 4 and ip_address['public'] is True:
                             if CONTROL_PLANE_NODE in element['hostname']:
@@ -270,7 +270,7 @@ class ClusterCtrl:
 
         # print("{} | {}".format(len(ip_addresses), len(list(self.cluster))))
 
-        if len(ip_addresses) >= len(list(self.cluster)):
+        if len(ip_addresses) >= len(list(self._cluster)):
             all_nodes_accounted_for = True
 
         return all_nodes_accounted_for, ip_addresses
@@ -281,36 +281,36 @@ class ClusterCtrl:
             logging.fatal("At least one of the requested cluster nodes are missing")
             return
 
-        with open(self.paths.talosconfig_file()) as talos_config_file:
+        with open(self._paths.talosconfig_file()) as talos_config_file:
             talos_config_data = yaml.safe_load(talos_config_file)
-            talos_config_data['contexts'][self.cluster.name]['nodes'] = list()
-            talos_config_data['contexts'][self.cluster.name]['endpoints'] = list()
+            talos_config_data['contexts'][self._cluster.name]['nodes'] = list()
+            talos_config_data['contexts'][self._cluster.name]['endpoints'] = list()
 
         control_plane_node = None
         for key in nodes:
-            talos_config_data['contexts'][self.cluster.name]['nodes'].append(key)
+            talos_config_data['contexts'][self._cluster.name]['nodes'].append(key)
 
             if nodes[key] == CONTROL_PLANE_NODE:
-                talos_config_data['contexts'][self.cluster.name]['endpoints'].append(key)
+                talos_config_data['contexts'][self._cluster.name]['endpoints'].append(key)
                 control_plane_node = key
 
-        with open(self.paths.talosconfig_file(), 'w') as talos_config_file:
+        with open(self._paths.talosconfig_file(), 'w') as talos_config_file:
             yaml.dump(talos_config_data, talos_config_file)
 
-        ctx.run("talosctl config merge " + self.paths.talosconfig_file(), echo=True)
+        ctx.run("talosctl config merge " + self._paths.talosconfig_file(), echo=True)
 
-        kubeconfig_path = self.paths.kubeconfig_file()
+        kubeconfig_path = self._paths.kubeconfig_file()
         if control_plane_node is None:
             print('Could not produce ' + kubeconfig_path)
             return
 
         ctx.run("talosctl --talosconfig {} bootstrap --nodes {} | true".format(
-            self.paths.talosconfig_file(),
+            self._paths.talosconfig_file(),
             control_plane_node), echo=True)
 
-        metal = MetalCtrl(self.state, self.echo)
+        metal = MetalCtrl(self._state, self._echo, self._cluster)
         ctx.run("talosctl --talosconfig {} --nodes {} kubeconfig {}".format(
-            self.paths.talosconfig_file(),
+            self._paths.talosconfig_file(),
             metal.get_vips(VipRole.cp).public_ipv4[0],
             kubeconfig_path
         ), echo=True)
@@ -325,18 +325,18 @@ class ClusterCtrl:
             """
         ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
             Namespace.argocd,
-            self.cluster.name,
-            self.paths.talosconfig_file()
+            self._cluster.name,
+            self._paths.talosconfig_file()
         ), echo=True)
 
         ctx.run("kconf add " + kubeconfig_path, echo=True, pty=True)
-        self.state.set_cluster(self.cluster.name)
+        self._state.set_cluster(self._cluster.name)
 
     def get_oidc_kubeconfig(self):
         """
         Generates oidc kubeconfigs to be shared with team members.
         """
-        kubeconfig_file_path = self.paths.kubeconfig_file()
+        kubeconfig_file_path = self._paths.kubeconfig_file()
 
         with open(kubeconfig_file_path) as kubeconfig_file:
             kubeconfig = dict(yaml.safe_load(kubeconfig_file))
@@ -347,9 +347,9 @@ class ClusterCtrl:
         with open(repo_paths.oidc_template_file()) as oidc_user_tpl_file:
             oidc_user_tpl = jinja.from_string(oidc_user_tpl_file.read())
 
-        secrets = self.state.secrets
+        secrets = self._state.secrets
         data = {
-            'cluster_name': self.cluster.name
+            'cluster_name': self._cluster.name
         }
         data.update(secrets['idp_auth']['k8s_oidc'])
 
@@ -357,14 +357,14 @@ class ClusterCtrl:
 
         kubeconfig['users'] = [oidc_user]
         kubeconfig['contexts'][0]['context']['user'] = oidc_user['name']
-        kubeconfig['contexts'][0]['name'] = "{}@{}".format('oidc', self.cluster.name)
+        kubeconfig['contexts'][0]['name'] = "{}@{}".format('oidc', self._cluster.name)
         kubeconfig['current-context'] = list(kubeconfig['contexts'])[0]['name']
 
-        with open(self.paths.kubeconfig_oidc_file(), 'w') as oidc_kubeconfig_file:
+        with open(self._paths.kubeconfig_oidc_file(), 'w') as oidc_kubeconfig_file:
             yaml.safe_dump(kubeconfig, oidc_kubeconfig_file)
 
     def delete_directories(self):
-        cluster_dir = self.paths.cluster_dir()
+        cluster_dir = self._paths.cluster_dir()
         if not os.path.isdir(cluster_dir):
             return
 
@@ -373,12 +373,12 @@ class ClusterCtrl:
             shutil.rmtree(cluster_dir)
 
     def delete_k8s_contexts(self, ctx):
-        contexts_stdout = ctx.run("kconf list", hide='stdout', echo=self.echo).stdout
+        contexts_stdout = ctx.run("kconf list", hide='stdout', echo=self._echo).stdout
         contexts = set([line.strip() for line in contexts_stdout.splitlines()])
         trash_can = set()
 
         for context in contexts:
-            if "@" + self.cluster.name in context:
+            if "@" + self._cluster.name in context:
                 trash_can.add(context)
 
         if len(trash_can) == 0:
@@ -392,20 +392,20 @@ class ClusterCtrl:
             difference = contexts.difference(trash_can)
             ctx.run("kconf use " + difference.pop())
             for trash in trash_can:
-                ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=self.echo, pty=True)
+                ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=self._echo, pty=True)
 
     def delete_talos_contexts(self):
-        with open(self.paths.talosconfig_global_file()) as talosconfig_file:
+        with open(self._paths.talosconfig_global_file()) as talosconfig_file:
             talosconfig = dict(yaml.safe_load(talosconfig_file))
 
         for context_name, value in list(talosconfig['contexts'].items()):
-            if self.cluster.name in context_name:
+            if self._cluster.name in context_name:
                 del talosconfig['contexts'][context_name]
 
-        if self.cluster.name in talosconfig['context']:
+        if self._cluster.name in talosconfig['context']:
             talosconfig['context'] = ''
 
-        with open(self.paths.talosconfig_global_file(), 'w') as talosconfig_file:
+        with open(self._paths.talosconfig_global_file(), 'w') as talosconfig_file:
             yaml.safe_dump(talosconfig, talosconfig_file)
 
 

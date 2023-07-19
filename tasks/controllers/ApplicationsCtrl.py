@@ -73,10 +73,10 @@ class ApplicationsCtrl:
             {
                 'name': hvf.app.name,
                 'namespace': Namespace.argocd.value,
-                'destination': self._context.cluster.name,
+                'destination': self._context.cluster().name,
                 'target_namespace': namespace.value,
-                'project': self._context.cluster.name,
-                'path': os.path.join(self._context.cluster.name, 'apps', application_name),
+                'project': self._context.cluster().name,
+                'path': os.path.join(self._context.cluster().name, 'apps', application_name),
                 'repo_url': "http://gitea-http.gitea:3000/gocy/saturn.git"
             }
         )
@@ -184,7 +184,7 @@ class ApplicationsCtrl:
             self, app_name='network-dependencies',
             namespace: Namespace = Namespace.network_services) -> HelmValueFiles:
 
-        cluster_spec = self._context.cluster
+        cluster_spec = self._context.cluster()
         constellation_spec = self._context.constellation
         ca_dir = self._paths.ca_dir()
 
