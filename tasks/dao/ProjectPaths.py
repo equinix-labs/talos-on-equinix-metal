@@ -1,6 +1,8 @@
 import logging
 import os.path
 
+import git
+
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX
 
@@ -14,7 +16,8 @@ class RepoPaths:
     _root: str
 
     def __init__(self):
-        self._root = os.getcwd()
+        git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
+        self._root = git_repo.git.rev_parse("--show-toplevel")
 
     def templates_dir(self, *path):
         return os.path.join(self._root, 'templates', *path)
@@ -62,6 +65,9 @@ class ProjectPaths:
 
     def secrets_file(self):
         return os.path.join(self.project_root(), 'secrets.yaml')
+
+    def gcp_token_file(self):
+        return os.path.join(self.project_root(), 'gcp_admin_token.json')
 
     def state_file(self):
         return os.path.join(self.project_root(), 'state.yaml')

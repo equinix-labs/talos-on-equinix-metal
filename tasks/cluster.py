@@ -49,7 +49,7 @@ def clean(ctx, echo: bool = False):
 
 
 @task(clean, register_vips)
-def build_manifests(ctx, echo: bool = False, dev_mode: bool = False):
+def manifest(ctx, echo: bool = False, dev_mode: bool = False):
     """
     Produces cluster manifests
     """

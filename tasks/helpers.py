@@ -1,16 +1,14 @@
 import base64
-import glob
 import json
 import os
 
-import git
 import jinja2
 import yaml
 
 from tasks.models.ClusterNodes import ClusterNodes
+from tasks.models.ConstellationSpecV01 import Constellation, Cluster, VipRole
 from tasks.models.Defaults import CONSTELLATION_FILE_SUFFIX
 from tasks.models.ReservedVIPs import ReservedVIPs
-from tasks.models.ConstellationSpecV01 import Constellation, Cluster, VipRole
 
 
 def str_presenter(dumper, data):
@@ -24,12 +22,6 @@ def str_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 
-def get_cluster_spec(ctx, name: str) -> Cluster:
-    for cluster_spec in get_constellation_clusters():
-        if cluster_spec.name == name:
-            return cluster_spec
-
-
 def get_cluster_spec_from_context(ctx) -> Cluster:
     context = ctx.run("kubectl config current-context", hide='stdout', echo=True).stdout
     for cluster_spec in get_constellation_clusters():
@@ -37,11 +29,6 @@ def get_cluster_spec_from_context(ctx) -> Cluster:
             return cluster_spec
 
     print("k8s context: '{}' not in constellation".format(context.strip()))
-
-
-def get_project_root():
-    git_repo = git.Repo(os.getcwd(), search_parent_directories=True)
-    return git_repo.git.rev_parse("--show-toplevel")
 
 
 def get_config_dir(default_config_dir_name=".gocy"):
@@ -69,14 +56,6 @@ def get_secret_envs(secrets: dict = None) -> list:
         return secrets['env']
 
     return get_secrets()['env']
-
-
-def get_ip_addresses_file_path(cluster_spec: Cluster, address_role):
-    return os.path.join(
-        get_secrets_dir(),
-        cluster_spec.name,
-        "ip-{}-addresses.yaml".format(address_role)
-    )
 
 
 def get_cpem_config():
@@ -111,37 +90,8 @@ def get_cp_vip_address(cluster_spec):
     return get_vips(cluster_spec, VipRole.cp).public_ipv4[0]
 
 
-def get_cluster_name():
-    return os.environ.get('CLUSTER_NAME')
-
-
 def get_argo_infra_namespace_name():
     return 'argo-infra'
-
-
-def constellation_create_dirs(cluster: Cluster):
-    """
-    Create directory structure in ~/$GOCY_DEFAULT_ROOT/[constellation_name], compatible with ArgoCD
-    """
-    secrets_dir = get_cluster_secrets_dir(cluster)
-    paths = set()
-    paths.add(os.path.join(secrets_dir, 'argo', 'infra'))
-    paths.add(os.path.join(secrets_dir, 'argo', 'apps'))
-
-    for directory in paths:
-        os.makedirs(directory, exist_ok=True)
-
-
-def get_constellation_spec_file_paths(constellation_wildcard='*' + CONSTELLATION_FILE_SUFFIX):
-    available_constellation_config_file_names = glob.glob(
-        os.path.join(
-            get_config_dir(),
-            constellation_wildcard)
-    )
-
-    for available_constellation_config_file_name in available_constellation_config_file_names:
-        with open(available_constellation_config_file_name) as available_constellation_config_file:
-            yield available_constellation_config_file
 
 
 def get_constellation_context_file_name(name="ccontext"):
@@ -163,13 +113,6 @@ def get_secrets_dir():
     return os.path.join(
         get_config_dir(),
         get_ccontext()
-    )
-
-
-def get_cluster_secrets_dir(cluster: Cluster):
-    return os.path.join(
-        get_secrets_dir(),
-        cluster.name
     )
 
 

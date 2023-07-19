@@ -6,9 +6,10 @@ from tabulate import tabulate
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.ConstellationSpecCtrl import ConstellationSpecCtrl
+from tasks.controllers.DNSCtrl import DNSProvider, DNSCtrl
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import get_secrets_dir, get_secret_envs, get_nodes_ips, get_secrets, \
-    get_constellation, get_jinja, get_fqdn, get_ccontext, get_ip_addresses_file_path
+from tasks.helpers import get_secrets_dir, get_nodes_ips, \
+    get_constellation, get_jinja, get_fqdn, get_ccontext
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
@@ -28,70 +29,25 @@ def print_available(ctx, echo: bool = False):
         headers=['name', 'path']))
 
 
-def render_patch(ctx, nodes: list, path_tpl_path, data: dict):
-    """
-    ToDo: Render jinja style talos patch to ~/.gocy/[constellation]/[cluster]/patch
-        Append node information to the rendered file.
-    """
-    pass
-
-
-def get_gcp_token_file_name():
-    return os.path.join(
-        get_secrets_dir(),
-        "dns_admin_token.json"
-    )
-
-
-def get_google_dns_token(ctx):
-    gcp_token_file_name = get_gcp_token_file_name()
-    if os.path.isfile(gcp_token_file_name):
-        print("File {} already exists, skipping".format(gcp_token_file_name))
-        return
-
-    secrets = get_secret_envs()
-    ctx.run("gcloud iam service-accounts keys create {} --iam-account {}@{}.iam.gserviceaccount.com".format(
-        get_gcp_token_file_name(),
-        secrets['GCP_SA_NAME'],
-        secrets['GCP_PROJECT_ID']
-    ), echo=True)
-
-
 @task()
-def gcloud_login(ctx):
-    """
-    If you rae using gcp and your DNS provider, you can use this to log in to the console.
-    """
-    ctx.run("gcloud auth login", echo=True)
-
-
-@task()
-def deploy_dns_management_token(ctx, provider='google'):
+def dns_tls_token(ctx, provider: DNSProvider = DNSProvider.gcp, echo: bool = False):
     """
     Creates the DNS token secret to be used by external-dns and cert-manager
     """
-    ctx.run('kubectl create namespace {} | true'.format(Namespace.dns_tls), echo=True)
-
-    if provider == 'google':
-        get_google_dns_token(ctx)
-
-        ctx.run("kubectl -n {} create secret generic '{}' --from-file=credentials.json={} | true".format(
-            Namespace.dns_tls,
-            os.environ.get('GCP_SA_NAME'),
-            get_gcp_token_file_name()
-        ), echo=True)
-
-    else:
-        print("Unsupported DNS provider: " + provider)
+    context = SystemContext(ctx, echo)
+    dns_ctrl = DNSCtrl(ctx, context, echo)
+    dns_ctrl.create_secret(provider)
 
 
-@task(deploy_dns_management_token)
+@task(dns_tls_token)
 def dns_tls(ctx, install: bool = False, echo: bool = False):
     """
     Install Helm chart apps/dns-and-tls, apps/dns-and-tls-dependencies
     """
     application_directory = 'dns-and-tls'
-    secrets = get_secrets()
+    context = SystemContext(ctx, echo)
+    secrets = context.secrets
+
     data = {
         'values': {
             'admin_email': secrets['env']['GOCY_ADMIN_EMAIL'],
@@ -116,7 +72,7 @@ def whoami(ctx, oauth: bool = False, install: bool = False, global_ingress: bool
     application_directory = 'whoami'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
-    secrets = get_secrets()
+    secrets = context.secrets
 
     if oauth:
         fqdn = get_fqdn('whoami-oauth', secrets, cluster)
@@ -145,7 +101,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
     application_directory = 'argo'
     context = SystemContext(ctx, echo)
     cluster = context.cluster
-    secrets = get_secrets()
+    secrets = context.secrets
 
     constellation = context.constellation
 
