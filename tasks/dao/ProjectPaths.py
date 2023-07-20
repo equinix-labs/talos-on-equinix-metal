@@ -139,7 +139,7 @@ class ProjectPaths:
 
     # @log_output
     def patches_dir(self, *paths):
-        return os.path.join(self.cluster_dir(), "patch", *paths)
+        return mkdirs(os.path.join(self.cluster_dir(), "patch", *paths))
 
     # @log_output
     def templates_dir(self):

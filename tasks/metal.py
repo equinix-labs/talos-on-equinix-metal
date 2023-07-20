@@ -54,6 +54,16 @@ def register_vips(ctx, echo: bool = False):
 
 
 @task()
+def fix_bgp(ctx, echo: bool = False):
+    """
+    Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
+    """
+    state = SystemContext(ctx, echo)
+    metal_ctrl = MetalCtrl(state, echo)
+    metal_ctrl.hack_fix_bgp_peer_routs(ctx)
+
+
+@task()
 def list_facilities(ctx):
     """
     Wrapper for 'metal facilities get'

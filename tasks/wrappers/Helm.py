@@ -30,7 +30,7 @@ class Helm:
             if namespace is None:
                 namespace_cmd = "--create-namespace --namespace " + Namespace[helm_app.name].value
             else:
-                namespace_cmd = "--namespace " + namespace.value
+                namespace_cmd = "--create-namespace --namespace " + namespace.value
 
         command = "helm upgrade {} --dependency-update --install {} {} {} ".format(
             "--wait " if wait else '',

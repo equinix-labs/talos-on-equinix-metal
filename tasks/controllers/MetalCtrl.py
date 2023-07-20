@@ -1,11 +1,14 @@
 import json
+import os
 
 import yaml
+from invoke import Context
 
 from tasks.dao.SystemContext import SystemContext
-from tasks.dao.ProjectPaths import ProjectPaths
+from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.helpers import str_presenter
 from tasks.models.ConstellationSpecV01 import Cluster, VipRole, VipType, Vip, Constellation
+from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
 
 yaml.add_representer(str, str_presenter)
@@ -67,16 +70,176 @@ class MetalCtrl:
                     # Register missing VIPs
                     if vip_spec.vipType == VipType.public_ipv4:
                         vip_spec.reserved.extend(
-                            register_public_vip(ctx, cluster, vip_spec, vip_tags)
+                            self.register_public_vip(ctx, cluster, vip_spec, vip_tags)
                         )
                     else:
                         if global_vip is None:
-                            global_vip = register_global_vip(ctx, vip_spec, vip_tags)
+                            global_vip = self.register_global_vip(ctx, vip_spec, vip_tags)
 
                         vip_spec.reserved.extend(global_vip)
 
             self.render_vip_addresses_file(cluster)
 
+    def register_public_vip(self, ctx, cluster: Cluster, vip: Vip, tags: list):
+        result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
+            VipType.public_ipv4,
+            vip.count,
+            cluster.metro,
+            ",".join(tags)
+        ), hide='stdout', echo=self._echo).stdout
+        if vip.count > 1:
+            return [dict(yaml.safe_load(result))]
+        else:
+            return list(yaml.safe_load_all(result))
+
+    def hack_fix_bgp_peer_routs(self, ctx: Context, namespace: Namespace = Namespace.debug):
+        """
+        Adds a static route to the node configuration, so that BGP peers could connect.
+        Something like https://github.com/kubernetes-sigs/cluster-api-provider-packet/blob/main/templates/cluster-template-kube-vip.yaml#L195
+        """
+        with open(self._paths.talosconfig_file()) as talosconfig_file:
+            talosconfig = yaml.safe_load(talosconfig_file)
+
+        repo_paths = RepoPaths()
+        templates_directory = repo_paths.templates_dir('patch', 'bgp')
+        patches_directory = self._paths.patches_dir('bgp')
+
+        with ctx.cd(templates_directory):
+            pods_raw = ctx.run(
+                "kubectl -n {} get pods -o yaml".format(namespace.value),
+                hide='stdout', echo=self._echo).stdout
+
+            debug_pods = list()
+            for pod in yaml.safe_load(pods_raw)['items']:
+                if 'debug' in pod['metadata']['name']:
+                    debug_pods.append({
+                        "name": pod['metadata']['name'],
+                        'node': pod['spec']['nodeName']
+                    })
+            if len(debug_pods) == 0:
+                print("This task requires debug pods from 'network.deploy-network-multitool' "
+                      "something went wrong, exiting.")
+                return
+
+            for debug_pod in debug_pods:
+                if 'debug' in debug_pod['name']:
+                    debug_pod['gateway'] = ctx.run(
+                        "kubectl -n {} exec {} -- /bin/bash "
+                        "-c \"curl -s https://metadata.platformequinix.com/metadata | "
+                        "jq -r '.network.addresses[] | "
+                        "select(.public == false and .address_family == 4) | .gateway'\"".format(
+                            namespace.value,
+                            debug_pod['name'])
+                        , echo=self._echo).stdout.strip()
+
+            node_patch_data = dict()
+            for pod in debug_pods:
+                node_patch_data[pod['node']] = dict()
+                node_patch_data[pod['node']]['gateway'] = pod['gateway']
+
+            nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=self._echo).stdout
+            node_patch_addresses = list()
+
+            print(node_patch_data)
+
+            for node in dict(yaml.safe_load(nodes_raw))['items']:
+                node_addresses = node['status']['addresses']
+                node_addresses = list(filter(lambda address: address['type'] == 'ExternalIP', node_addresses))
+                node_addresses = list(map(lambda address: address['address'], node_addresses))
+
+                print("{} | {}".format(node_addresses, node['metadata']['labels']['kubernetes.io/hostname']))
+
+                node_patch_data[
+                    node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node_addresses
+                node_patch_addresses.extend(node_addresses)
+
+            cp_vip = self.get_vips(VipRole.cp).public_ipv4[0]
+            try:
+                node_patch_addresses.remove(cp_vip)
+            except ValueError:
+                pass
+
+            talosconfig_addresses = talosconfig['contexts'][self._cluster.name]['nodes']
+            try:
+                talosconfig_addresses.remove(cp_vip)
+            except ValueError:
+                pass
+
+            # from pprint import pprint
+            # print("#### node_patch_data")
+            # pprint(node_patch_addresses)
+            # print("#### talosconfig")
+            # pprint(talosconfig_addresses)
+            # return
+
+            if len(set(node_patch_addresses) - set(talosconfig_addresses)) > 0:
+                print("Node list returned by kubectl is out of sync with your talosconfig! Fix before patching.")
+                return
+
+            for hostname in node_patch_data:
+                patch_name = "{}.yaml".format(hostname)
+                talos_patch = None
+                if 'control-plane' in hostname:
+                    with open(os.path.join(
+                            templates_directory,
+                            'control-plane.pt.yaml'), 'r') as talos_cp_patch_file:
+                        talos_patch = yaml.safe_load(talos_cp_patch_file)
+                        for route in talos_patch[0]['value']['routes']:
+                            route['gateway'] = node_patch_data[hostname]['gateway']
+                elif 'machine' in hostname:
+                    with open(os.path.join(
+                            templates_directory,
+                            'worker.pt.yaml'), 'r') as talos_cp_patch_file:
+                        talos_patch = yaml.safe_load(talos_cp_patch_file)
+                        for route in talos_patch[1]['value']['routes']:
+                            route['gateway'] = node_patch_data[hostname]['gateway']
+                else:
+                    print('Unrecognised node role: {}, should be "control-plane" OR "machine. '
+                          'Node will NOT be patched.'.format(hostname))
+
+                if talos_patch is not None:
+                    patch_file_name = os.path.join(patches_directory, patch_name)
+                    with open(patch_file_name, 'w') as patch_file:
+                        yaml.safe_dump(talos_patch, patch_file)
+
+                    for address in node_patch_data[hostname]['addresses']:
+                        ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
+                            self._paths.talosconfig_file(),
+                            address,
+                            patch_file_name
+                        ), echo=self._echo)
+
+    def register_global_vip(self, ctx, vip: Vip, tags: list):
+        """
+        We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
+        affect the management cluster (bary).
+
+        ToDo:
+            There is a bug in Metal CLI that prevents us from using the CLI in this case.
+            Thankfully API endpoint works.
+            https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/
+        """
+        payload = {
+            "type": VipType.global_ipv4,
+            "quantity": vip.count,
+            "fail_on_approval_required": "true",
+            "tags": tags
+        }
+        result = ctx.run(
+            "curl -s -X POST "
+            "-H 'Content-Type: application/json' "
+            "-H \"X-Auth-Token: {}\" "
+            "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
+            "-d '{}'".format(
+                "${METAL_AUTH_TOKEN}",
+                "${METAL_PROJECT_ID}",
+                json.dumps(payload)),
+            hide='stdout', echo=self._echo).stdout
+
+        if vip.count > 1:
+            return [dict(yaml.safe_load(result))]
+        else:
+            return list(yaml.safe_load_all(result))
     def render_vip_addresses_file(self, cluster: Cluster):
         data = {
             VipRole.cp: ReservedVIPs(),
@@ -108,49 +271,7 @@ class MetalCtrl:
         return False
 
 
-def register_public_vip(ctx, cluster: Cluster, vip: Vip, tags: list):
-    result = ctx.run("metal ip request --type {} --quantity {} --metro {} --tags '{}' -o yaml".format(
-        VipType.public_ipv4,
-        vip.count,
-        cluster.metro,
-        ",".join(tags)
-    ), hide='stdout', echo=True).stdout
-    if vip.count > 1:
-        return [dict(yaml.safe_load(result))]
-    else:
-        return list(yaml.safe_load_all(result))
 
-
-def register_global_vip(ctx, vip: Vip, tags: list):
-    """
-    We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not
-    affect the management cluster (bary).
-
-    ToDo:
-        There is a bug in Metal CLI that prevents us from using the CLI in this case.
-        Thankfully API endpoint works.
-        https://deploy.equinix.com/developers/docs/metal/networking/global-anycast-ips/
-    """
-    payload = {
-        "type": VipType.global_ipv4,
-        "quantity": vip.count,
-        "fail_on_approval_required": "true",
-        "tags": tags
-    }
-    result = ctx.run("curl -s -X POST "
-                     "-H 'Content-Type: application/json' "
-                     "-H \"X-Auth-Token: {}\" "
-                     "\"https://api.equinix.com/metal/v1/projects/{}/ips\" "
-                     "-d '{}'".format(
-                            "${METAL_AUTH_TOKEN}",
-                            "${METAL_PROJECT_ID}",
-                            json.dumps(payload)
-                        ), hide='stdout', echo=True).stdout
-
-    if vip.count > 1:
-        return [dict(yaml.safe_load(result))]
-    else:
-        return list(yaml.safe_load_all(result))
 
 
 def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:

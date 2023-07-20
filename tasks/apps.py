@@ -294,6 +294,9 @@ def harbor(ctx, install: bool = False, echo: bool = False):
 
 @task()
 def observability(ctx, install: bool = False, echo: bool = False):
+    """
+    Install observability helm chart
+    """
     application_directory = 'observability'
     context = SystemContext(ctx, echo)
     cluster = context.cluster()
@@ -314,9 +317,22 @@ def observability(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
+def network_multitool(ctx, install: bool = False, echo: bool = False):
+    application_directory = 'network-multitool'
+    context = SystemContext(ctx, echo)
+
+    data = {
+        'values': {}
+    }
+
+    ApplicationsCtrl(ctx, context, echo).install_app(
+        application_directory, data, Namespace.debug, install)
+
+
+@task()
 def istio(ctx, install: bool = False, echo: bool = False):
     """
-    Install Helm chart apps/ingress-bundle
+    Install istio
     """
     application_directory = 'istio'
     context = SystemContext(ctx, echo)
@@ -361,7 +377,7 @@ def nginx(ctx, install: bool = False, echo: bool = False):
         }
     }
 
-    apps_ctrl.install_app(application_directory, data, Namespace.ingress, install)
+    apps_ctrl.install_app(application_directory, data, Namespace.nginx, install)
 
     if len(ingress_vips.global_ipv4) > 0:
         data = {
@@ -374,12 +390,12 @@ def nginx(ctx, install: bool = False, echo: bool = False):
         values_file = apps_ctrl.render_values(
             application_directory,
             data,
-            namespace=Namespace.ingress,
+            namespace=Namespace.nginx,
             application_name=application_directory + '-global',
             target_app_suffix="global"
         )
         helm = Helm(ctx, echo)
-        helm.install(values_file, install, Namespace.ingress)
+        helm.install(values_file, install, Namespace.nginx)
 
 
 @task()

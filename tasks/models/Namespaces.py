@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class Namespace(Enum):
+    debug = 'debug'
     argocd = 'argocd'
     capi = 'capi'
     dns_tls = 'dns-tls'
@@ -10,7 +11,7 @@ class Namespace(Enum):
     gitea = 'gitea'
     database = 'database'
     dashboards = 'dashboards'
-    ingress = 'ingress'
+    nginx = 'nginx'
     observability = 'observability'
     storage = 'storage'
     idp_auth = 'idp-auth'
