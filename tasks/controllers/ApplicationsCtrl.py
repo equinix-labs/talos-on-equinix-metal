@@ -123,7 +123,7 @@ class ApplicationsCtrl:
 
         helm = Helm(self._ctx, self._echo)
         if install:
-            helm.install(hvf, install, namespace.value)
+            helm.install(hvf, install, namespace)
 
     def get_available(self):
         apps_dirs = glob(self._paths.apps_dir('*'), recursive=True)

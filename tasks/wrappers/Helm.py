@@ -1,9 +1,9 @@
-import logging
 import os
 
 import yaml
 
 from tasks.models.HelmValueFiles import HelmValueFiles, HelmApp
+from tasks.models.Namespaces import Namespace
 
 
 class Helm:
@@ -18,22 +18,19 @@ class Helm:
         self._namespace_file_name = 'namespace.yaml'
 
     def _install(self, helm_app: HelmApp,
-                 namespace=None, wait=False):
+                 namespace: Namespace = None, wait: bool = False):
         chart_dir_path = os.path.dirname(helm_app.values_file_path)
         namespace_file_path = os.path.join(chart_dir_path, self._namespace_file_name)
 
-        print(namespace_file_path)
         if os.path.isfile(namespace_file_path):
             self._ctx.run("kubectl apply -f " + namespace_file_path, echo=True)
             with open(namespace_file_path) as namespace_file:
-                namespace = dict(yaml.safe_load(namespace_file))['metadata']['name']
-
-            namespace_cmd = "--namespace " + namespace
+                namespace_cmd = "--namespace " + dict(yaml.safe_load(namespace_file))['metadata']['name']
         else:
             if namespace is None:
-                namespace = helm_app.name
-
-            namespace_cmd = "--create-namespace --namespace " + namespace
+                namespace_cmd = "--create-namespace --namespace " + Namespace[helm_app.name].value
+            else:
+                namespace_cmd = "--namespace " + namespace.value
 
         command = "helm upgrade {} --dependency-update --install {} {} {} ".format(
             "--wait " if wait else '',
@@ -101,7 +98,7 @@ class Helm:
 
         return manifest
 
-    def install(self, hvf: HelmValueFiles, install: bool, namespace=None):
+    def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None):
         if not install:
             return
 
