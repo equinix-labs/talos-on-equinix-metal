@@ -2,10 +2,6 @@ metallb:
   crds:
     enabled: true
 cilium:
-# We might not need istio after all...
-#  socketLB: # istio https://docs.cilium.io/en/stable/network/istio/#setup-cilium
-#    enabled: true
-#    hostNamespaceOnly: true
   k8sServiceHost: {{ k8s_service_host }}
   k8sServicePort: {{ k8s_service_port }}
   cluster:

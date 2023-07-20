@@ -1,8 +1,8 @@
 name: jupiter
-capi: v1.4.2 # https://github.com/kubernetes-sigs/cluster-api
+capi: v1.4.4 # https://github.com/kubernetes-sigs/cluster-api
 cabpt: v0.6.0 # https://github.com/siderolabs/cluster-api-bootstrap-provider-talos
-cacppt: v0.5.0 # https://github.com/siderolabs/cluster-api-control-plane-provider-talos
-capp: v0.7.1 # https://github.com/kubernetes-sigs/cluster-api-provider-packet
+cacppt: v0.5.1 # https://github.com/siderolabs/cluster-api-control-plane-provider-talos
+capp: v0.7.2 # https://github.com/kubernetes-sigs/cluster-api-provider-packet
 version: 0.1.0
 bary:
   name: jupiter

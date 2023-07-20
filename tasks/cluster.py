@@ -15,7 +15,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use w
 
 
 @task()
-def get_secrets(ctx, cluster_name: str, echo: bool = False):
+def boot(ctx, cluster_name: str, echo: bool = False):
     """
     Produces [secrets_dir]/[cluster_name].kubeconfig
     """

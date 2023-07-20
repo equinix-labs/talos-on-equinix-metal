@@ -2,7 +2,7 @@ import os.path
 
 import pytest
 
-from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
+from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths, log_output
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation
 
 

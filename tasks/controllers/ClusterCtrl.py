@@ -152,8 +152,8 @@ class ClusterCtrl:
             add_talos_hashbang(os.path.join(cluster_secrets_dir, worker_capi_file_name))
             add_talos_hashbang(os.path.join(cluster_secrets_dir, cp_capi_file_name))
 
-            ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name))
-            ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name))
+            ctx.run("talosctl validate -m cloud -c {}".format(worker_capi_file_name), echo=self._echo)
+            ctx.run("talosctl validate -m cloud -c {}".format(cp_capi_file_name), echo=self._echo)
 
         with open(cluster_manifest_file_name) as cluster_manifest_file:
             documents = list()

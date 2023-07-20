@@ -11,6 +11,15 @@ def get_repo_dir() -> str:
     return os.getcwd()
 
 
+def log_output(intake):
+    def capture_result(ref, *args):
+        result = intake(ref, *args)
+        print("{} | {}".format(intake.__name__, result))
+        return result
+
+    return capture_result
+
+
 class RepoPaths:
 
     _root: str
@@ -60,84 +69,111 @@ class ProjectPaths:
                     root
                 )
 
+    # @log_output
     def project_root(self, *paths):
         return os.path.join(self._root, *paths)
 
+    # @log_output
     def secrets_file(self):
         return os.path.join(self.project_root(), 'secrets.yaml')
 
+    # @log_output
     def gcp_token_file(self):
         return os.path.join(self.project_root(), 'gcp_admin_token.json')
 
+    # @log_output
     def state_file(self):
         return os.path.join(self.project_root(), 'state.yaml')
 
+    # @log_output
     def constellation_dir(self):
         return os.path.join(self.project_root(), self._constellation_name)
 
+    # @log_output
     def ca_dir(self):
         return mkdirs(os.path.join(self.constellation_dir(), 'ca'))
 
+    # @log_output
     def constellation_file(self, name: str):
         return os.path.join(self.project_root(), "{}{}".format(name, CONSTELLATION_FILE_SUFFIX))
 
+    # @log_output
     def cluster_dir(self):
         return os.path.join(self.constellation_dir(), self._cluster_name)
 
+    # @log_output
     def talosconfig_file(self):
         return os.path.join(self.talos_dir(), 'talosconfig')
 
+    # @log_output
     def talosconfig_global_file(self):
         return os.path.join(self.project_root(), 'talosconfig')
 
+    # @log_output
     def kubeconfig_file(self):
         return os.path.join(self.access_dir(), 'kubeconfig')
 
+    # @log_output
     def kubeconfig_oidc_file(self):
         return os.path.join(self.access_dir(), 'oidc.kubeconfig')
 
+    # @log_output
     def cluster_capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), "capi-manifest.yaml")
 
+    # @log_output
     def device_list_file(self):
         return os.path.join(self.constellation_dir(), "device-list.yaml")
 
+    # @log_output
     def cluster_capi_static_manifest_file(self):
         return os.path.join(mkdirs(self.argo_infra_dir()), "capi-manifest.static.yaml")
 
+    # @log_output
     def k8s_manifests_dir(self):
         return os.path.join(self.cluster_dir(), "k8s_manifests")
 
+    # @log_output
     def k8s_manifest_file(self, app_name):
         return os.path.join(mkdirs(self.k8s_manifests_dir()), "{}.yaml".format(app_name))
 
+    # @log_output
     def patches_dir(self, *paths):
         return os.path.join(self.cluster_dir(), "patch", *paths)
 
+    # @log_output
     def templates_dir(self):
         return os.path.join(self.cluster_dir(), "templates")
 
+    # @log_output
     def apps_dir(self, *paths):
         return os.path.join(self.cluster_dir(), "apps", *paths)
 
+    # @log_output
     def talos_dir(self):
         return mkdirs(os.path.join(self.cluster_dir(), "talos"))
 
+    # @log_output
     def access_dir(self):
         return os.path.join(self.cluster_dir(), "access")
 
+    # @log_output
     def argo_apps_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "apps")
 
+    # @log_output
     def argo_app(self, *path):
         return os.path.join(mkdirs(self.argo_apps_dir()), *path)
 
+    # @log_output
     def argo_infra_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "infra")
 
+    # @log_output
     def vips_file_by_role(self, address_role: VipRole):
         return os.path.join(mkdirs(self.cluster_dir()), "vips-{}.yaml".format(address_role))
 
+    # @log_output
     def project_vips_file(self):
         return os.path.join(mkdirs(self.constellation_dir()), 'vips-project.yaml')
 
