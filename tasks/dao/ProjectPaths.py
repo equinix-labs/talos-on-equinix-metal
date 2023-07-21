@@ -31,6 +31,9 @@ class RepoPaths:
     def templates_dir(self, *path):
         return os.path.join(self._root, 'templates', *path)
 
+    def openssl_cnf_file(self):
+        return self.templates_dir('openssl.cnf')
+
     def capi_control_plane_template(self):
         return self.templates_dir('cluster', 'capi-control-plane.yaml')
 
@@ -92,6 +95,15 @@ class ProjectPaths:
     # @log_output
     def ca_dir(self):
         return mkdirs(os.path.join(self.constellation_dir(), 'ca'))
+
+    def ca_crt_file(self):
+        return os.path.join(self.ca_dir(), 'ca.crt')
+
+    def ca_key_file(self):
+        return os.path.join(self.ca_dir(), 'ca.key')
+
+    def openssl_cnf_file(self):
+        return os.path.join(self.ca_dir(), 'openssl.cnf')
 
     # @log_output
     def constellation_file(self, name: str):

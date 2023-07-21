@@ -1,3 +1,4 @@
+import base64
 import os
 
 import yaml
@@ -13,21 +14,17 @@ from tasks.controllers.ConstellationSpecCtrl import get_constellation_spec_file_
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.models.ConstellationSpecV01 import Constellation
+from tasks.wrappers.OpenSSL import OpenSSL
 
 
 @task()
-def generate_ca(ctx, echo=False):
+def generate_ca(ctx, echo: bool = False):
     """
     Generate root CA, to be used by cilium and others
     """
     state = SystemContext(ctx, echo)
-    ca_dir = state.project_paths.ca_dir()
-
-    ctx.run("cp -n templates/openssl.cnf " + ca_dir)
-    with ctx.cd(ca_dir):
-        ctx.run("openssl req -days 3560 -config openssl.cnf "
-                "-subj '/CN={} CA' -nodes -new -x509 -keyout ca.key -out ca.crt".format(
-                    os.environ.get('GOCY_DOMAIN')), echo=echo)
+    openssl = OpenSSL(state, ctx, echo)
+    openssl.create()
 
 
 @task(post=[generate_ca])
