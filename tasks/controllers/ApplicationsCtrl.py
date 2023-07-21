@@ -7,11 +7,12 @@ import yaml
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import get_jinja, get_file_content_as_b64
+from tasks.helpers import get_file_content_as_b64
 from tasks.models.ConstellationSpecV01 import VipRole, Cluster
 from tasks.models.HelmValueFiles import HelmValueFiles
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Helm import Helm
+from tasks.wrappers.JinjaWrapper import JinjaWrapper
 
 
 def get_chart_name(dependency_folder_path: str) -> str:
@@ -59,10 +60,12 @@ class ApplicationsCtrl:
 
         values_file_path = os.path.join(target_apps_path, self._target_file_name)
 
-        render_values_file(
-                           os.path.join(source_apps_path, self._template_file_name),
-                           values_file_path,
-                           data['values']
+        jinja = JinjaWrapper()
+
+        jinja.render(
+            os.path.join(source_apps_path, self._template_file_name),
+            values_file_path,
+            data['values']
         )
 
         hvf = HelmValueFiles(
@@ -70,7 +73,7 @@ class ApplicationsCtrl:
             values_file_path
         )
 
-        render_values_file(
+        jinja.render(
             self._repo_paths.templates_dir('argo', 'application.jinja.yaml'),
             self._paths.argo_app(application_name + '.yaml'),
             {
@@ -103,7 +106,7 @@ class ApplicationsCtrl:
                         dependency_folder_path,
                         self._target_file_name)
 
-                    render_values_file(
+                    jinja.render(
                         source,
                         values_file_path,
                         dependency_data
@@ -214,14 +217,3 @@ class ApplicationsCtrl:
         }
 
         return self.render_values(app_name, data, namespace=namespace)
-
-
-def render_values_file(source: str, target: str, data: dict):
-    jinja = get_jinja()
-    # ctx.run('mkdir -p ' + str(Path(target).parent.absolute()))
-    with open(source) as source_file:
-        template = jinja.from_string(source_file.read())
-
-    with open(target, 'w') as target_file:
-        rendered_list = [line for line in template.render(data).splitlines() if len(line.rstrip()) > 0]
-        target_file.write(os.linesep.join(rendered_list))

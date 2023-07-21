@@ -40,7 +40,7 @@ def test_config_dir_from_absolute_root_env(monkeypatch, constellation, tmp_abs_r
 def test_config_dir_from_absolute_root(constellation):
     tmp_root = os.path.join("/tmp", "gocy")
     paths = ProjectPaths(constellation_name='saturn', cluster_name='saturn', root=tmp_root)
-    assert paths.patches_dir() == os.path.join(
+    assert paths.patch_dir() == os.path.join(
             tmp_root,
             'saturn',
             'saturn',
@@ -62,7 +62,7 @@ def test_config_dir_cluster_root(constellation):
     root = '.gocy_tmp_root'
     paths = ProjectPaths(constellation_name=constellation.name, cluster_name='titan', root=root)
 
-    assert paths.patches_dir() == os.path.join(
+    assert paths.patch_dir() == os.path.join(
             os.path.expanduser('~'),
             root,
             constellation.name,
@@ -73,7 +73,7 @@ def test_config_dir_cluster_root(constellation):
 
 def test_dir_tree_config_sub_dir(constellation):
     paths = ProjectPaths(constellation_name=constellation.name, cluster_name='rhea')
-    assert paths.patches_dir('bgp') == os.path.join(
+    assert paths.patch_dir('bgp') == os.path.join(
             os.path.expanduser('~'),
             '.gocy',
             'saturn',

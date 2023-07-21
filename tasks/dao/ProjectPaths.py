@@ -150,8 +150,11 @@ class ProjectPaths:
         return os.path.join(mkdirs(self.k8s_manifests_dir()), "{}.yaml".format(app_name))
 
     # @log_output
-    def patches_dir(self, *paths):
+    def patch_dir(self, *paths):
         return mkdirs(os.path.join(self.cluster_dir(), "patch", *paths))
+
+    def patch_bgp_file(self, name):
+        return os.path.join(self.patch_dir('bgp'), name)
 
     # @log_output
     def templates_dir(self):

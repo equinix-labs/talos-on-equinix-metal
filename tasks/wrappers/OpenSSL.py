@@ -8,9 +8,9 @@ from tasks.dao.SystemContext import SystemContext
 
 
 def get_file_content_as_b64(filename) -> str:
-    with open(filename) as file:
+    with open(filename, 'rb') as file:
         content = file.read()
-        return binascii.b2a_base64(bytes(content, 'utf-8')).decode('utf-8')
+        return binascii.b2a_base64(content).decode('utf-8')
 
 
 class OpenSSL:

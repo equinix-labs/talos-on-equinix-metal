@@ -1,15 +1,17 @@
 import json
-import os
 
 import yaml
 from invoke import Context
 
-from tasks.dao.SystemContext import SystemContext
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
+from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import str_presenter
 from tasks.models.ConstellationSpecV01 import Cluster, VipRole, VipType, Vip, Constellation
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
+from tasks.wrappers.JinjaWrapper import JinjaWrapper
+from tasks.wrappers.Kubectl import Kubectl, SimplePod
+from tasks.wrappers.Talos import Talos
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -92,122 +94,80 @@ class MetalCtrl:
         else:
             return list(yaml.safe_load_all(result))
 
+    def get_node_gateways(self, ctx, debug_pods: dict[str, SimplePod], namespace: Namespace):
+        for key, simple_pod in debug_pods.items():
+            simple_pod.gateway = ctx.run(
+                "kubectl -n {} exec {} -- /bin/bash "
+                "-c \"curl -s https://metadata.platformequinix.com/metadata | "
+                "jq -r '.network.addresses[] | "
+                "select(.public == false and .address_family == 4) | .gateway'\"".format(
+                    namespace.value,
+                    simple_pod.name)
+                , echo=self._echo).stdout.strip()
+
+        return debug_pods
+
     def hack_fix_bgp_peer_routs(self, ctx: Context, namespace: Namespace = Namespace.debug):
         """
         Adds a static route to the node configuration, so that BGP peers could connect.
         Something like https://github.com/kubernetes-sigs/cluster-api-provider-packet/blob/main/templates/cluster-template-kube-vip.yaml#L195
         """
-        with open(self._paths.talosconfig_file()) as talosconfig_file:
-            talosconfig = yaml.safe_load(talosconfig_file)
-
         repo_paths = RepoPaths()
-        templates_directory = repo_paths.templates_dir('patch', 'bgp')
-        patches_directory = self._paths.patches_dir('bgp')
 
-        with ctx.cd(templates_directory):
-            pods_raw = ctx.run(
-                "kubectl -n {} get pods -o yaml".format(namespace.value),
-                hide='stdout', echo=self._echo).stdout
+        kubectl = Kubectl(ctx, self._echo)
+        k8s_nodes = kubectl.get_nodes_eip()
 
-            debug_pods = list()
-            for pod in yaml.safe_load(pods_raw)['items']:
-                if 'debug' in pod['metadata']['name']:
-                    debug_pods.append({
-                        "name": pod['metadata']['name'],
-                        'node': pod['spec']['nodeName']
-                    })
-            if len(debug_pods) == 0:
-                print("This task requires debug pods from 'network.deploy-network-multitool' "
-                      "something went wrong, exiting.")
-                return
+        talos = Talos(self._state, self._cluster)
+        talos_nodes = talos.get_nodes()
 
-            for debug_pod in debug_pods:
-                if 'debug' in debug_pod['name']:
-                    debug_pod['gateway'] = ctx.run(
-                        "kubectl -n {} exec {} -- /bin/bash "
-                        "-c \"curl -s https://metadata.platformequinix.com/metadata | "
-                        "jq -r '.network.addresses[] | "
-                        "select(.public == false and .address_family == 4) | .gateway'\"".format(
-                            namespace.value,
-                            debug_pod['name'])
-                        , echo=self._echo).stdout.strip()
+        if len(talos_nodes) != len(k8s_nodes):
+            print("Somthing is wrong with the config or context talos nodes out of sync with k8s nodes")
+            print("Talos nodes: {}".format(talos_nodes))
+            print("K8s nodes: {}".format(k8s_nodes.keys()))
+            return
 
-            node_patch_data = dict()
-            for pod in debug_pods:
-                node_patch_data[pod['node']] = dict()
-                node_patch_data[pod['node']]['gateway'] = pod['gateway']
+        debug_pods = kubectl.get_pods_name_and_node(namespace, 'debug')
+        print(debug_pods)
+        if len(debug_pods) == 0:
+            print("Debug pods not found!. deploy with 'apps.network-multitool -i' ? ")
+            return
 
-            nodes_raw = ctx.run("kubectl get nodes -o yaml", hide='stdout', echo=self._echo).stdout
-            node_patch_addresses = list()
+        debug_pods = self.get_node_gateways(ctx, debug_pods, namespace)
+        jinja = JinjaWrapper()
 
-            print(node_patch_data)
+        for hostname in k8s_nodes.keys():
+            eip = k8s_nodes[hostname]
+            paths_data = debug_pods[hostname]
+            patch_file_name = None
+            if 'control-plane' in hostname:
+                patch_file_name = self._paths.patch_bgp_file('control-plane-{}.yaml'.format(hostname))
+                jinja.render(
+                    repo_paths.templates_dir('patch', 'bgp', 'control-plane.jinja.yaml'),
+                    patch_file_name,
+                    {'gateway': paths_data.gateway}
+                )
+            elif 'machine' in hostname:
+                patch_file_name = self._paths.patch_bgp_file('worker-{}.yaml'.format(hostname))
+                jinja.render(
+                    repo_paths.templates_dir('patch', 'bgp', 'worker.ninja.yaml'),
+                    patch_file_name,
+                    {'gateway': paths_data.gateway}
+                )
+            else:
+                print('Unrecognised node role: {}, should be "control-plane" OR "machine. '
+                      'Node will NOT be patched.'.format(hostname))
 
-            for node in dict(yaml.safe_load(nodes_raw))['items']:
-                node_addresses = node['status']['addresses']
-                node_addresses = list(filter(lambda address: address['type'] == 'ExternalIP', node_addresses))
-                node_addresses = list(map(lambda address: address['address'], node_addresses))
+            if patch_file_name is not None:
+                for address in eip:
+                    if address == self.get_vips(VipRole.cp).public_ipv4[0]:
+                        # Do not apply patch to the VIP interface (Control Plane)
+                        continue
 
-                print("{} | {}".format(node_addresses, node['metadata']['labels']['kubernetes.io/hostname']))
-
-                node_patch_data[
-                    node['metadata']['labels']['kubernetes.io/hostname']]['addresses'] = node_addresses
-                node_patch_addresses.extend(node_addresses)
-
-            cp_vip = self.get_vips(VipRole.cp).public_ipv4[0]
-            try:
-                node_patch_addresses.remove(cp_vip)
-            except ValueError:
-                pass
-
-            talosconfig_addresses = talosconfig['contexts'][self._cluster.name]['nodes']
-            try:
-                talosconfig_addresses.remove(cp_vip)
-            except ValueError:
-                pass
-
-            # from pprint import pprint
-            # print("#### node_patch_data")
-            # pprint(node_patch_addresses)
-            # print("#### talosconfig")
-            # pprint(talosconfig_addresses)
-            # return
-
-            if len(set(node_patch_addresses) - set(talosconfig_addresses)) > 0:
-                print("Node list returned by kubectl is out of sync with your talosconfig! Fix before patching.")
-                return
-
-            for hostname in node_patch_data:
-                patch_name = "{}.yaml".format(hostname)
-                talos_patch = None
-                if 'control-plane' in hostname:
-                    with open(os.path.join(
-                            templates_directory,
-                            'control-plane.pt.yaml'), 'r') as talos_cp_patch_file:
-                        talos_patch = yaml.safe_load(talos_cp_patch_file)
-                        for route in talos_patch[0]['value']['routes']:
-                            route['gateway'] = node_patch_data[hostname]['gateway']
-                elif 'machine' in hostname:
-                    with open(os.path.join(
-                            templates_directory,
-                            'worker.pt.yaml'), 'r') as talos_cp_patch_file:
-                        talos_patch = yaml.safe_load(talos_cp_patch_file)
-                        for route in talos_patch[1]['value']['routes']:
-                            route['gateway'] = node_patch_data[hostname]['gateway']
-                else:
-                    print('Unrecognised node role: {}, should be "control-plane" OR "machine. '
-                          'Node will NOT be patched.'.format(hostname))
-
-                if talos_patch is not None:
-                    patch_file_name = os.path.join(patches_directory, patch_name)
-                    with open(patch_file_name, 'w') as patch_file:
-                        yaml.safe_dump(talos_patch, patch_file)
-
-                    for address in node_patch_data[hostname]['addresses']:
-                        ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
-                            self._paths.talosconfig_file(),
-                            address,
-                            patch_file_name
-                        ), echo=self._echo)
+                    ctx.run("talosctl --talosconfig {} patch mc --nodes {} --patch @{}".format(
+                        self._paths.talosconfig_file(),
+                        address,
+                        patch_file_name
+                    ), echo=self._echo)
 
     def register_global_vip(self, ctx, vip: Vip, tags: list):
         """
@@ -240,6 +200,7 @@ class MetalCtrl:
             return [dict(yaml.safe_load(result))]
         else:
             return list(yaml.safe_load_all(result))
+
     def render_vip_addresses_file(self, cluster: Cluster):
         data = {
             VipRole.cp: ReservedVIPs(),
@@ -269,9 +230,6 @@ class MetalCtrl:
             return True
 
         return False
-
-
-
 
 
 def get_vip_tags(address_role: VipRole, cluster: Cluster) -> list:

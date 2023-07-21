@@ -69,7 +69,10 @@ def get_cpem_config():
 
 def get_cpem_config_yaml() -> str:
     return base64.b64encode(
-        json.dumps(get_cpem_config()).encode('utf-8')).decode('utf-8')
+        json.dumps(
+            get_cpem_config()
+        ).encode('utf-8')
+    ).decode('utf-8')
 
 
 def get_file_content_as_b64(filename):
