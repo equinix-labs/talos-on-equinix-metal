@@ -28,7 +28,7 @@ def register_vips(ctx, echo: bool = False):
 @task()
 def test(ctx, echo=True):
     state = SystemContext(ctx, echo)
-    kubectl = Kubectl(ctx, echo)
+    kubectl = Kubectl(ctx, state, echo)
     print(kubectl.get_nodes_eip())
 
 

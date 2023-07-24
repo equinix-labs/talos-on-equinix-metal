@@ -1,6 +1,10 @@
+import base64
+import json
+
 import yaml
 from invoke import Context
 
+from tasks.dao.SystemContext import SystemContext
 from tasks.models.Namespaces import Namespace
 
 
@@ -17,10 +21,12 @@ class SimplePod:
 class Kubectl:
 
     _ctx: Context
+    _state: SystemContext
     _echo: bool
 
-    def __init__(self, ctx: Context, echo: bool):
+    def __init__(self, ctx: Context, state: SystemContext, echo: bool):
         self._ctx = ctx
+        self._state = state
         self._echo = echo
 
     def get_pods(self, namespace: Namespace) -> dict:
@@ -67,3 +73,42 @@ class Kubectl:
                 hostname_vs_eip[hostname] = eip
 
         return hostname_vs_eip
+
+    def configure_image_pull_secrets(self, namespace: Namespace):
+        """
+        Det up the docker pull secret on the default Service Account in a given namespace.
+        """
+        d_user = self._state.secrets['env']['DOCKERHUB_USER']
+        d_pass = self._state.secrets['env']['DOCKERHUB_TOKEN']
+        auth_bytes = "{}:{}".format(d_user, d_pass).encode('utf-8')
+        docker_config = {
+            "auths": {
+                'https://registry-1.docker.io': {
+                    'auth': base64.b64encode(auth_bytes).decode('utf-8')
+                }
+            }
+        }
+
+        docker_config_file_name = self._state.project_paths.docker_config_file()
+        with open(docker_config_file_name, 'w') as docker_config_file:
+            json.dump(docker_config, docker_config_file)
+
+        secret_name = "dockerhub"
+        self._ctx.run(
+            "kubectl -n {} create secret docker-registry --from-file=.dockerconfigjson=\"{}\" {} | true".format(
+                namespace,
+                docker_config_file_name,
+                secret_name
+            ), echo=self._echo)
+
+        payload = {
+            'imagePullSecrets': [
+                {
+                    "name": secret_name
+                }
+            ]
+        }
+        self._ctx.run("kubectl patch sa default -n {} -p '{}' | true".format(
+            namespace,
+            json.dumps(payload)
+        ), echo=self._echo)

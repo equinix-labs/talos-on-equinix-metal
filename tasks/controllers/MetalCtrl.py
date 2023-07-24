@@ -114,20 +114,19 @@ class MetalCtrl:
         """
         repo_paths = RepoPaths()
 
-        kubectl = Kubectl(ctx, self._echo)
+        kubectl = Kubectl(ctx, self._state, self._echo)
         k8s_nodes = kubectl.get_nodes_eip()
 
         talos = Talos(self._state, self._cluster)
         talos_nodes = talos.get_nodes()
 
         if len(talos_nodes) != len(k8s_nodes):
-            print("Somthing is wrong with the config or context talos nodes out of sync with k8s nodes")
+            print("Either config or context is incorrect. Talos nodes out of sync with k8s nodes")
             print("Talos nodes: {}".format(talos_nodes))
             print("K8s nodes: {}".format(k8s_nodes.keys()))
             return
 
         debug_pods = kubectl.get_pods_name_and_node(namespace, 'debug')
-        print(debug_pods)
         if len(debug_pods) == 0:
             print("Debug pods not found!. deploy with 'apps.network-multitool -i' ? ")
             return

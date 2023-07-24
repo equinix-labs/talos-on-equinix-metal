@@ -23,14 +23,17 @@ def get_chart_name(dependency_folder_path: str) -> str:
 
 class ApplicationsCtrl:
     _context: SystemContext
+    _cluster: Cluster
 
     def __init__(self, ctx, context: SystemContext, echo: bool = False, cluster: Cluster = None):
         self._context = context
         self._echo = echo
         if cluster is None:
             self._paths = self._context.project_paths
+            self._cluster = self._context.cluster()
         else:
             self._paths = ProjectPaths(self._context.constellation.name, cluster.name)
+            self._cluster = cluster
         self._repo_paths = RepoPaths()
         self._ctx = ctx
 
@@ -79,10 +82,10 @@ class ApplicationsCtrl:
             {
                 'name': hvf.app.name,
                 'namespace': Namespace.argocd.value,
-                'destination': self._context.cluster().name,
+                'destination': self._cluster.name,
                 'target_namespace': namespace.value,
-                'project': self._context.cluster().name,
-                'path': os.path.join(self._context.cluster().name, 'apps', application_name),
+                'project': self._cluster.name,
+                'path': os.path.join(self._cluster.name, 'apps', application_name),
                 'repo_url': "http://gitea-http.gitea:3000/gocy/saturn.git"
             }
         )
@@ -190,29 +193,26 @@ class ApplicationsCtrl:
             self, app_name='network-dependencies',
             namespace: Namespace = Namespace.network_services) -> HelmValueFiles:
 
-        cluster_spec = self._context.cluster()
         constellation_spec = self._context.constellation
         ca_dir = self._paths.ca_dir()
 
-        # We have to count form one
-        # Error: Unable to connect cluster:
-        #   local cluster has the default name (cluster name: jupiter) and/or ID 0 (cluster ID: 0)
+        # Cilium expects for the clusters in the cluster mesh to have unique IDs. ID has to > 0
         cluster_id = 1
         for index, value in enumerate(constellation_spec):
-            if value == cluster_spec:
+            if value == self._cluster:
                 cluster_id = cluster_id + index
 
-        metal = MetalCtrl(self._context, self._echo)
+        metal = MetalCtrl(self._context, self._echo, self._cluster)
 
         data = {
             'values': {
                 'k8s_service_host': metal.get_vips(VipRole.cp).public_ipv4[0],
                 'k8s_service_port': '6443',
-                'cluster_name': cluster_spec.name,
+                'cluster_name': self._cluster.name,
                 'cluster_id': cluster_id,
                 'ca_crt': get_file_content_as_b64(os.path.join(ca_dir, 'ca.crt')),
                 'ca_key': get_file_content_as_b64(os.path.join(ca_dir, 'ca.key')),
-                'hubble_cluster_domain': cluster_spec.name + '.local'
+                'hubble_cluster_domain': self._cluster.name + '.local'
             }
         }
 

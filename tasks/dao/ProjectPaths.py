@@ -133,6 +133,9 @@ class ProjectPaths:
     def cluster_capi_manifest_file(self):
         return os.path.join(self.cluster_dir(), "capi-manifest.yaml")
 
+    def docker_config_file(self):
+        return os.path.join(self.cluster_dir(), "docker.config.json")
+
     # @log_output
     def device_list_file(self):
         return os.path.join(self.constellation_dir(), "device-list.yaml")
