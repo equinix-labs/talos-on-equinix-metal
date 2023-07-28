@@ -8,7 +8,7 @@ import yaml
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import get_file_content_as_b64
+from tasks.helpers import get_file_content_as_b64, get_fqdn
 from tasks.models.ConstellationSpecV01 import VipRole, Cluster
 from tasks.models.HelmValueFiles import HelmValueFiles
 from tasks.models.Namespaces import Namespace
@@ -77,6 +77,7 @@ class ApplicationsCtrl:
 
         hvf = HelmValueFiles(
             application_name if application_name else get_chart_name(target_apps_path),
+            source_apps_path,
             values_file_path
         )
 
@@ -121,6 +122,7 @@ class ApplicationsCtrl:
 
                     hvf.add_dependency(
                         get_chart_name(os.path.join(target_apps_path, dependency_folder_path)),
+                        os.path.join(source_apps_path, dependency_folder_path),
                         values_file_path
                     )
 
@@ -132,6 +134,7 @@ class ApplicationsCtrl:
         hvf = self.render_values(application_directory, data, namespace, application_name, target_app_suffix)
 
         helm = Helm(self._ctx, self._echo)
+
         if install:
             helm.install(hvf, install, namespace, wait)
 
@@ -217,7 +220,8 @@ class ApplicationsCtrl:
                 'ca_crt': get_file_content_as_b64(os.path.join(ca_dir, 'ca.crt')),
                 'ca_key': get_file_content_as_b64(os.path.join(ca_dir, 'ca.key')),
                 'hubble_cluster_domain': self._cluster.name + '.local',
-                'mesh_vip': metal.get_vips(VipRole.mesh).public_ipv4[0]
+                'mesh_vip': metal.get_vips(VipRole.mesh).public_ipv4[0],
+                'fqdn': get_fqdn(['mesh', self._cluster.name], self._context.secrets, self._cluster)
             }
         }
 

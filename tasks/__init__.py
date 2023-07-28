@@ -5,12 +5,12 @@ from . import cluster
 from . import gocy
 from . import helpers
 from . import metal
-from . import network
+from . import mesh
 from . import dns
 
 ns = Collection()
 ns.add_collection(cluster)
-ns.add_collection(network)
+ns.add_collection(mesh)
 ns.add_collection(apps)
 ns.add_collection(metal)
 ns.add_collection(gocy)

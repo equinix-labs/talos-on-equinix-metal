@@ -98,7 +98,17 @@ class Helm:
 
         return manifest
 
+    def dependency_build(self, hvf: HelmValueFiles):
+        for dependency in hvf.deps:
+            with self._ctx.cd(dependency.chart_source_dir):
+                self._ctx.run("helm dependency build", echo=self._echo)
+
+        with self._ctx.cd(hvf.app.chart_source_dir):
+            self._ctx.run("helm dependency build", echo=self._echo)
+
     def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None, wait: bool = None):
+        self.dependency_build(hvf)
+
         if not install:
             return
 

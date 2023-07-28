@@ -58,7 +58,8 @@ cilium:
         type: LoadBalancer
         annotations:
           metallb.universe.tf/address-pool: mesh-public-ipv4
-      replicas: 2
+          external-dns.alpha.kubernetes.io/hostname: {{ fqdn }}
+      replicas: 3
       tls:
         ca:
           cert: {{ ca_crt }}
@@ -66,3 +67,5 @@ cilium:
         server:
           extraIpAddresses:
             - {{ mesh_vip }}
+          extraDnsNames:
+            - {{ fqdn }}

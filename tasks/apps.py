@@ -493,9 +493,8 @@ def network_dependencies(ctx, install: bool = False, echo: bool = False):
 
     values_file = app_ctrl.prepare_network_dependencies(application_directory, Namespace.network_services)
 
-    if install:
-        helm = Helm(ctx, echo)
-        helm.install(values_file, install, Namespace.network_services)
+    helm = Helm(ctx, echo)
+    helm.install(values_file, install, Namespace.network_services)
 
 
 @task()

@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from typing import Any
 
 import jinja2
 import yaml
@@ -184,7 +185,7 @@ def get_jinja():
     return jinja2.Environment(undefined=jinja2.StrictUndefined)
 
 
-def get_fqdn(name, secrets: dict, cluster: Cluster):
+def get_fqdn(name: Any, secrets: dict, cluster: Cluster):
 
     if type(name) == list:
         _name = ".".join(name)
