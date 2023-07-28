@@ -1,4 +1,4 @@
 - op: add # https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/#enabling-for-an-existing-cluster
   path: /machine/network/kubespan
   value:
-    enabled: true
+    enabled: {{ enabled }}

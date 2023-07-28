@@ -82,7 +82,7 @@ class ProjectPaths:
 
     # @log_output
     def gcp_token_file(self):
-        return os.path.join(self.project_root(), 'gcp_admin_token.json')
+        return os.path.join(self.constellation_dir(), 'gcp_admin_token.json')
 
     # @log_output
     def state_file(self):
@@ -155,6 +155,9 @@ class ProjectPaths:
     # @log_output
     def patch_dir(self, *paths):
         return mkdirs(os.path.join(self.cluster_dir(), "patch", *paths))
+
+    def patch_mesh_secret_file(self):
+        return os.path.join(self.patch_dir(), 'cilium-clustermesh.yaml')
 
     def patch_bgp_file(self, name):
         return os.path.join(self.patch_dir('bgp'), name)

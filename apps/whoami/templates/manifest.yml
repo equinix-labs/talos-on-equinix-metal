@@ -1,7 +1,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: whoami-deployment
+  name: whoami
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
@@ -35,10 +35,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: whoami-service
+  name: whoami-local
   namespace: {{ .Release.Namespace }}
   annotations:
-    io.cilium/global-service: 'true'
+    io.cilium/global-service: 'false'
+    service.cilium.io/affinity: "local"
 spec:
   type: ClusterIP
   ports:
@@ -50,44 +51,63 @@ spec:
     app: whoami-app
 
 ---
-apiVersion: "cilium.io/v2"
-kind: CiliumNetworkPolicy
+apiVersion: v1
+kind: Service
 metadata:
-  name: ingress-whoami-policy
+  name: whoami-remote
   namespace: {{ .Release.Namespace }}
+  annotations:
+    io.cilium/global-service: 'true'
+    service.cilium.io/affinity: "remote"
 spec:
-  endpointSelector:
-    matchLabels:
-      app: whoami-app
-  ingress:
-    - fromEntities:
-        - world
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-    - fromEntities:
-        - cluster
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-  egress:
-    - toEntities:
-        - world
-    - toEntities:
-        - cluster
-    - toEndpoints:
-      - matchLabels:
-          io.kubernetes.pod.namespace: kube-system
-          k8s-app: kube-dns
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-          rules:
-            dns:
-              - matchPattern: "*"
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: whoami-app-port
+  selector:
+    app: whoami-app
+
+{{/*---*/}}
+{{/*apiVersion: "cilium.io/v2"*/}}
+{{/*kind: CiliumNetworkPolicy*/}}
+{{/*metadata:*/}}
+{{/*  name: ingress-whoami-policy*/}}
+{{/*  namespace: {{ .Release.Namespace }}*/}}
+{{/*spec:*/}}
+{{/*  endpointSelector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      app: whoami-app*/}}
+{{/*  ingress:*/}}
+{{/*    - fromEntities:*/}}
+{{/*        - world*/}}
+{{/*      toPorts:*/}}
+{{/*        - ports:*/}}
+{{/*            - port: "80"*/}}
+{{/*              protocol: TCP*/}}
+{{/*    - fromEntities:*/}}
+{{/*        - cluster*/}}
+{{/*      toPorts:*/}}
+{{/*        - ports:*/}}
+{{/*            - port: "80"*/}}
+{{/*              protocol: TCP*/}}
+{{/*  egress:*/}}
+{{/*    - toEntities:*/}}
+{{/*        - world*/}}
+{{/*    - toEntities:*/}}
+{{/*        - cluster*/}}
+{{/*    - toEndpoints:*/}}
+{{/*      - matchLabels:*/}}
+{{/*          io.kubernetes.pod.namespace: kube-system*/}}
+{{/*          k8s-app: kube-dns*/}}
+{{/*      toPorts:*/}}
+{{/*        - ports:*/}}
+{{/*            - port: "53"*/}}
+{{/*              protocol: UDP*/}}
+{{/*          rules:*/}}
+{{/*            dns:*/}}
+{{/*              - matchPattern: "*"*/}}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -100,7 +120,7 @@ metadata:
     nginx.ingress.kubernetes.io/auth-signin: {{ .Values.test_app.oauth.fqdn }}/oauth2/start
     nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
     {{- end }}
-  name: whoami-test-app
+  name: whoami
   namespace: {{ .Release.Namespace }}
 spec:
   ingressClassName: {{ .Values.test_app.ingressClassName }}
@@ -110,10 +130,17 @@ spec:
         paths:
           - backend:
               service:
-                name: whoami-service
+                name: whoami-local
                 port:
                   name: http
             path: /
+            pathType: Prefix
+          - backend:
+              service:
+                name: whoami-remote
+                port:
+                  name: http
+            path: /remote
             pathType: Prefix
   tls:
     - hosts:

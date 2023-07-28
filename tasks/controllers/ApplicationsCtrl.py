@@ -1,4 +1,5 @@
 import os
+import shutil
 from glob import glob
 from shutil import copytree, ignore_patterns
 
@@ -58,8 +59,11 @@ class ApplicationsCtrl:
         target_apps_path = self._paths.apps_dir(
             application_directory if not target_app_suffix else application_name + "-" + target_app_suffix)
 
+        if os.path.isdir(target_apps_path):
+            shutil.rmtree(target_apps_path)
+
         copytree(source_apps_path, target_apps_path,
-                 ignore=ignore_patterns(self._template_file_name, 'charts'), dirs_exist_ok=True)
+                 ignore=ignore_patterns(self._template_file_name, 'charts', 'Chart.lock'), dirs_exist_ok=True)
 
         values_file_path = os.path.join(target_apps_path, self._target_file_name)
 
@@ -124,12 +128,12 @@ class ApplicationsCtrl:
 
     def install_app(self, application_directory: str,
                     data: dict, namespace: Namespace, install: bool,
-                    application_name: str = None, target_app_suffix: str = None):
+                    application_name: str = None, target_app_suffix: str = None, wait: bool = None):
         hvf = self.render_values(application_directory, data, namespace, application_name, target_app_suffix)
 
         helm = Helm(self._ctx, self._echo)
         if install:
-            helm.install(hvf, install, namespace)
+            helm.install(hvf, install, namespace, wait)
 
     def get_available(self):
         apps_dirs = glob(self._paths.apps_dir('*'), recursive=True)
@@ -212,7 +216,8 @@ class ApplicationsCtrl:
                 'cluster_id': cluster_id,
                 'ca_crt': get_file_content_as_b64(os.path.join(ca_dir, 'ca.crt')),
                 'ca_key': get_file_content_as_b64(os.path.join(ca_dir, 'ca.key')),
-                'hubble_cluster_domain': self._cluster.name + '.local'
+                'hubble_cluster_domain': self._cluster.name + '.local',
+                'mesh_vip': metal.get_vips(VipRole.mesh).public_ipv4[0]
             }
         }
 

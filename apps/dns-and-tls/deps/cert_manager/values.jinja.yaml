@@ -2,6 +2,9 @@ cert-manager:
   installCRDs: true
   serviceAccount:
     name: cert-manager
+  global:
+    leaderElection:
+      namespace: "dns-tls"
 external_dns:
   version: v0.13.4
   provider:

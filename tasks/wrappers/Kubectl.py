@@ -112,3 +112,8 @@ class Kubectl:
             namespace,
             json.dumps(payload)
         ), echo=self._echo)
+
+    def get_cluster_status(self, namespace: Namespace):
+        # kubectl get machinedeployments.cluster.x-k8s.io,taloscontrolplanes.controlplane.cluster.x-k8s.io -n argocd -o yaml
+        # kubectl -n argocd get clusters
+        pass

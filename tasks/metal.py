@@ -1,13 +1,9 @@
-import json
-import os
-
 import yaml
 from invoke import task
 
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import str_presenter, get_secrets_dir, \
-    get_cpem_config, get_constellation
+from tasks.helpers import str_presenter, get_constellation
 from tasks.wrappers.Kubectl import Kubectl
 
 yaml.add_representer(str, str_presenter)
@@ -33,7 +29,7 @@ def test(ctx, echo=True):
 
 
 @task()
-def fix_bgp(ctx, echo: bool = False):
+def bgp_fix(ctx, echo: bool = False):
     """
     Registers VIPs as per constellation spec in ~/.gocy/[constellation_name].constellation.yaml
     """

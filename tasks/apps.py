@@ -54,7 +54,7 @@ def dns_tls(ctx, install: bool = False, echo: bool = False):
             'project_id': secrets['env']['GCP_PROJECT_ID']
         },
         'deps': {
-            'dns-tls': {
+            'cert_manager': {
                 'google_project': secrets['env']['GCP_PROJECT_ID'],
                 'domain_filter': secrets['env']['GOCY_DOMAIN']
             }
@@ -317,19 +317,6 @@ def observability(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def network_multitool(ctx, install: bool = False, echo: bool = False):
-    application_directory = 'network-multitool'
-    context = SystemContext(ctx, echo)
-
-    data = {
-        'values': {}
-    }
-
-    ApplicationsCtrl(ctx, context, echo).install_app(
-        application_directory, data, Namespace.debug, install)
-
-
-@task()
 def istio(ctx, install: bool = False, echo: bool = False):
     """
     Install istio
@@ -477,6 +464,21 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
         ",".join(cluster_nodes.control_plane),
         talos_oidc_patch_file_path
     ), echo=echo)
+
+
+@task()
+def network_multitool(ctx, install: bool = False, echo: bool = False, host_network: bool = False):
+    application_directory = 'network-multitool'
+    context = SystemContext(ctx, echo)
+
+    data = {
+        'values': {
+            'host_network': host_network
+        }
+    }
+
+    ApplicationsCtrl(ctx, context, echo).install_app(
+        application_directory, data, Namespace.network_services, install, wait=True)
 
 
 @task()

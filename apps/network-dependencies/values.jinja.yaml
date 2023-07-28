@@ -49,7 +49,6 @@ cilium:
     enabled: true
   policyEnforcementMode: always
   policyAuditMode: true # ToDo: Set to false
-  ipv4NativeRoutingCIDR: 10.0.0.0/8
   externalWorkloads:
     enabled: true
   clustermesh:
@@ -60,3 +59,10 @@ cilium:
         annotations:
           metallb.universe.tf/address-pool: mesh-public-ipv4
       replicas: 2
+      tls:
+        ca:
+          cert: {{ ca_crt }}
+          key: {{ ca_key }}
+        server:
+          extraIpAddresses:
+            - {{ mesh_vip }}

@@ -3,6 +3,7 @@ import os
 import shutil
 
 import yaml
+from invoke import Failure
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
@@ -10,6 +11,7 @@ from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter, user_confirmed
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
+from tasks.models.Defaults import KIND_CONTEXT_NAME
 from tasks.models.Namespaces import Namespace
 
 CONTROL_PLANE_NODE = 'control-plane'
@@ -322,18 +324,22 @@ class ClusterCtrl:
         
     def crete_missing_talosconfig(self, ctx):
         """
-                    Workaround for missing talosconfig secret, thrown in TalosControlPlane log
-                    {   
-                        "namespace": "argo-infra",
-                        "talosControlPlane": "saturn-control-plane",
-                        "error": "Secret \"saturn-talosconfig\" not found"
-                    }
-                    """
-        ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
-            Namespace.argocd,
-            self._cluster.name,
-            self._paths.talosconfig_file()
-        ), echo=self._echo)
+        Workaround for missing talosconfig secret, thrown in TalosControlPlane log
+        {
+            "namespace": "argo-infra",
+            "talosControlPlane": "saturn-control-plane",
+            "error": "Secret \"saturn-talosconfig\" not found"
+        }
+        """
+        namespace = Namespace.argocd
+        try:
+            ctx.run('kubectl --namespace {} create secret generic {}-talosconfig --from-file="{}"'.format(
+                namespace,
+                self._cluster.name,
+                self._paths.talosconfig_file()
+            ), echo=self._echo)
+        except Failure:
+            print("Namespace {} already exists".format(namespace))
 
     def get_oidc_kubeconfig(self):
         """
@@ -393,7 +399,11 @@ class ClusterCtrl:
 
         if user_confirmed():
             difference = contexts.difference(trash_can)
-            ctx.run("kconf use " + difference.pop())
+            if KIND_CONTEXT_NAME in difference:
+                ctx.run("kconf use " + KIND_CONTEXT_NAME)
+            else:
+                ctx.run("kconf use " + difference.pop())
+
             for trash in trash_can:
                 ctx.run("kconf rm " + trash.replace('*', '').strip(), echo=self._echo, pty=True)
 

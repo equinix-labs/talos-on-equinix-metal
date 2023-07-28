@@ -98,11 +98,16 @@ class Helm:
 
         return manifest
 
-    def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None):
+    def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None, wait: bool = None):
         if not install:
             return
 
         for dependency in hvf.deps:
-            self._install(dependency, namespace, wait=True)
+            if wait is None:
+                wait = True
+            self._install(dependency, namespace, wait=wait)
 
-        self._install(hvf.app, namespace)
+        if wait is None:
+            wait = False
+
+        self._install(hvf.app, namespace, wait=wait)

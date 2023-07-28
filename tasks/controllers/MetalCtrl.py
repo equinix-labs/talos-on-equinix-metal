@@ -107,7 +107,7 @@ class MetalCtrl:
 
         return debug_pods
 
-    def hack_fix_bgp_peer_routs(self, ctx: Context, namespace: Namespace = Namespace.debug):
+    def hack_fix_bgp_peer_routs(self, ctx: Context, namespace: Namespace = Namespace.network_services):
         """
         Adds a static route to the node configuration, so that BGP peers could connect.
         Something like https://github.com/kubernetes-sigs/cluster-api-provider-packet/blob/main/templates/cluster-template-kube-vip.yaml#L195
@@ -117,7 +117,7 @@ class MetalCtrl:
         kubectl = Kubectl(ctx, self._state, self._echo)
         k8s_nodes = kubectl.get_nodes_eip()
 
-        talos = Talos(self._state, self._cluster)
+        talos = Talos(ctx, self._state, self._cluster, self._echo)
         talos_nodes = talos.get_nodes()
 
         if len(talos_nodes) != len(k8s_nodes):
@@ -148,7 +148,7 @@ class MetalCtrl:
             elif 'machine' in hostname:
                 patch_file_name = self._paths.patch_bgp_file('worker-{}.yaml'.format(hostname))
                 jinja.render(
-                    repo_paths.templates_dir('patch', 'bgp', 'worker.ninja.yaml'),
+                    repo_paths.templates_dir('patch', 'bgp', 'worker.jinja.yaml'),
                     patch_file_name,
                     {'gateway': paths_data.gateway}
                 )

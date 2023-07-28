@@ -93,6 +93,7 @@ spec:
           path: /machine/network/kubespan
           value:
             enabled: true
+            allowDownPeerBypass: true
         - op: replace
           path: /cluster/controlPlane
           value:
@@ -185,3 +186,4 @@ spec:
           path: /machine/network/kubespan
           value:
             enabled: true
+            allowDownPeerBypass: true
