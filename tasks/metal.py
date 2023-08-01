@@ -3,7 +3,7 @@ from invoke import task
 
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import str_presenter, get_constellation
+from tasks.helpers import str_presenter
 from tasks.wrappers.Kubectl import Kubectl
 
 yaml.add_representer(str, str_presenter)
@@ -47,12 +47,13 @@ def list_facilities(ctx):
 
 
 @task()
-def check_capacity(ctx):
+def check_capacity(ctx, echo=True):
     """
     Check device capacity for clusters specified in invoke.yaml
     """
+    state = SystemContext(ctx, echo)
     nodes_total = dict()
-    constellation = get_constellation()
+    constellation = state.constellation
     bary_metro = constellation.bary.metro
     nodes_total[bary_metro] = dict()
     bary_nodes = constellation.bary.control_nodes

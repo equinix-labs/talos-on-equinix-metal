@@ -25,6 +25,16 @@ def boot(ctx, cluster_name: str, echo: bool = False):
 
 
 @task()
+def oidc_kubeconfig(ctx, cluster_name: str, echo: bool = False):
+    """
+    Produces [secrets_dir]/[cluster_name].oidc.kubeconfig
+    """
+    state = SystemContext(ctx, echo)
+    cluster_ctrl = ClusterCtrl(state, state.cluster(cluster_name), echo)
+    cluster_ctrl.get_oidc_kubeconfig()
+
+
+@task()
 def clean(ctx, cluster_name: str, echo: bool = False):
     """
     USE WITH CAUTION! - Nukes constellation configuration.

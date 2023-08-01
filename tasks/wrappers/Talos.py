@@ -28,8 +28,31 @@ class Talos:
             self._cluster.name
         ), echo=self._echo)
 
+    def patch(self, patch_file_path: str, nodes: list = None, cluster: Cluster = None):
+        cluster_name = self._cluster.name
+        if cluster is not None:
+            cluster_name = cluster.name
+
+        node_cmd = ""
+        if nodes is not None:
+            node_cmd = "--nodes {}".format(",".join(nodes))
+
+        self._ctx.run("talosctl --context {} {} patch mc -p @{}".format(
+            cluster_name,
+            node_cmd,
+            patch_file_path
+        ), echo=self._echo)
+
+    def patch_nodes(self, patch_file_path: str, cluster: Cluster = None):
+        self.patch(patch_file_path, self.get_nodes(), cluster)
+
+    def patch_endpoints(self, patch_file_path: str, cluster: Cluster = None):
+        self.patch(patch_file_path, self.get_endpoints(), cluster)
+
     def get_nodes(self) -> list:
         return self._get_config()['contexts'][self._cluster.name]['nodes']
 
+    def get_endpoints(self) -> list:
+        return self._get_config()['contexts'][self._cluster.name]['endpoints']
 
 

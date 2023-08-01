@@ -1,5 +1,5 @@
 apiVersion: v2
-name: gitea
+name: harbor
 description: Chart tracks compatible versions of harbor
 
 type: application

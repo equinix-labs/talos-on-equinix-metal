@@ -9,10 +9,11 @@ from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import get_cpem_config_yaml, get_jinja, get_secret_envs, str_presenter, user_confirmed
+from tasks.helpers import get_cpem_config_yaml, str_presenter, user_confirmed
 from tasks.models.ConstellationSpecV01 import Cluster, Constellation, VipRole
 from tasks.models.Defaults import KIND_CONTEXT_NAME
 from tasks.models.Namespaces import Namespace
+from tasks.wrappers.JinjaWrapper import JinjaWrapper
 
 CONTROL_PLANE_NODE = 'control-plane'
 WORKER_NODE = 'worker'
@@ -96,7 +97,7 @@ class ClusterCtrl:
         }
         data.update(secrets)
 
-        jinja = get_jinja()
+        jinja = JinjaWrapper().jinja
         cluster_yaml_tpl = jinja.from_string(cluster_jinja_template)
         cluster_yaml = cluster_yaml_tpl.render(data)
 
@@ -237,10 +238,8 @@ class ClusterCtrl:
         with open(repo_paths.capi_machines_template()) as md_file:
             capi_machines_template_yaml = md_file.read()
 
-        secrets = get_secret_envs()
-
         self.build_capi_manifest(
-            secrets,
+            self._state.secrets['env'],
             capi_control_plane_template_yaml, capi_machines_template_yaml
         )
 
@@ -350,7 +349,7 @@ class ClusterCtrl:
         with open(kubeconfig_file_path) as kubeconfig_file:
             kubeconfig = dict(yaml.safe_load(kubeconfig_file))
 
-        jinja = get_jinja()
+        jinja = JinjaWrapper().jinja
         repo_paths = RepoPaths()
 
         with open(repo_paths.oidc_template_file()) as oidc_user_tpl_file:

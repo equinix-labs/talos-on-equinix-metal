@@ -49,6 +49,9 @@ class RepoPaths:
     def oidc_template_file(self):
         return os.path.join(self.templates_dir('k8s_oidc_user.yaml'))
 
+    def oidc_control_plane_template_file(self):
+        return os.path.join(self.templates_dir('patch', 'oidc', 'control-plane.jinja.yaml'))
+
 
 class ProjectPaths:
     _constellation_name: str
@@ -161,6 +164,9 @@ class ProjectPaths:
 
     def patch_bgp_file(self, name):
         return os.path.join(self.patch_dir('bgp'), name)
+
+    def patch_oidc_file(self, name):
+        return os.path.join(self.patch_dir('oidc'), name)
 
     # @log_output
     def templates_dir(self):

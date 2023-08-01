@@ -2,25 +2,12 @@ import yaml
 from invoke import task
 
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import str_presenter, get_cluster_spec_from_context
+from tasks.helpers import str_presenter
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Cilium import Cilium
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
-
-
-@task()
-def apply_kubespan_patch(ctx):
-    """
-    For some reason, Kubespan turns off once cilium is deployed.
-    https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/
-    Once the patch is applied kubespan is back up.
-    """
-    cluster_spec = get_cluster_spec_from_context(ctx)
-    ctx.run("talosctl --context {} patch mc -p @patch-templates/kubespan/common.pt.yaml".format(
-        cluster_spec.name
-    ), echo=True)
 
 
 @task()

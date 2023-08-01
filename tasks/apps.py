@@ -1,5 +1,3 @@
-import os
-
 from gitea import *
 from invoke import task
 from tabulate import tabulate
@@ -7,13 +5,15 @@ from tabulate import tabulate
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.controllers.ConstellationSpecCtrl import ConstellationSpecCtrl
 from tasks.controllers.DNSCtrl import DNSProvider, DNSCtrl
+from tasks.dao.ProjectPaths import RepoPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import get_secrets_dir, get_nodes_ips, \
-    get_constellation, get_jinja, get_fqdn, get_ccontext
+from tasks.helpers import get_fqdn
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
 from tasks.wrappers.Helm import Helm
+from tasks.wrappers.JinjaWrapper import JinjaWrapper
+from tasks.wrappers.Talos import Talos
 
 
 @task()
@@ -117,7 +117,7 @@ def argo(ctx, install: bool = False, echo: bool = False):
                 'argocd_fqdn': get_fqdn('argo', secrets, cluster),
                 'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster),
                 'client_secret': secrets['env']['GOCY_ARGOCD_SSO_CLIENT_SECRET'],
-                'constellation_name': get_ccontext()
+                'constellation_name': context.constellation.name
             }
         }
     }
@@ -181,8 +181,10 @@ def gitea_port_forward(ctx, echo: bool = False):
     """
     Port forward gitea to localhost. Execute in a separate terminal, prior to apps.gitea-provision.
     """
+    context = SystemContext(ctx, echo)
+
     ctx.run("kubectl --context=admin@{} --namespace gitea port-forward statefulsets/gitea 3000:3000".format(
-        get_constellation().bary.name
+        context.constellation.bary.name
     ), echo=echo)
 
 
@@ -418,14 +420,13 @@ def idp_auth_kubelogin_chart(apps_ctrl: ApplicationsCtrl, namespace: Namespace, 
 @task()
 def idp_auth(ctx, install: bool = False, echo: bool = False):
     """
-    Produces ${HOME}/.gocy/[constellation_name]/[cluster_name]/idp-auth-values.yaml
-    Uses it to install idp-auth. IDP should be installed on bary cluster only.
+    ToDo
     """
     application_directory = 'idp-auth'
     context = SystemContext(ctx, echo)
     cluster = context.cluster()
     secrets = context.secrets
-    jinja = get_jinja()
+    jinja = JinjaWrapper()
     constellation = context.constellation
     apps_ctrl = ApplicationsCtrl(ctx, context, echo)
 
@@ -443,27 +444,15 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
         idp_auth_chart(apps_ctrl, application_directory, data, install)
 
     idp_auth_kubelogin_chart(apps_ctrl, Namespace.idp_auth, data, install)
+    repo_paths = RepoPaths()
+    repo_paths.oidc_template_file()
 
-    with open(os.path.join(
-            'templates',
-            'patch',
-            'oidc',
-            'control-plane.jinja.yaml')) as talos_oidc_patch_file:
-        talos_oidc_patch_tpl = jinja.from_string(talos_oidc_patch_file.read())
+    target = context.project_paths.patch_oidc_file('talos_oidc_patch.yaml')
 
-    talos_oidc_patch = talos_oidc_patch_tpl.render(data['values'])
-    talos_oidc_patch_dir = os.path.join(get_secrets_dir(), 'patch', 'oidc')
+    jinja.render(repo_paths.oidc_control_plane_template_file(), target, data['values'])
 
-    ctx.run("mkdir -p " + talos_oidc_patch_dir, echo=echo)
-    talos_oidc_patch_file_path = os.path.join(talos_oidc_patch_dir, 'talos_oidc_patch.yaml')
-    with open(talos_oidc_patch_file_path, 'w') as talos_oidc_patch_file:
-        talos_oidc_patch_file.write(talos_oidc_patch)
-
-    cluster_nodes = get_nodes_ips(ctx)
-    ctx.run("talosctl --nodes {} patch mc -p @{}".format(
-        ",".join(cluster_nodes.control_plane),
-        talos_oidc_patch_file_path
-    ), echo=echo)
+    talos = Talos(ctx, context, cluster, echo)
+    talos.patch_endpoints(target)
 
 
 @task()
