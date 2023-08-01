@@ -111,6 +111,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 ### prerequisites
 
 - Account on [Equinix Metal](https://deploy.equinix.com/metal/)
+- [Backend Transfer](https://deploy.equinix.com/developers/docs/metal/networking/backend-transfer/) enabled in metal project
 - Account on [GCP](https://cloud.google.com/gcp) together with access to domain managed by GCP  
   ( Feel free to open a PR extending support to other providers like AWS.)
 - Account on https://hub.docker.com
@@ -122,6 +123,7 @@ Together with two satellites - workload clusters: `ganymede` and `callisto`.
 - [clusterctl](https://cluster-api.sigs.k8s.io/clusterctl/overview.html)
 - [Metal CLI](https://github.com/equinix/metal-cli/#installation)
 - [talosctl](https://github.com/siderolabs/talos)
+- [cilium-cli v0.14.8](https://github.com/cilium/cilium-cli/releases/tag/v0.14.8) issues: [1878](https://github.com/cilium/cilium-cli/issues/1878)
 - about 60 min of your time and about $50 USD ( domain + Equinix Metal )
 
 ### environment

@@ -3,6 +3,7 @@ from invoke import task
 
 from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import str_presenter, get_cluster_spec_from_context
+from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Cilium import Cilium
 
 yaml.add_representer(str, str_presenter)
@@ -64,3 +65,14 @@ def status_mesh(ctx, echo: bool = False):
     state = SystemContext(ctx, echo)
     cilium = Cilium(ctx, state, echo)
     cilium.cluster_mesh_status()
+
+
+@task()
+def restart(ctx, echo: bool = False, namespace: Namespace = Namespace.network_services):
+    """
+    Cilium ClusterMesh status
+    https://docs.cilium.io/en/v1.13/network/clustermesh/clustermesh/#enable-cluster-mesh
+    """
+    state = SystemContext(ctx, echo)
+    cilium = Cilium(ctx, state, echo)
+    cilium.restart(namespace)

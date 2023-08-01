@@ -8,5 +8,5 @@ appVersion: "1.16.0"
 
 dependencies:
   - name: harbor
-    version: 1.12.0
+    version: 1.12.3
     repository: https://helm.goharbor.io

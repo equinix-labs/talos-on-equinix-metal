@@ -6,6 +6,12 @@ from tasks.models.HelmValueFiles import HelmValueFiles, HelmApp
 from tasks.models.Namespaces import Namespace
 
 
+def _del_lock_file(dir):
+    local_file = os.path.join(dir, 'Chart.lock')
+    if os.path.isfile(local_file):
+        os.remove(local_file)
+
+
 class Helm:
 
     _ctx = None
@@ -38,6 +44,8 @@ class Helm:
             helm_app.name,
             chart_dir_path
         )
+
+        _del_lock_file(chart_dir_path)
 
         self._ctx.run(command, echo=self._echo)
 
@@ -101,9 +109,11 @@ class Helm:
     def dependency_build(self, hvf: HelmValueFiles):
         for dependency in hvf.deps:
             with self._ctx.cd(dependency.chart_source_dir):
+                _del_lock_file(dependency.chart_source_dir)
                 self._ctx.run("helm dependency build", echo=self._echo)
 
         with self._ctx.cd(hvf.app.chart_source_dir):
+            _del_lock_file(hvf.app.chart_source_dir)
             self._ctx.run("helm dependency build", echo=self._echo)
 
     def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None, wait: bool = None):

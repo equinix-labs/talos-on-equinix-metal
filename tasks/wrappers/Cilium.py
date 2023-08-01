@@ -1,10 +1,8 @@
 import base64
-import logging
 from typing import Union
 
 import yaml
 from invoke import Context
-from pydantic_yaml import YamlModel
 
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import ProjectPaths
@@ -55,10 +53,13 @@ class Cilium:
 
         return client_certificates
 
-    def _fix_cilium_clustermesh_secret(self, cluster_mesh_certs: dict,
-                                       namespace: Namespace = Namespace.network_services):
+    def _patch_cilium_clustermesh_secret(self, cluster_mesh_certs: dict,
+                                         namespace: Namespace = Namespace.network_services):
         """
-        ...
+        'cilium clustermesh connect' uses remote certificate to make the connect, contrary to:
+        https://medium.com/codex/establish-cilium-clustermesh-whelm-chart-11b08b0c995c
+        'cilium clustermesh connect' creates host aliases for apiserver LB under *.cilium.io,
+        patches cilium daemonset with it.
         """
         for cluster in self._state.constellation:
             cluster_mesh_config_yaml = self._ctx.run(
@@ -131,8 +132,8 @@ class Cilium:
 
     def cluster_mesh_connect(self, namespace: Namespace = Namespace.network_services):
         self._cluster_mesh_connect(namespace)
-        # client_mesh_certs = self._get_mesh_client_certs(namespace)
-        # self._fix_cilium_clustermesh_secret(client_mesh_certs, namespace)
+        client_mesh_certs = self._get_mesh_client_certs(namespace)
+        self._patch_cilium_clustermesh_secret(client_mesh_certs, namespace)
 
     def restart(self, namespace: Namespace = Namespace.network_services):
         for cluster in self._state.constellation:
