@@ -1,26 +1,28 @@
+config:
+  local_fqdn: {{ local_fqdn }}
 harbor:
-  externalURL: https://{{ harbor_fqdn }}
+  externalURL: https://{{ global_fqdn }}
   expose:
     type: ingress
     tls:
       enabled: true
       certSource: secret
       secret:
-        secretName: tls.core.{{ harbor_fqdn }}
-        notarySecretName: tls.notary.{{ harbor_fqdn }}
+        secretName: tls.core.{{ global_fqdn }}
+        notarySecretName: tls.notary.{{ global_fqdn }}
     ingress:
       hosts:
-        core: {{ harbor_fqdn }}
-        notary: notary.{{ harbor_fqdn }}
+        core: {{ global_fqdn }}
+        notary: notary.{{ global_fqdn }}
       className: nginx-global
       harbor:
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-gcp
-          external-dns.alpha.kubernetes.io/hostname: {{ harbor_fqdn }}
+          external-dns.alpha.kubernetes.io/hostname: {{ global_fqdn }}
       notary:
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-gcp
-          external-dns.alpha.kubernetes.io/hostname: notary.{{ harbor_fqdn }}
+          external-dns.alpha.kubernetes.io/hostname: notary.{{ global_fqdn }}
   persistence:
     enabled: true
     persistentVolumeClaim:

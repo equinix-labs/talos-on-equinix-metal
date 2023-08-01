@@ -1,19 +1,16 @@
-import base64
-import os
-
 import yaml
 from invoke import task
 from pydantic import ValidationError
 from tabulate import tabulate
 
 from tasks.controllers.ClusterCtrl import ClusterCtrl
-from tasks.controllers.MetalCtrl import MetalCtrl
-from tasks.models.Defaults import KIND_CLUSTER_NAME
-from tasks.wrappers.Clusterctl import Clusterctl
 from tasks.controllers.ConstellationSpecCtrl import get_constellation_spec_file_paths
+from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.models.ConstellationSpecV01 import Constellation
+from tasks.models.Defaults import KIND_CLUSTER_NAME
+from tasks.wrappers.Clusterctl import Clusterctl
 from tasks.wrappers.OpenSSL import OpenSSL
 
 
@@ -82,20 +79,14 @@ def secret_source(ctx):
 
 
 @task()
-def constellation_set(ctx, ccontext: str, echo: bool = False):
+def constellation(ctx, c_name: str = None, echo: bool = False):
     """
-    Set Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
+    Get/Set (-c [name]) Constellation Context by {.name} as specified in ~/[GOCY_DIR]/*.constellation.yaml
     """
-    SystemContext(ctx, echo).constellation_set(ccontext)
-
-
-@task()
-def constellation_get(ctx, echo: bool = False):
-    """
-    Get Constellation Context, as specified in ~/[GOCY_DIR]/ccontext, or
-    default - jupiter
-    """
-    print(SystemContext(ctx, echo).constellation.name)
+    if c_name is None:
+        print(SystemContext(ctx, echo).constellation.name)
+    else:
+        SystemContext(ctx, echo).constellation_set(c_name)
 
 
 @task()
@@ -125,9 +116,12 @@ def constellation_list(ctx, echo: bool = False):
 
 
 @task()
-def context_set(ctx, cluster_name: str, echo: bool = False):
+def context(ctx, cluster_name: str = None, echo: bool = False):
     """
-    Set Talos and k8s cluster context to [context]
+    Get/Set (-c [name]) Talos and k8s cluster context to [context]
     """
     system = SystemContext(ctx, echo)
-    system.set_cluster(cluster_name)
+    if cluster_name is None:
+        print(system.cluster().name)
+    else:
+        system.set_cluster(cluster_name)

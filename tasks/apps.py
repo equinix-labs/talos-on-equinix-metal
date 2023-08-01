@@ -11,6 +11,7 @@ from tasks.helpers import get_fqdn
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
+from tasks.wrappers.Harbor import Harbor
 from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
 from tasks.wrappers.Talos import Talos
@@ -285,13 +286,25 @@ def harbor(ctx, install: bool = False, echo: bool = False):
 
     data = {
         'values': {
-            'harbor_fqdn': get_fqdn('harbor', secrets, cluster)
+            'global_fqdn': get_fqdn('harbor', secrets, cluster),
+            'local_fqdn': get_fqdn(['harbor', cluster.name], secrets, cluster)
         }
     }
     data['values'].update(secrets['harbor'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
         application_directory, data, Namespace.apps, install)
+
+
+@task()
+def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
+    context = SystemContext(ctx, echo)
+    if cluster_name is not None:
+        harbor_client = Harbor(context, context.cluster(cluster_name))
+    else:
+        harbor_client = Harbor(context, context.cluster())
+
+    harbor_client.oidc_enable()
 
 
 @task()
@@ -408,15 +421,6 @@ def storage(ctx, install: bool = False, echo: bool = False):
         application_directory, data, Namespace.storage, install)
 
 
-def idp_auth_chart(apps_ctrl: ApplicationsCtrl, application_directory, data: dict, install: bool):
-    apps_ctrl.install_app(application_directory, data, application_directory, install)
-
-
-def idp_auth_kubelogin_chart(apps_ctrl: ApplicationsCtrl, namespace: Namespace, data: dict, install: bool):
-    application_directory = 'idp-auth-kubelogin'
-    apps_ctrl.install_app(application_directory, data=data, namespace=namespace, install=install)
-
-
 @task()
 def idp_auth(ctx, install: bool = False, echo: bool = False):
     """
@@ -435,15 +439,16 @@ def idp_auth(ctx, install: bool = False, echo: bool = False):
             'bouncer_fqdn': get_fqdn('bouncer', secrets, cluster),
             'oauth_fqdn': get_fqdn('oauth', secrets, cluster),
             'argo_fqdn': get_fqdn('argo', secrets, cluster),
-            'gitea_fqdn': get_fqdn('gitea', secrets, cluster)
+            'gitea_fqdn': get_fqdn('gitea', secrets, cluster),
+            'harbor_fqdn': get_fqdn('harbor', secrets, cluster),
         }
     }
     data['values'].update(secrets)
 
     if cluster.name == constellation.bary.name:
-        idp_auth_chart(apps_ctrl, application_directory, data, install)
+        apps_ctrl.install_app(application_directory, data, Namespace.idp_auth, install)
 
-    idp_auth_kubelogin_chart(apps_ctrl, Namespace.idp_auth, data, install)
+    apps_ctrl.install_app('idp-auth-kubelogin', data, Namespace.idp_auth, install)
     repo_paths = RepoPaths()
     repo_paths.oidc_template_file()
 

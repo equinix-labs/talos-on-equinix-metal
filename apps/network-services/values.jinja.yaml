@@ -13,4 +13,4 @@ metallb:
     {% endfor %}
   {% endfor %}
 firewall:
-  enabled: false
+  enabled: true

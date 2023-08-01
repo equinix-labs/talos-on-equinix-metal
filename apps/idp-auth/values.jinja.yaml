@@ -41,6 +41,11 @@ dex:
           - http://localhost:8000
           - http://localhost:18000
         secret: "{{ idp_auth.k8s_oidc.client_secret }}"
+      - id: harbor
+        name: harbor
+        redirectURIs:
+          - https://{{ harbor_fqdn }}/c/oidc/callback
+        secret: "{{ harbor.dex_client_secret }}"
     {% if idp_auth.dex.staticPasswords.enabled %}
     staticPasswords:
       {% for user in idp_auth.dex.staticPasswords.users %}
