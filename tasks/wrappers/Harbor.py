@@ -47,11 +47,9 @@ class Harbor:
         config_api = harbor_client.ConfigureApi(harbor_client.ApiClient(client_config))
         config = harbor_client.Configurations()
 
-        print(config)
-
         config.oidc_client_secret = self._context.secrets['harbor']['dex_client_secret']
         config.auth_mode = 'oidc_auth'
-        # config.primary_auth_mode = True
+        config.primary_auth_mode = True
         config.oidc_admin_group = self._context.secrets['harbor']['oidc_admin_group']
         config.oidc_auto_onboard = True
         config.oidc_client_id = 'harbor'
