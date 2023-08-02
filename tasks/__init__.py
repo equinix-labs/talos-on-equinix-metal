@@ -7,6 +7,7 @@ from . import helpers
 from . import metal
 from . import mesh
 from . import dns
+from . import harbor
 
 ns = Collection()
 ns.add_collection(cluster)
@@ -15,3 +16,4 @@ ns.add_collection(apps)
 ns.add_collection(metal)
 ns.add_collection(gocy)
 ns.add_collection(dns)
+ns.add_collection(harbor)

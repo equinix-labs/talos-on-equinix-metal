@@ -297,17 +297,6 @@ def harbor(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
-    context = SystemContext(ctx, echo)
-    if cluster_name is not None:
-        harbor_client = Harbor(context, context.cluster(cluster_name))
-    else:
-        harbor_client = Harbor(context, context.cluster())
-
-    harbor_client.oidc_enable()
-
-
-@task()
 def observability(ctx, install: bool = False, echo: bool = False):
     """
     Install observability helm chart

@@ -83,7 +83,7 @@ class Kubectl:
         auth_bytes = "{}:{}".format(d_user, d_pass).encode('utf-8')
         docker_config = {
             "auths": {
-                'https://registry-1.docker.io': {
+                'https://hub.docker.com': {
                     'auth': base64.b64encode(auth_bytes).decode('utf-8')
                 }
             }

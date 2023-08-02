@@ -1,6 +1,7 @@
 config:
   local_fqdn: {{ local_fqdn }}
 harbor:
+  logLevel: debug
   externalURL: https://{{ global_fqdn }}
   expose:
     type: ingress
@@ -23,6 +24,10 @@ harbor:
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-gcp
           external-dns.alpha.kubernetes.io/hostname: notary.{{ global_fqdn }}
+    clusterIP:
+      annotations:
+        io.cilium/global-service: 'false'
+        service.cilium.io/affinity: "local"
   persistence:
     enabled: true
     persistentVolumeClaim:
