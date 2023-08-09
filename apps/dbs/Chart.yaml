@@ -8,6 +8,6 @@ appVersion: "1.16.0"
 
 dependencies:
   - name: cockroachdb
-    version: 11.1.4
+    version: 11.1.5
     repository: https://charts.cockroachdb.com/
     condition: cockroachdb.enabled

@@ -4,16 +4,15 @@ keydb:
 cockroachdb:
   enabled: true
   clusterDomain: {{ cluster_domain }}
+  statefulset:
+    replicas: {{ replica_count }}
   conf:
     cluster-name: {{ cluster_name }}
     locality: cluster={{ locality }}
-    join:
-      - dbs-cockroachdb-0.dbs-cockroachdb.dbs.svc.titan.local:26257
-      - dbs-cockroachdb-1.dbs-cockroachdb.dbs.svc.titan.local:26257
-      - dbs-cockroachdb-2.dbs-cockroachdb.dbs.svc.titan.local:26257
-{#      - dbs-cockroachdb-0.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
-{#      - dbs-cockroachdb-1.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
-{#      - dbs-cockroachdb-2.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
+    join: {{ empty }}
+      {% for n in range(join_count) %}
+      - dbs-cockroachdb-{{ n }}.dbs-cockroachdb.dbs.svc.{{ first_cluster }}.local:26257
+      {% endfor %}
   storage:
     persistentVolume:
       storageClass: ceph-block
@@ -26,7 +25,7 @@ cockroachdb:
           options:
             - LOGIN
   tls:
-    enabled: false
+    enabled: true
     certs:
       tlsSecret: true
       selfSigner:
@@ -39,7 +38,7 @@ cockroachdb:
         name: {{ ca_issuer_name }}
 
   ingress:
-    enabled: false
+    enabled: {{ ingress_enabled }}
     annotations:
       kubernetes.io/ingress.class: nginx
       cert-manager.io/cluster-issuer: letsencrypt-gcp

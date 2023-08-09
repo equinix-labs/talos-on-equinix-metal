@@ -9,7 +9,7 @@ class Namespace(Enum):
     network_services = 'network-services'
     apps = 'apps'
     gitea = 'gitea'
-    database = 'database'
+    database = 'dbs'
     dashboards = 'dashboards'
     nginx = 'nginx'
     observability = 'observability'

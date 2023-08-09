@@ -11,6 +11,7 @@ from tasks.helpers import get_fqdn
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
+from tasks.wrappers.CockroachDB import CockroachDB
 from tasks.wrappers.Harbor import Harbor
 from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
@@ -244,29 +245,36 @@ def gitea_provision(ctx, ingres_enabled: bool = False, echo: bool = False):
 
 
 @task()
-def dbs(ctx, install: bool = False, echo: bool = False):
+def dbs_install(ctx, install: bool = False, echo: bool = False):
     """
     Install shared databases
     """
-    application_directory = 'dbs'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster()
-    secrets = context.secrets
 
-    data = {
-        'values': {
-            'cluster_domain': cluster.name + '.local',
-            'cluster_name': context.constellation.name,
-            'locality': cluster.name,
-            'cockroach_fqdn': get_fqdn('cockroach', secrets, cluster),
-            'oauth_fqdn': get_fqdn('oauth', secrets, cluster),
-            'ca_issuer_name': "{}-ca-issuer".format(context.constellation.name)
-        }
-    }
-    data['values'].update(secrets['dbs'])
+    cockroach = CockroachDB(ctx, context, echo)
+    cockroach.install(install)
 
-    ApplicationsCtrl(ctx, context, echo).install_app(
-        application_directory, data, Namespace.database, install)
+
+@task()
+def dbs_port_forward(ctx, cluster_name: str, echo: bool = True):
+    """
+    Install shared databases
+    """
+    context = SystemContext(ctx, echo)
+
+    cockroach = CockroachDB(ctx, context, echo)
+    cockroach.port_forward(cluster_name)
+
+
+@task()
+def dbs_uninstall(ctx, echo: bool = True):
+    """
+    Uninstall shared databases
+    """
+    context = SystemContext(ctx, echo)
+
+    cockroach = CockroachDB(ctx, context, echo)
+    cockroach.uninstall()
 
 
 @task()
