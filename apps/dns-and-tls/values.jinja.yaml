@@ -5,3 +5,6 @@ letsencrypt:
   google:
     enabled: true
     project_id: {{ project_id }}
+self_signed:
+  ClusterIssuerName: {{ ca_secret_name }}
+  ca_secret_name: {{ ca_secret_name }}

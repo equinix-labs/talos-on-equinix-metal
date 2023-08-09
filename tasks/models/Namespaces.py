@@ -16,6 +16,7 @@ class Namespace(Enum):
     storage = 'storage'
     idp_auth = 'idp-auth'
     istio = 'istio-system'
+    kube_system = 'kube-system'
 
     def __str__(self):
         return self.value

@@ -1,8 +1,9 @@
 import base64
 import json
+import logging
 
 import yaml
-from invoke import Context
+from invoke import Context, Failure
 
 from tasks.dao.SystemContext import SystemContext
 from tasks.models.Namespaces import Namespace
@@ -112,6 +113,17 @@ class Kubectl:
             namespace,
             json.dumps(payload)
         ), echo=self._echo)
+
+    def create_tls_secret(self, name: str, namespace: Namespace, crt_path: str, key_path: str):
+        try:
+            self._ctx.run("kubectl --namespace {} create secret tls {} --cert={} --key={}".format(
+                namespace,
+                name,
+                crt_path,
+                key_path
+            ), echo=self._echo)
+        except Failure:
+            logging.info("Apparently secret {} already exists in namespace {}".format(namespace, name))
 
     def get_cluster_status(self, namespace: Namespace):
         # kubectl get machinedeployments.cluster.x-k8s.io,taloscontrolplanes.controlplane.cluster.x-k8s.io -n argocd -o yaml

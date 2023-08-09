@@ -14,6 +14,7 @@ from tasks.models.ReservedVIPs import ReservedVIPs
 from tasks.wrappers.Harbor import Harbor
 from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
+from tasks.wrappers.Kubectl import Kubectl
 from tasks.wrappers.Talos import Talos
 
 
@@ -49,18 +50,27 @@ def dns_tls(ctx, install: bool = False, echo: bool = False):
     context = SystemContext(ctx, echo)
     secrets = context.secrets
 
+    ca_secret_name = '{}-ca-issuer'.format(context.constellation.name)
+
     data = {
         'values': {
             'admin_email': secrets['env']['GOCY_ADMIN_EMAIL'],
-            'project_id': secrets['env']['GCP_PROJECT_ID']
+            'project_id': secrets['env']['GCP_PROJECT_ID'],
+            'ca_secret_name': ca_secret_name
         },
         'deps': {
             'cert_manager': {
                 'google_project': secrets['env']['GCP_PROJECT_ID'],
-                'domain_filter': secrets['env']['GOCY_DOMAIN']
+                'domain_filter': secrets['env']['GOCY_DOMAIN'],
+                'namespace': Namespace.dns_tls
             }
         }
     }
+
+    kubectl = Kubectl(ctx, context, echo)
+    kubectl.create_tls_secret(
+        ca_secret_name, Namespace.dns_tls, context.project_paths.ca_crt_file(), context.project_paths.ca_key_file())
+
     ApplicationsCtrl(ctx, SystemContext(ctx, echo), echo).install_app(
         application_directory, data, Namespace.dns_tls, install)
 
@@ -246,9 +256,11 @@ def dbs(ctx, install: bool = False, echo: bool = False):
     data = {
         'values': {
             'cluster_domain': cluster.name + '.local',
-            'cluster_name': cluster.name,
+            'cluster_name': context.constellation.name,
+            'locality': cluster.name,
             'cockroach_fqdn': get_fqdn('cockroach', secrets, cluster),
             'oauth_fqdn': get_fqdn('oauth', secrets, cluster),
+            'ca_issuer_name': "{}-ca-issuer".format(context.constellation.name)
         }
     }
     data['values'].update(secrets['dbs'])

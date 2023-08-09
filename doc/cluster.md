@@ -19,3 +19,6 @@ kubectl -n kube-system exec kube-apiserver-talos-alloy-102-control-plane-kccvj -
 # debugging envoy
 - https://superorbital.io/blog/debugging-cilium-envoy-connection-failures/#enabling-cilium-envoy-debug-logs
 - https://layer5.io/blog/envoy/debug-envoy-proxy
+
+# cluster mesh
+- https://medium.com/codex/establish-cilium-clustermesh-whelm-chart-11b08b0c995c

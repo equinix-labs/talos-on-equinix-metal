@@ -1,0 +1,17 @@
+kind: ConfigMap
+metadata:
+   name: coredns
+   namespace: kube-system
+apiVersion: v1
+data:
+  Corefile: |
+    {%- for entry in entries %}
+    {{ entry['cluster_name'] }}.local {
+      log
+      errors
+      kubernetes {{ entry['cluster_name'] }}.local {
+        endpoint {{ entry['control_plane_endpoint'] }}
+        kubeconfig /mesh/{{ entry['cluster_name'] }}/{{ entry['cluster_name'] }}.kubeconfig
+      }
+    }
+    {% endfor %}

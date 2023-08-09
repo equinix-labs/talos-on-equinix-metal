@@ -1,25 +1,19 @@
 keydb:
-{#  tolerations:#}
-{#    - key: node-role.kubernetes.io/control-plane#}
-{#      operator: Exists#}
-{#      effect: NoSchedule#}
-{#    - key: node-role.kubernetes.io/master#}
-{#      operator: Exists#}
-{#      effect: NoSchedule#}
   persistentVolume:
     storageClass: ceph-block
 cockroachdb:
+  enabled: true
   clusterDomain: {{ cluster_domain }}
   conf:
     cluster-name: {{ cluster_name }}
-  statefulset:
-{#    tolerations:#}
-{#      - key: node-role.kubernetes.io/control-plane#}
-{#        operator: Exists#}
-{#        effect: NoSchedule#}
-{#      - key: node-role.kubernetes.io/master#}
-{#        operator: Exists#}
-{#        effect: NoSchedule#}
+    locality: cluster={{ locality }}
+    join:
+      - dbs-cockroachdb-0.dbs-cockroachdb.dbs.svc.titan.local:26257
+      - dbs-cockroachdb-1.dbs-cockroachdb.dbs.svc.titan.local:26257
+      - dbs-cockroachdb-2.dbs-cockroachdb.dbs.svc.titan.local:26257
+{#      - dbs-cockroachdb-0.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
+{#      - dbs-cockroachdb-1.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
+{#      - dbs-cockroachdb-2.dbs-cockroachdb.dbs.svc.rhea.local:26257#}
   storage:
     persistentVolume:
       storageClass: ceph-block
@@ -31,8 +25,21 @@ cockroachdb:
           password: {{ cockroachdb.password }}
           options:
             - LOGIN
+  tls:
+    enabled: false
+    certs:
+      tlsSecret: true
+      selfSigner:
+        enabled: false
+      certManager: true
+      useCertManagerV1CRDs: true
+      certManagerIssuer:
+        group: cert-manager.io
+        kind: ClusterIssuer
+        name: {{ ca_issuer_name }}
+
   ingress:
-    enabled: true
+    enabled: false
     annotations:
       kubernetes.io/ingress.class: nginx
       cert-manager.io/cluster-issuer: letsencrypt-gcp

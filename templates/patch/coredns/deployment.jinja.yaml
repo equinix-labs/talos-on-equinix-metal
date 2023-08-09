@@ -1,0 +1,17 @@
+spec:
+  template:
+    spec:
+      volumes:
+      {%- for cluster in clusters %}
+      - name: {{ cluster.name }}-kubeconfig
+        secret:
+          secretName: {{ cluster.name }}.kubeconfig
+      {% endfor %}
+      containers:
+      - name: coredns
+        volumeMounts:
+          {%- for cluster in clusters %}
+          - mountPath: /mesh/{{ cluster.name }}
+            name: {{ cluster.name }}-kubeconfig
+            readOnly: true
+          {% endfor %}

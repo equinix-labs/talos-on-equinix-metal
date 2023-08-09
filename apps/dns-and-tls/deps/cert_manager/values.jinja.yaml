@@ -4,7 +4,7 @@ cert-manager:
     name: cert-manager
   global:
     leaderElection:
-      namespace: "dns-tls"
+      namespace: {{ namespace }}
 external_dns:
   version: v0.13.4
   provider:

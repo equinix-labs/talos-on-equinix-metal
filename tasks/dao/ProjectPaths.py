@@ -52,6 +52,12 @@ class RepoPaths:
     def oidc_control_plane_template_file(self):
         return os.path.join(self.templates_dir('patch', 'oidc', 'control-plane.jinja.yaml'))
 
+    def coredns_patch_file(self):
+        return os.path.join(self.templates_dir('patch', 'coredns', 'configmap.jinja.yaml'))
+
+    def coredns_deployment_patch_file(self):
+        return os.path.join(self.templates_dir('patch', 'coredns', 'deployment.jinja.yaml'))
+
 
 class ProjectPaths:
     _constellation_name: str
@@ -167,6 +173,15 @@ class ProjectPaths:
 
     def patch_oidc_file(self, name):
         return os.path.join(self.patch_dir('oidc'), name)
+
+    def coredns_patch_file(self):
+        return os.path.join(self.patch_dir('coredns'), 'configmap.patch.yaml')
+
+    def coredns_configmap_file(self):
+        return os.path.join(self.patch_dir('coredns'), 'configmap.yaml')
+
+    def coredns_deployment_patch_file(self):
+        return os.path.join(self.patch_dir('coredns'), 'deployment.yaml')
 
     # @log_output
     def templates_dir(self):
