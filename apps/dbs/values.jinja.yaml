@@ -9,10 +9,12 @@ cockroachdb:
   conf:
     cluster-name: {{ cluster_name }}
     locality: cluster={{ locality }}
-    join: {{ empty }}
-      {% for n in range(join_count) %}
+    join: {{ empty_list }}
+      {% if not empty_list|length %}
+      {% for n in range(replica_count) %}
       - dbs-cockroachdb-{{ n }}.dbs-cockroachdb.dbs.svc.{{ first_cluster }}.local:26257
       {% endfor %}
+      {% endif %}
   storage:
     persistentVolume:
       storageClass: ceph-block

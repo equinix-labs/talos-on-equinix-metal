@@ -43,8 +43,7 @@ class CockroachDB:
                     'first_cluster': first_cluster.name,
                     'ingress_enabled': ingress_enabled,
                     'replica_count': 3,
-                    'join_count': 3 if first_cluster != cluster else 0,
-                    'empty': '[]' if first_cluster == cluster else ''
+                    'empty_list': '[]' if first_cluster == cluster else ''
                 }
             }
             data['values'].update(secrets['dbs'])
