@@ -17,6 +17,7 @@ class Namespace(Enum):
     idp_auth = 'idp-auth'
     istio = 'istio-system'
     kube_system = 'kube-system'
+    jfrog = 'jfrog'
 
     def __str__(self):
         return self.value

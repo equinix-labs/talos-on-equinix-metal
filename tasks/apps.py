@@ -14,6 +14,7 @@ from tasks.models.ReservedVIPs import ReservedVIPs
 from tasks.wrappers.CockroachDB import CockroachDB
 from tasks.wrappers.Harbor import Harbor
 from tasks.wrappers.Helm import Helm
+from tasks.wrappers.JFrog import JFrog
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
 from tasks.wrappers.Kubectl import Kubectl
 from tasks.wrappers.Talos import Talos
@@ -256,14 +257,26 @@ def dbs_install(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def dbs_port_forward(ctx, cluster_name: str, echo: bool = True):
+def dbs_port_forward_ui(ctx, cluster_name: str, echo: bool = True):
     """
-    Install shared databases
+    Forward UI
     """
     context = SystemContext(ctx, echo)
 
     cockroach = CockroachDB(ctx, context, echo)
-    cockroach.port_forward(cluster_name)
+    cockroach.port_forward_ui(cluster_name)
+
+
+@task()
+def dbs_port_forward_db(ctx, cluster_name: str, echo: bool = True):
+    """
+    Forward DB
+    https://www.cockroachlabs.com/docs/v23.1/dbeaver
+    """
+    context = SystemContext(ctx, echo)
+
+    cockroach = CockroachDB(ctx, context, echo)
+    cockroach.port_forward_db(cluster_name)
 
 
 @task()
@@ -275,6 +288,17 @@ def dbs_uninstall(ctx, echo: bool = True):
 
     cockroach = CockroachDB(ctx, context, echo)
     cockroach.uninstall()
+
+
+@task()
+def jfrog_artifactory_install(ctx, install: bool = False, echo: bool = False):
+    """
+    Uninstall shared databases
+    """
+    context = SystemContext(ctx, echo)
+
+    jfrog = JFrog(ctx, context, echo)
+    jfrog.install(install)
 
 
 @task()

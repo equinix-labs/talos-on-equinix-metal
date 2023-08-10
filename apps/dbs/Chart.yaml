@@ -1,6 +1,6 @@
 apiVersion: v2
 name: dbs
-description: Chart tracks compatible versions of keydb and cockroachdb
+description: Chart tracks compatible versions of cool databases
 
 type: application
 version: 0.1.0

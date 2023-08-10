@@ -1,6 +1,3 @@
-keydb:
-  persistentVolume:
-    storageClass: ceph-block
 cockroachdb:
   enabled: true
   clusterDomain: {{ cluster_domain }}
@@ -27,7 +24,7 @@ cockroachdb:
           options:
             - LOGIN
   tls:
-    enabled: true
+    enabled: {{ tls_enabled }}
     certs:
       tlsSecret: true
       selfSigner:

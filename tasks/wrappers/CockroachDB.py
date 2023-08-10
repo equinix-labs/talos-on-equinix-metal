@@ -43,7 +43,10 @@ class CockroachDB:
                     'first_cluster': first_cluster.name,
                     'ingress_enabled': ingress_enabled,
                     'replica_count': 3,
-                    'empty_list': '[]' if first_cluster == cluster else ''
+                    'empty_list': '[]' if first_cluster == cluster else '',
+                    'pgadmin': self._context.secrets['pgadmin'],
+                    'tls_enabled': False  # ToDo: Enable, remember that this will require
+                                          #  DB clients to use certificates as well
                 }
             }
             data['values'].update(secrets['dbs'])
@@ -73,8 +76,19 @@ class CockroachDB:
 
         self._context.set_cluster(context)
 
-    def port_forward(self, cluster_nme: str):
-        cluster = self._context.cluster(cluster_nme)
+    def port_forward_db(self, cluster_name: str):
+        cluster = self._context.cluster(cluster_name)
+        index = self._context.constellation.satellites.index(cluster)
+
+        self._ctx.run("kubectl --context admin@{} --namespace {} port-forward"
+                      " service/dbs-cockroachdb-public 2625{}:26257".format(
+                            cluster.name,
+                            Namespace.database,
+                            index
+                        ), echo=self._echo)
+
+    def port_forward_ui(self, cluster_name: str):
+        cluster = self._context.cluster(cluster_name)
         index = self._context.constellation.satellites.index(cluster)
 
         self._ctx.run("kubectl --context admin@{} --namespace {} port-forward dbs-cockroachdb-0 808{}:8080".format(
