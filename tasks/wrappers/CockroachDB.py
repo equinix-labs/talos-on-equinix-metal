@@ -44,9 +44,8 @@ class CockroachDB:
                     'ingress_enabled': ingress_enabled,
                     'replica_count': 3,
                     'empty_list': '[]' if first_cluster == cluster else '',
-                    'pgadmin': self._context.secrets['pgadmin'],
-                    'tls_enabled': False  # ToDo: Enable, remember that this will require
-                                          #  DB clients to use certificates as well
+                    'tls_enabled': False,  # ToDo: Enable, remember that this will require DB clients to use certificates as well
+                    'mariadb': self._context.secrets['dbs']['mariadb']
                 }
             }
             data['values'].update(secrets['dbs'])
@@ -76,12 +75,23 @@ class CockroachDB:
 
         self._context.set_cluster(context)
 
-    def port_forward_db(self, cluster_name: str):
+    def port_forward_cockroach_db(self, cluster_name: str):
         cluster = self._context.cluster(cluster_name)
         index = self._context.constellation.satellites.index(cluster)
 
         self._ctx.run("kubectl --context admin@{} --namespace {} port-forward"
                       " service/dbs-cockroachdb-public 2625{}:26257".format(
+                            cluster.name,
+                            Namespace.database,
+                            index
+                        ), echo=self._echo)
+
+    def port_forward_maria_db(self, cluster_name: str):
+        cluster = self._context.cluster(cluster_name)
+        index = self._context.constellation.satellites.index(cluster)
+
+        self._ctx.run("kubectl --context admin@{} --namespace {} port-forward"
+                      " service/dbs-mariadb-galera 330{}:3306".format(
                             cluster.name,
                             Namespace.database,
                             index

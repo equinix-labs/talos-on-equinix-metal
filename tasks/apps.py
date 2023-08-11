@@ -268,7 +268,7 @@ def dbs_port_forward_ui(ctx, cluster_name: str, echo: bool = True):
 
 
 @task()
-def dbs_port_forward_db(ctx, cluster_name: str, echo: bool = True):
+def dbs_port_forward_cockroach_db(ctx, cluster_name: str, echo: bool = True):
     """
     Forward DB
     https://www.cockroachlabs.com/docs/v23.1/dbeaver
@@ -276,7 +276,19 @@ def dbs_port_forward_db(ctx, cluster_name: str, echo: bool = True):
     context = SystemContext(ctx, echo)
 
     cockroach = CockroachDB(ctx, context, echo)
-    cockroach.port_forward_db(cluster_name)
+    cockroach.port_forward_cockroach_db(cluster_name)
+
+
+@task()
+def dbs_port_forward_maria_db(ctx, cluster_name: str, echo: bool = True):
+    """
+    Forward DB
+    https://www.cockroachlabs.com/docs/v23.1/dbeaver
+    """
+    context = SystemContext(ctx, echo)
+
+    cockroach = CockroachDB(ctx, context, echo)
+    cockroach.port_forward_maria_db(cluster_name)
 
 
 @task()
@@ -331,13 +343,25 @@ def harbor(ctx, install: bool = False, echo: bool = False):
     data = {
         'values': {
             'global_fqdn': get_fqdn('harbor', secrets, cluster),
-            'local_fqdn': get_fqdn(['harbor', cluster.name], secrets, cluster)
+            'local_fqdn': get_fqdn(['harbor', cluster.name], secrets, cluster),
+            'cockroachdb': secrets['dbs']['cockroachdb']
         }
     }
     data['values'].update(secrets['harbor'])
 
     ApplicationsCtrl(ctx, context, echo).install_app(
         application_directory, data, Namespace.apps, install)
+
+
+@task()
+def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
+    context = SystemContext(ctx, echo)
+    if cluster_name is not None:
+        harbor_client = Harbor(context, context.cluster(cluster_name))
+    else:
+        harbor_client = Harbor(context, context.cluster())
+
+    harbor_client.oidc_enable()
 
 
 @task()

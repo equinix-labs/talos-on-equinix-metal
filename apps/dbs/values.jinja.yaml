@@ -1,3 +1,16 @@
+mariadb-galera:
+  enabled: false
+  clusterDomain: {{ cluster_domain }}
+  persistence:
+    storageClass: ceph-block
+  rootUser:
+    user: {{ mariadb['root_user'] }}
+    password: {{ mariadb['root_pass'] }}
+  galera:
+    name: {{ cluster_name }}
+    mariabackup:
+      user: {{ mariadb['backup_user'] }}
+      password: {{ mariadb['backup_pass'] }}
 cockroachdb:
   enabled: true
   clusterDomain: {{ cluster_domain }}

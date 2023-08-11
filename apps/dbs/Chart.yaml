@@ -11,3 +11,7 @@ dependencies:
     version: 11.1.5
     repository: https://charts.cockroachdb.com/
     condition: cockroachdb.enabled
+  - name: mariadb-galera
+    version: 9.0.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: mariadb-galera.enabled

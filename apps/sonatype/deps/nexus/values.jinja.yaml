@@ -30,17 +30,9 @@ artifactory:
       ip: {{ artifactory['ip'] }}
       username: {{ artifactory['admin_user'] }}
       password: {{ artifactory['admin_pass'] }}
-{#    customPersistentVolumeClaim:#}
-{#      name: "artifactory-pvc"#}
-{#      mountPath: "/var/opt/jfrog"#}
-{#      accessModes:#}
-{#       - "ReadWriteOnce"#}
-{#      size: 200Gi#}
-{#      storageClassName: ceph-filesystem#}
     persistence:
       enabled: true
-      storageClassName: ceph-filesystem
-      size: 200Gi
+    storageClassName: ceph-block
     database:
       maxOpenConnections: 150
     tomcat:
