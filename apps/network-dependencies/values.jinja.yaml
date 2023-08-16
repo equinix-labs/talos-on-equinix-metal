@@ -24,7 +24,7 @@ cilium:
       enabled: false
       hostRoot: /sys/fs/cgroup
   enableXTSocketFallback: false
-  MTU: 1500
+  MTU: 9000
   hubble:
     enabled: true
     peerService:

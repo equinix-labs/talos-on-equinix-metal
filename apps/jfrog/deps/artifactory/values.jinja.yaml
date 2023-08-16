@@ -21,6 +21,23 @@ artifactory:
   global:
     masterKey: {{ artifactory['master_key'] }}
     joinKey: {{ artifactory['join_key'] }}
+{#    customInitContainers: |#}
+{#     - name: "fix-join-key"#}
+{#       image: ubuntu:latest#}
+{#       imagePullPolicy: IfNotPresent#}
+{#       command:#}
+{#         - /bin/bash#}
+{#         - -c#}
+{#         - echo -n ${ARTIFACTORY_JOIN_KEY} > /opt/jfrog/artifactory/var/etc/security/join.key#}
+{#       volumeMounts:#}
+{#         - mountPath: "/var/opt/jfrog/artifactory"#}
+{#           name: artifactory-volume#}
+{#       env:#}
+{#       - name: ARTIFACTORY_JOIN_KEY#}
+{#         valueFrom:#}
+{#           secretKeyRef:#}
+{#             key: join-key#}
+{#             name: artifactory#}
   serviceAccount:
     create: true
   nginx:
@@ -31,16 +48,18 @@ artifactory:
       username: {{ artifactory['admin_user'] }}
       password: {{ artifactory['admin_pass'] }}
 {#    customPersistentVolumeClaim:#}
-{#      name: "artifactory-pvc"#}
-{#      mountPath: "/var/opt/jfrog"#}
+{#      name: "artifactory-security"#}
+{#      mountPath: "/opt/jfrog/artifactory/var/etc/security"#}
 {#      accessModes:#}
 {#       - "ReadWriteOnce"#}
-{#      size: 200Gi#}
+{#      size: 5Mi#}
 {#      storageClassName: ceph-filesystem#}
     persistence:
       enabled: true
+{#      mountPath: "/opt/jfrog/artifactory"#}
+      existingClaim: artifactory-data-volume
       storageClassName: ceph-filesystem
-      size: 200Gi
+      size: 20Gi
     database:
       maxOpenConnections: 150
     tomcat:

@@ -8,5 +8,5 @@ appVersion: "1.16.0"
 
 dependencies:
   - name: artifactory
-    version: 107.63.11
+    version: 107.63.12
     repository: https://charts.jfrog.io

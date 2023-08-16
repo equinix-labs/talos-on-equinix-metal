@@ -92,7 +92,7 @@ spec:
         - op: add # https://www.talos.dev/v1.4/kubernetes-guides/network/kubespan/#enabling-for-an-existing-cluster
           path: /machine/network/kubespan
           value:
-            enabled: true
+            enabled: false # Disabled - causes Slow OPS in ceph
             allowDownPeerBypass: true
         - op: replace
           path: /cluster/controlPlane
@@ -126,6 +126,12 @@ spec:
               - # Populated by task cluster.generate-cluster-spec
             serviceSubnets:
               - # Populated by task cluster.generate-cluster-spec
+        - op: add
+          path: /machine/time
+          value:
+            servers:
+              - time.apple.com
+              - time.cloudflare.com
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: PacketMachineTemplate
@@ -185,5 +191,11 @@ spec:
         - op: add
           path: /machine/network/kubespan
           value:
-            enabled: true
+            enabled: false # Disabled - causes Slow OPS in ceph
             allowDownPeerBypass: true
+        - op: add
+          path: /machine/time
+          value:
+            servers:
+              - time.apple.com
+              - time.cloudflare.com
