@@ -17,6 +17,7 @@ from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JFrog import JFrog
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
 from tasks.wrappers.Kubectl import Kubectl
+from tasks.wrappers.Sonatype import Sonatype
 from tasks.wrappers.Talos import Talos
 
 
@@ -311,6 +312,17 @@ def jfrog_artifactory_install(ctx, install: bool = False, echo: bool = False):
 
     jfrog = JFrog(ctx, context, echo)
     jfrog.install(install)
+
+
+@task()
+def sonatype_nexus_install(ctx, install: bool = False, echo: bool = False):
+    """
+    Uninstall shared databases
+    """
+    context = SystemContext(ctx, echo)
+
+    sonatype = Sonatype(ctx, context, echo)
+    sonatype.install(install)
 
 
 @task()

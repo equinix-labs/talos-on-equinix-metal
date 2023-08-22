@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nxrm-deployment
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: nxrm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nxrm
+  template:
+    metadata:
+      labels:
+        app: nxrm
+    spec:
+      initContainers:
+        - name: chown-nexusdata-owner-to-nexus
+          image: busybox:1.33.1
+          command: ['chown', '-R', '200:200', '/blobs']
+          volumeMounts:
+            - name: nexus-data-volume
+              mountPath: /blobs
+      containers:
+        - name: nxrm-pod
+          image: sonatype/nexus3:3.59.0
+          securityContext:
+            runAsUser: 200
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DB_NAME
+              value: {{ .Values.nexus.db_name }}
+            - name: DB_USER
+              value: {{ .Values.nexus.db_user }}
+            - name: DB_PASSWORD
+              value: {{ .Values.nexus.db_pass }}
+            - name: LICENSE_FILE
+              value: /etc/nxrm-license/nxrm-license.lic
+            - name: NEXUS_SECURITY_INITIAL_PASSWORD
+              value: {{ .Values.nexus.admin_pass }}
+            - name: NEXUS_SEARCH_INDEX_REBUILD_ON_STARTUP
+              value: "true"
+            - name: INSTALL4J_ADD_VM_PARAMS
+              value: "-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m \
+          -Dnexus.licenseFile=${LICENSE_FILE} \
+          -Dnexus.datastore.enabled=true \
+          -Djava.util.prefs.userRoot=${NEXUS_DATA}/javaprefs \
+          -Dnexus.datastore.nexus.name=nexus \
+          -Dnexus.datastore.nexus.type=jdbc \
+          -Dnexus.datastore.nexus.jdbcUrl=jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/${DB_NAME}?sslmode=disable&user=${DB_USER} \
+          -Dnexus.datastore.nexus.username=${DB_USER} \
+          -Dnexus.datastore.nexus.password=${DB_PASSWORD}"
+          volumeMounts:
+            - name: nexus-data-volume
+              mountPath: /blobs
+            - name: license-volume
+              mountPath: /etc/nxrm-license
+      volumes:
+        - name: nexus-data-volume
+          persistentVolumeClaim:
+            claimName: nexus-data-volume
+        - name: license-volume
+          secret:
+            secretName: nxrm-license

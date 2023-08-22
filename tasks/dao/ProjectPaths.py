@@ -219,6 +219,12 @@ class ProjectPaths:
     def project_vips_file(self):
         return os.path.join(mkdirs(self.constellation_dir()), 'vips-project.yaml')
 
+    def license_dir(self, *paths):
+        return self.project_root('license', *paths)
+
+    def sonatype_license_file(self):
+        return self.license_dir('sonatype', 'sonatype-license.lic')
+
 
 def mkdirs(project_dir: str) -> str:
     if not os.path.isdir(project_dir):

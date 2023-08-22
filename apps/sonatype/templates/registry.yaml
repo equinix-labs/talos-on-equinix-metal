@@ -1,0 +1,43 @@
+{{- range $.Values.nexus.registries }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nxrm-service-{{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: nxrm
+spec:
+  selector:
+    app: nxrm
+  ports:
+    - port: {{ .port }}
+      name: {{ .name }}
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: {{ $.Release.Namespace }}
+  name: nxrm-ingress-{{ .name }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-gcp
+    external-dns.alpha.kubernetes.io/hostname: {{ .name }}.{{ $.Values.nexus.fqdn }}
+spec:
+  ingressClassName: {{ $.Values.nexus.ingressClassName }}
+  rules:
+    - host: {{ .name }}.{{ $.Values.nexus.fqdn }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nxrm-service-{{ .name }}
+                port:
+                  number: {{ .port }}
+  tls:
+    - hosts:
+        - {{ .name }}.{{ $.Values.nexus.fqdn }}
+      secretName: tls.{{ .name }}.{{ $.Values.nexus.fqdn }}
+{{- end }}

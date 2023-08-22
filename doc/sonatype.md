@@ -1,0 +1,1 @@
+https://github.com/sonatype/nxrm-sample-files-repo/blob/main/on-prem-resiliency-yamls/README.md

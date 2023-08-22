@@ -1,0 +1,12 @@
+nexus:
+  registries:
+    - name: docker
+      port: 9090
+  ingressClassName: nginx-global
+  fqdn: {{ fqdn }}
+  oauth:
+    fqdn: {{ oauth_fqdn }}
+  db_name: {{ db_name }}
+  db_user: {{ nexus['db_user'] }}
+  db_pass: {{ nexus['db_pass'] }}
+  admin_pass: {{ nexus['admin_pass'] }}

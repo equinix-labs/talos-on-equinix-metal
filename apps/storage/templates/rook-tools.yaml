@@ -1,4 +1,4 @@
-#  ToDo: move to a better place 
+#  ToDo: move to a better place
 apiVersion: apps/v1
 kind: Deployment
 metadata:
