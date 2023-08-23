@@ -46,6 +46,16 @@ class CockroachDB:
                     'empty_list': '[]' if first_cluster == cluster else '',
                     'tls_enabled': False,  # ToDo: Enable, remember that this will require DB clients to use certificates as well
                     'mariadb': self._context.secrets['dbs']['mariadb']
+                },
+                'deps': {
+                    'zalando_postgres_operator': {
+                        'enabled': False,
+                        'cluster_domain': cluster.name + '.local',
+                        'cluster_name': cluster.name,
+                    },
+                    'cloudnative_pg': {
+                        'enabled': True,
+                    }
                 }
             }
             data['values'].update(secrets['dbs'])

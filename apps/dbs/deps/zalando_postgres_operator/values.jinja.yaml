@@ -1,0 +1,5 @@
+postgres-operator:
+  enabled: {{ enabled }}
+  configKubernetes:
+    cluster_domain: {{ cluster_domain }}
+    cluster_name_label: {{ cluster_name }}

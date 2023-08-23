@@ -1,0 +1,4 @@
+pvc:
+  name: {{ pvc_name }}
+  size: 200Gi
+  storage_class: ceph-filesystem

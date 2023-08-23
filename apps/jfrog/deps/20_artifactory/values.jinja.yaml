@@ -1,4 +1,5 @@
 artifactory:
+  splitServicesToContainers: false
   ingress:
     enabled: true
     defaultBackend:
@@ -140,12 +141,12 @@ artifactory:
         memory: "1Gi"
         cpu: "1"
   postgresql:
-    enabled: false
-  database:
-    type: postgresql
-    driver: org.postgresql.Driver
-    url: "jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/artifactory?sslmode=disable&user=root"
-    secrets:
-      user:
-        name: root
-        key: root
+    enabled: true
+{#  database:#}
+{#    type: postgresql#}
+{#    driver: org.postgresql.Driver#}
+{#    url: "jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/artifactory?sslmode=disable&user=root"#}
+{#    secrets:#}
+{#      user:#}
+{#        name: root#}
+{#        key: root#}

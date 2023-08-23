@@ -1,0 +1,27 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: experimental-cluster
+  labels:
+    test: test
+spec:
+  teamId: "dream"
+  volume:
+    size: 1Gi
+    storageClass: ceph-block
+  numberOfInstances: 2
+  users:
+    marvin:  # database owner
+    - superuser
+    - createdb
+    foo_user: []  # role for application foo
+  databases:
+    artifactory: a_admin # dbname: owner
+    nexus: n_admin
+    harbor: h_admin
+  preparedDatabases:
+    bar: {}
+  postgresql:
+    version: "15"
+  patroni:
+    synchronous_mode: true

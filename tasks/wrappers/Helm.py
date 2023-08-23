@@ -106,7 +106,7 @@ class Helm:
 
         return manifest
 
-    def dependency_build(self, hvf: HelmValueFiles):
+    def _dependency_build(self, hvf: HelmValueFiles):
         for dependency in hvf.deps:
             with self._ctx.cd(dependency.chart_source_dir):
                 _del_lock_file(dependency.chart_source_dir)
@@ -116,8 +116,13 @@ class Helm:
             _del_lock_file(hvf.app.chart_source_dir)
             self._ctx.run("helm dependency build", echo=self._echo)
 
+    def _dependency_extract(self, hvf: HelmValueFiles):
+        with self._ctx.cd(os.path.join(hvf.app.chart_source_dir, 'charts')):
+            self._ctx.run("find . -name \\*.tgz -exec tar xf {} \\;", echo=self._echo)
+
     def install(self, hvf: HelmValueFiles, install: bool, namespace: Namespace = None, wait: bool = None):
-        self.dependency_build(hvf)
+        self._dependency_build(hvf)
+        # self._dependency_extract(hvf)
 
         if not install:
             return

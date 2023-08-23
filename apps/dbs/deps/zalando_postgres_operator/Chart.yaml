@@ -1,0 +1,13 @@
+apiVersion: v2
+name: zalando-postgres-operator
+description: Chart tracks compatible versions of cool databases
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: postgres-operator
+    version: 1.10.0
+    repository: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+    condition: postgres-operator.enabled

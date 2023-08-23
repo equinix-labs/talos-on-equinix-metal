@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cloudnative_pg
+description: Chart tracks compatible versions of cool databases
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: cloudnative-pg
+    version: 0.18.2
+    repository: https://cloudnative-pg.github.io/charts
+    condition: cloudnative-pg.enabled
