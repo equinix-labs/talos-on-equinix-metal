@@ -1,5 +1,5 @@
 apiVersion: v2
-name: cloudnative_pg
+name: cloudnative-pg
 description: Chart tracks compatible versions of cool databases
 
 type: application

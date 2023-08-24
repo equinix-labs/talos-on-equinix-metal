@@ -199,6 +199,12 @@ class ProjectPaths:
     def access_dir(self):
         return os.path.join(self.cluster_dir(), "access")
 
+    def secrets_dir(self):
+        return mkdirs(os.path.join(self.cluster_dir(), "secrets"))
+
+    def postgres_master_replication_secret(self):
+        return os.path.join(self.secrets_dir(), 'postgres-replication.yaml')
+
     # @log_output
     def argo_apps_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "apps")

@@ -1,13 +1,8 @@
-import yaml
 from invoke import task
 
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import str_presenter
 from tasks.wrappers.Kubectl import Kubectl
-
-yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
 
 # @task(create_config_dirs)

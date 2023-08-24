@@ -1,17 +1,12 @@
-import yaml
 from invoke import task
 
 from tasks.controllers.ClusterCtrl import ClusterCtrl
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.ProjectPaths import RepoPaths, ProjectPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.helpers import str_presenter
 from tasks.models.Defaults import KIND_CLUSTER_NAME
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Clusterctl import Clusterctl
-
-yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
 
 
 @task()

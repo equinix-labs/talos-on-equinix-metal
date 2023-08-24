@@ -20,6 +20,16 @@ class ConstellationSpecCtrl:
         with open(self._project_path.constellation_file(self._constellation_name)) as constellation_file:
             return Constellation.parse_raw(constellation_file.read())
 
+    def constellation_except(self, cluster: Cluster) -> list[Cluster]:
+        _constellation = list(self.constellation)
+        _constellation.remove(cluster)
+        return _constellation
+
+    def satellites_except(self, cluster: Cluster) -> list[Cluster]:
+        _satellites = list(self.constellation.satellites)
+        _satellites.remove(cluster)
+        return _satellites
+
     def get_cluster_by_name(self, cluster_name: str) -> Cluster:
         for cluster in self.constellation:
             if cluster.name == cluster_name:

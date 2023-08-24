@@ -89,6 +89,18 @@ class SystemContext:
         )
         return const_ctrl.constellation
 
+    def constellation_except(self, cluster: Cluster):
+        return ConstellationSpecCtrl(
+            self._project_paths,
+            self._local_state.constellation_context
+        ).constellation_except(cluster)
+
+    def satellites_except(self, cluster: Cluster):
+        return ConstellationSpecCtrl(
+            self._project_paths,
+            self._local_state.constellation_context
+        ).satellites_except(cluster)
+
     @constellation.setter
     def constellation(self, constellation: Constellation):
         self._local_state.constellation_context = constellation.name

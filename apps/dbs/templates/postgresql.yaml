@@ -1,27 +1,77 @@
-apiVersion: "acid.zalan.do/v1"
-kind: postgresql
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
-  name: experimental-cluster
-  labels:
-    test: test
+  name: postgres-{{ .Values.postgres.cluster_name }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  teamId: "dream"
-  volume:
-    size: 1Gi
-    storageClass: ceph-block
-  numberOfInstances: 2
-  users:
-    marvin:  # database owner
-    - superuser
-    - createdb
-    foo_user: []  # role for application foo
-  databases:
-    artifactory: a_admin # dbname: owner
-    nexus: n_admin
-    harbor: h_admin
-  preparedDatabases:
-    bar: {}
+  instances: 3
+
+  # Parameters and pg_hba configuration will be append
+  # to the default ones to make the cluster work
   postgresql:
-    version: "15"
-  patroni:
-    synchronous_mode: true
+    parameters:
+      max_worker_processes: "60"
+    pg_hba:
+      # To access through TCP/IP you will need to get username
+      # and password from the secret cluster-example-custom-app
+      - host all all all md5
+
+
+  # Example of rolling update strategy:
+  # - unsupervised: automated update of the primary once all
+  #                 replicas have been upgraded (default)
+  # - supervised: requires manual supervision to perform
+  #               the switchover of the primary
+  primaryUpdateStrategy: unsupervised
+
+  # Require 1Gi of space per instance using default storage class
+  storage:
+    size: 1Gi
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        io.cilium/global-service: 'true'
+        service.cilium.io/affinity: 'local'
+  {{- if $.Values.postgres.replica.enabled }}
+  bootstrap:
+    pg_basebackup:
+      source: postgres-{{ $.Values.postgres.replica.primary_name }}
+  replica:
+    enabled: true
+    source: postgres-{{ $.Values.postgres.replica.primary_name }}
+  externalClusters:
+    - name: postgres-{{ $.Values.postgres.replica.primary_name }}
+      sslCert:
+        name: postgres-{{ $.Values.postgres.replica.primary_name }}-replication
+        key: tls.crt
+      sslKey:
+        name: postgres-{{ $.Values.postgres.replica.primary_name }}-replication
+        key: tls.key
+      connectionParameters:
+        host: postgres-{{ $.Values.postgres.replica.primary_name }}-rw.{{ $.Release.Namespace }}.svc
+        user: streaming_replica
+        dbname: postgres
+  {{- end }}
+
+{{- range $.Values.postgres.external_clusters }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-{{ .name }}-rw
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    io.cilium/global-service: 'true'
+    service.cilium.io/affinity: 'remote'
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    cnpg.io/cluster: {{ .name }}
+    role: primary
+{{- end }}

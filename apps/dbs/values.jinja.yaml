@@ -1,69 +1,9 @@
-mariadb-galera:
-  enabled: false
-  clusterDomain: {{ cluster_domain }}
-  persistence:
-    storageClass: ceph-block
-  rootUser:
-    user: {{ mariadb['root_user'] }}
-    password: {{ mariadb['root_pass'] }}
-  galera:
-    name: {{ cluster_name }}
-    mariabackup:
-      user: {{ mariadb['backup_user'] }}
-      password: {{ mariadb['backup_pass'] }}
-cockroachdb:
-  enabled: true
-  clusterDomain: {{ cluster_domain }}
-  statefulset:
-    replicas: {{ replica_count }}
-  conf:
-    cluster-name: {{ cluster_name }}
-    locality: cluster={{ locality }}
-    join: {{ empty_list }}
-      {% if not empty_list|length %}
-      {% for n in range(replica_count) %}
-      - dbs-cockroachdb-{{ n }}.dbs-cockroachdb.dbs.svc.{{ first_cluster }}.local:26257
-      {% endfor %}
-      {% endif %}
-  storage:
-    persistentVolume:
-      storageClass: ceph-block
-  init:
-    provisioning:
-      enabled: true
-      users:
-        - name: {{ cockroachdb.username }}
-          password: {{ cockroachdb.password }}
-          options:
-            - LOGIN
-  tls:
-    enabled: {{ tls_enabled }}
-    certs:
-      tlsSecret: true
-      selfSigner:
-        enabled: false
-      certManager: true
-      useCertManagerV1CRDs: true
-      certManagerIssuer:
-        group: cert-manager.io
-        kind: ClusterIssuer
-        name: {{ ca_issuer_name }}
-
-  ingress:
-    enabled: {{ ingress_enabled }}
-    annotations:
-      kubernetes.io/ingress.class: nginx
-      cert-manager.io/cluster-issuer: letsencrypt-gcp
-      external-dns.alpha.kubernetes.io/hostname: {{ cockroach_fqdn }}
-      nginx.ingress.kubernetes.io/auth-url: https://{{ oauth_fqdn }}/oauth2/auth
-      nginx.ingress.kubernetes.io/auth-signin: https://{{ oauth_fqdn }}/oauth2/start
-      nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
-      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-      nginx.ingress.kubernetes.io/server-snippet: |
-        proxy_ssl_verify off;
-    hosts:
-      - {{ cockroach_fqdn }}
-    tls:
-      - hosts:
-        - {{ cockroach_fqdn }}
-        secretName: tls.{{ cockroach_fqdn }}
+postgres:
+  cluster_name: {{ cluster_name }}
+  replica:
+    enabled: {{ replica_enabled }}
+    primary_name: {{ primary_name }}
+  external_clusters:
+    {% for cluster in external_clusters %}
+    - name: {{ cluster.name }}
+    {% endfor %}

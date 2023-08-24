@@ -11,7 +11,7 @@ from tasks.helpers import get_fqdn
 from tasks.models.ConstellationSpecV01 import VipRole
 from tasks.models.Namespaces import Namespace
 from tasks.models.ReservedVIPs import ReservedVIPs
-from tasks.wrappers.CockroachDB import CockroachDB
+from tasks.wrappers.Databases import Databases
 from tasks.wrappers.Harbor import Harbor
 from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JFrog import JFrog
@@ -253,7 +253,7 @@ def dbs_install(ctx, install: bool = False, echo: bool = False):
     """
     context = SystemContext(ctx, echo)
 
-    cockroach = CockroachDB(ctx, context, echo)
+    cockroach = Databases(ctx, context, echo)
     cockroach.install(install)
 
 
@@ -264,7 +264,7 @@ def dbs_port_forward_ui(ctx, cluster_name: str, echo: bool = True):
     """
     context = SystemContext(ctx, echo)
 
-    cockroach = CockroachDB(ctx, context, echo)
+    cockroach = Databases(ctx, context, echo)
     cockroach.port_forward_ui(cluster_name)
 
 
@@ -276,7 +276,7 @@ def dbs_port_forward_cockroach_db(ctx, cluster_name: str, echo: bool = True):
     """
     context = SystemContext(ctx, echo)
 
-    cockroach = CockroachDB(ctx, context, echo)
+    cockroach = Databases(ctx, context, echo)
     cockroach.port_forward_cockroach_db(cluster_name)
 
 
@@ -288,7 +288,7 @@ def dbs_port_forward_maria_db(ctx, cluster_name: str, echo: bool = True):
     """
     context = SystemContext(ctx, echo)
 
-    cockroach = CockroachDB(ctx, context, echo)
+    cockroach = Databases(ctx, context, echo)
     cockroach.port_forward_maria_db(cluster_name)
 
 
@@ -299,7 +299,7 @@ def dbs_uninstall(ctx, echo: bool = True):
     """
     context = SystemContext(ctx, echo)
 
-    cockroach = CockroachDB(ctx, context, echo)
+    cockroach = Databases(ctx, context, echo)
     cockroach.uninstall()
 
 

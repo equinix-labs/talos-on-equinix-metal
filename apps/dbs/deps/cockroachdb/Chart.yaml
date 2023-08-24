@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cockroachdb
+description: Chart tracks compatible versions of cockroachdb
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: cockroachdb
+    version: 11.1.5
+    repository: https://charts.cockroachdb.com/
+    condition: cockroachdb.enabled

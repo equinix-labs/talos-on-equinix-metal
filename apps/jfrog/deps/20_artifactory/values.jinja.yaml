@@ -22,23 +22,6 @@ artifactory:
   global:
     masterKey: {{ artifactory['master_key'] }}
     joinKey: {{ artifactory['join_key'] }}
-{#    customInitContainers: |#}
-{#     - name: "fix-join-key"#}
-{#       image: ubuntu:latest#}
-{#       imagePullPolicy: IfNotPresent#}
-{#       command:#}
-{#         - /bin/bash#}
-{#         - -c#}
-{#         - echo -n ${ARTIFACTORY_JOIN_KEY} > /opt/jfrog/artifactory/var/etc/security/join.key#}
-{#       volumeMounts:#}
-{#         - mountPath: "/var/opt/jfrog/artifactory"#}
-{#           name: artifactory-volume#}
-{#       env:#}
-{#       - name: ARTIFACTORY_JOIN_KEY#}
-{#         valueFrom:#}
-{#           secretKeyRef:#}
-{#             key: join-key#}
-{#             name: artifactory#}
   serviceAccount:
     create: true
   nginx:
@@ -48,16 +31,8 @@ artifactory:
       ip: {{ artifactory['ip'] }}
       username: {{ artifactory['admin_user'] }}
       password: {{ artifactory['admin_pass'] }}
-{#    customPersistentVolumeClaim:#}
-{#      name: "artifactory-security"#}
-{#      mountPath: "/opt/jfrog/artifactory/var/etc/security"#}
-{#      accessModes:#}
-{#       - "ReadWriteOnce"#}
-{#      size: 5Mi#}
-{#      storageClassName: ceph-filesystem#}
     persistence:
       enabled: true
-{#      mountPath: "/opt/jfrog/artifactory"#}
       existingClaim: artifactory-data-volume
       storageClassName: ceph-filesystem
       size: 20Gi
@@ -142,11 +117,11 @@ artifactory:
         cpu: "1"
   postgresql:
     enabled: true
-{#  database:#}
-{#    type: postgresql#}
-{#    driver: org.postgresql.Driver#}
-{#    url: "jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/artifactory?sslmode=disable&user=root"#}
-{#    secrets:#}
-{#      user:#}
-{#        name: root#}
-{#        key: root#}
+  database:
+    type: postgresql
+    driver: org.postgresql.Driver
+    url: "jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/artifactory?sslmode=disable&user=root"
+    secrets:
+      user:
+        name: root
+        key: root
