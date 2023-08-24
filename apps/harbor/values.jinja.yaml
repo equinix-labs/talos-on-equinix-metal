@@ -46,18 +46,18 @@ harbor:
       trivy:
         storageClass: ceph-block
   database:
-    type: internal # ToDo: https://github.com/goharbor/harbor/issues/8649
+    type: external # ToDo: https://github.com/goharbor/harbor/issues/8649
     external:
-      host: dbs-mariadb-galera.dbs # It has to be PostgreSQL, CockroachDB does not work ;(
-      port: 3306
-      username: {{ cockroachdb['root_user'] }}
-      password: {{ cockroachdb['root_pass'] }}
-      coreDatabase: "harbor_registry"
-      notaryServerDatabase: "harbor_notary_server"
-      notarySignerDatabase: "harbor_notary_signer"
-  harborAdminPassword: {{ admin_pass }}
-  secretKey: {{ secret_key }}
+      host: {{ db_host }} # It has to be PostgreSQL, CockroachDB does not work ;(
+      port: {{ db_port }}
+      username: {{ harbor['db']['user'] }}
+      password: {{ harbor['db']['pass'] }}
+      coreDatabase: {{ db_harbor_registry }}
+      notaryServerDatabase: {{ db_harbor_notary_server }}
+      notarySignerDatabase: {{ db_harbor_notary_signer }}
+  harborAdminPassword: {{ harbor['admin_pass'] }}
+  secretKey: {{ harbor['secret_key'] }}
   registry:
     credentials:
-      username: {{ registry.user }}
-      password: {{ registry.pass }}
+      username: {{ harbor['registry']['user'] }}
+      password: {{ harbor['registry']['pass'] }}

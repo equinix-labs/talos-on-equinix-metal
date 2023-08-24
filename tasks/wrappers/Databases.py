@@ -173,3 +173,41 @@ class Databases:
             Namespace.database,
             index
         ), echo=self._echo)
+
+    def postgres_create_db(self, cluster: Cluster, db_name: str):
+        self._ctx.run(
+            "kubectl "
+            "--context admin@{} "
+            "--namespace {} exec -it services/postgres-titan-rw -- "
+            "psql -c 'create database {};'".format(
+                cluster.name,
+                Namespace.database,
+                db_name
+            ), echo=self._echo)
+
+    def postgres_create_user(self, cluster: Cluster, user_name: str, user_pass: str):
+        self._ctx.run(
+            "kubectl "
+            "--context admin@{} "
+            "--namespace {} exec -it services/postgres-titan-rw -- "
+            "psql -c \"create user {} with encrypted password '{}';\"".format(
+                cluster.name,
+                Namespace.database,
+                user_name,
+                user_pass
+            ), echo=self._echo)
+
+    def postgres_grant(self, cluster: Cluster, db_name: str, user_name: str):
+        # https://github.com/golang-migrate/migrate/issues/826
+        self._ctx.run(
+            "kubectl "
+            "--context admin@{} "
+            "--namespace {} exec -it services/postgres-titan-rw -- "
+            "psql -c \"grant all privileges on database {} to {}; alter database {} owner to {};\"".format(
+                cluster.name,
+                Namespace.database,
+                db_name,
+                user_name,
+                db_name,
+                user_name
+            ), echo=self._echo)
