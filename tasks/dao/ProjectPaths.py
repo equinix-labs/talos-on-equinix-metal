@@ -205,6 +205,12 @@ class ProjectPaths:
     def postgres_master_replication_secret(self):
         return os.path.join(self.secrets_dir(), 'postgres-replication.yaml')
 
+    def deployments_dir(self):
+        return mkdirs(os.path.join(self.cluster_dir(), "deployments"))
+
+    def deployments_ceph_toolbox(self):
+        return os.path.join(self.deployments_dir(), 'ceph_toolbox.yaml')
+
     # @log_output
     def argo_apps_dir(self):
         return os.path.join(self.cluster_dir(), "argo", "apps")

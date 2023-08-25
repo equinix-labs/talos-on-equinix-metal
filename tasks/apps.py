@@ -17,6 +17,7 @@ from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JFrog import JFrog
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
 from tasks.wrappers.Kubectl import Kubectl
+from tasks.wrappers.Rook import Rook
 from tasks.wrappers.Sonatype import Sonatype
 from tasks.wrappers.Talos import Talos
 
@@ -461,20 +462,9 @@ def storage(ctx, install: bool = False, echo: bool = False):
     """
     Install storage
     """
-    application_directory = 'storage'
     context = SystemContext(ctx, echo)
-
-    data = {
-        'values': {
-            'operator_namespace': application_directory
-        },
-        'deps': {
-            'rook': {}
-        }
-    }
-
-    ApplicationsCtrl(ctx, context, echo).install_app(
-        application_directory, data, Namespace.storage, install)
+    rook = Rook(ctx, context, echo)
+    rook.install(install)
 
 
 @task()

@@ -1,6 +1,6 @@
 rook-ceph-cluster:
   operatorNamespace: {{ operator_namespace }}
-  clusterName: rook-ceph
+  clusterName: {{ cluster_name }}-rook
   cephClusterSpec:
     placement:
       all:
@@ -19,3 +19,7 @@ rook-ceph-cluster:
           - key: node-role.kubernetes.io/master
             operator: Exists
             effect: NoSchedule
+multisite:
+  realm_name: {{ realm_name }}
+  zone_group_name: {{ zone_group_name }}
+  zone_name: {{ zone_name }}
