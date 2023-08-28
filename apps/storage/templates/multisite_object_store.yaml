@@ -42,7 +42,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
-  name: multisite
+  name: multisite-{{ .Values.multisite.object_store_name }}
   namespace: {{ .Release.Namespace }}
 spec:
   gateway:

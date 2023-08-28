@@ -23,3 +23,4 @@ multisite:
   realm_name: {{ realm_name }}
   zone_group_name: {{ zone_group_name }}
   zone_name: {{ zone_name }}
+  object_store_name: {{ object_store_name }}

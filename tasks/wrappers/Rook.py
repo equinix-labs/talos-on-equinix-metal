@@ -33,7 +33,8 @@ class Rook:
                 'operator_namespace': application_directory,
                 'realm_name': self._context.constellation.name,
                 'zone_group_name': self._context.constellation.name,
-                'zone_name': self._context.cluster().name
+                'zone_name': self._context.cluster().name,
+                'object_store_name': self._context.cluster().name
             },
             'deps': {
                 'rook': {}

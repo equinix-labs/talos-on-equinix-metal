@@ -59,10 +59,11 @@ class SystemContext:
     def _handle_initial_run(self):
         repo_paths = RepoPaths()
         mkdirs(self._project_paths.project_root())
-        shutil.copy(
-            repo_paths.templates_dir('secrets.yaml'),
-            self._project_paths.project_root()
-        )
+        if not os.path.isfile(self._project_paths.secrets_file()):
+            shutil.copy(
+                repo_paths.templates_dir('secrets.yaml'),
+                self._project_paths.secrets_file()
+            )
         shutil.copy(
             repo_paths.templates_dir('{}{}'.format(CONSTELLATION_NAME, CONSTELLATION_FILE_SUFFIX)),
             self._project_paths.project_root()
