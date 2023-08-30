@@ -1,0 +1,12 @@
+apiVersion: v2
+name: persistent-storage
+description: Chart tracks compatible versions of ROOK
+
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
+
+dependencies:
+  - name: rook-ceph-cluster
+    version: v1.12.1
+    repository: https://charts.rook.io/release

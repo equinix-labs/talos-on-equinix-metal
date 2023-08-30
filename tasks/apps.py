@@ -458,13 +458,23 @@ def nginx(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def storage(ctx, install: bool = False, echo: bool = False):
+def storage(ctx, cluster: str = None, install: bool = False, echo: bool = False):
     """
     Install storage
     """
     context = SystemContext(ctx, echo)
     rook = Rook(ctx, context, echo)
-    rook.install(install)
+    rook.install(install, cluster)
+
+
+@task()
+def storage_multisite(ctx, echo: bool = False):
+    """
+    Install storage
+    """
+    context = SystemContext(ctx, echo)
+    rook = Rook(ctx, context, echo)
+    rook.enable_multisite_storage()
 
 
 @task()

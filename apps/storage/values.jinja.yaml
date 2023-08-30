@@ -1,26 +1,12 @@
-rook-ceph-cluster:
-  operatorNamespace: {{ operator_namespace }}
-  clusterName: {{ cluster_name }}-rook
-  cephClusterSpec:
-    placement:
-      all:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                - key: node.kubernetes.io/instance-type
-                  operator: In
-                  values:
-                    - m3.large.x86 # ToDo: set proper labels on nodes -> nodeLabels - https://www.talos.dev/v1.4/reference/configuration/#machineconfig
-        tolerations:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-            effect: NoSchedule
-          - key: node-role.kubernetes.io/master
-            operator: Exists
-            effect: NoSchedule
 multisite:
-  realm_name: {{ realm_name }}
-  zone_group_name: {{ zone_group_name }}
-  zone_name: {{ zone_name }}
-  object_store_name: {{ object_store_name }}
+  enabled: {{ multisite_enabled }}
+  applications:
+  {% for application in applications %}
+    - realm_name: {{ application['realm_name'] }}
+      zone_group_name: {{ application['zone_group_name'] }}
+      zone_name: {{ application['zone_name'] }}
+      object_store_name: {{ application['object_store_name'] }}
+      master_zone:
+        defined: {{ application['master_zone']['defined'] }}
+        name: {{ application['master_zone']['name'] }}
+  {% endfor %}

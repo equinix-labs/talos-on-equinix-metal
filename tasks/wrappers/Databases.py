@@ -9,6 +9,7 @@ from tasks.dao.SystemContext import SystemContext
 from tasks.helpers import get_fqdn, str_presenter
 from tasks.models.ConstellationSpecV01 import Cluster
 from tasks.models.Namespaces import Namespace
+from tasks.wrappers.Kubectl import Kubectl
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)  # to use with safe_dump
@@ -110,21 +111,9 @@ class Databases:
             yaml.dump(replication_secret, replication_secret_file)
 
     def _patch_cluster_service(self):
+        kubectl = Kubectl(self._ctx, self._context, self._echo)
         for cluster in self._context.constellation.satellites:
-            self._ctx.run(
-                "kubectl --context admin@{} --namespace {} annotate service postgres-{}-rw "
-                "'io.cilium/global-service'='true' ".format(
-                    cluster.name,
-                    Namespace.database,
-                    cluster.name
-                ), echo=self._echo)
-            self._ctx.run(
-                "kubectl --context admin@{} --namespace {} annotate service postgres-{}-rw "
-                "'io.cilium/global-service'='true' ".format(
-                    cluster.name,
-                    Namespace.database,
-                    cluster.name
-                ), echo=self._echo)
+            kubectl.cilium_annotate(cluster, Namespace.database, "postgres-{}-rw".format(cluster.name))
 
     def uninstall(self):
         context = self._context.cluster()

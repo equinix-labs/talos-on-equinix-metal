@@ -1,25 +1,32 @@
+{{- if $.Values.multisite.enabled }}
+{{- range $.Values.multisite.applications }}
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectRealm
 metadata:
-  name: {{ .Values.multisite.realm_name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ .realm_name }}
+  namespace: {{ $.Release.Namespace }}
+{{- if .master_zone.defined }}
+spec:
+  pull:
+    endpoint: http://rook-ceph-rgw-m-{{ .master_zone.name }}
+{{- end }}
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZoneGroup
 metadata:
-  name: {{ .Values.multisite.zone_group_name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ .zone_group_name }}
+  namespace: {{ $.Release.Namespace }}
 spec:
-  realm: {{ .Values.multisite.realm_name }}
+  realm: {{ .realm_name }}
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectZone
 metadata:
-  name: {{ .Values.multisite.zone_name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ .zone_name }}
+  namespace: {{ $.Release.Namespace }}
 spec:
-  zoneGroup: {{ .Values.multisite.zone_group_name }}
+  zoneGroup: {{ .zone_group_name }}
   metadataPool:
     failureDomain: host
     replicated:
@@ -32,22 +39,43 @@ spec:
       requireSafeReplicaSize: true
     parameters:
       compression_mode: none
-  # recommended to set this value if ingress used for exposing rgw endpoints
-  # customEndpoints:
-  #   - "http://rgw-a.fqdn"
-  #   - "http://rgw-b.fqdn"
-  # if the pools need to be removed from backend enable following setting
-  # preservePoolsOnDelete: false
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
-  name: multisite-{{ .Values.multisite.object_store_name }}
-  namespace: {{ .Release.Namespace }}
+  name: m-{{ .object_store_name }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   gateway:
     port: 80
-    # securePort: 443
     instances: 1
   zone:
-    name: {{ .Values.multisite.zone_name }}
+    name: {{ .zone_name }}
+
+{{- if .master_zone.defined }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-rgw-m-{{ .master_zone.name }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    io.cilium/global-service: 'true'
+    service.cilium.io/affinity: 'remote'
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: rook-ceph-rgw
+    ceph_daemon_id: m-{{ .master_zone.name }}
+    rgw: m-{{ .master_zone.name }}
+    rook_cluster: storage
+    rook_object_store: m-{{ .master_zone.name }}
+{{- end }}
+
+{{- end}}
+{{- end}}

@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from glob import glob
 
 from tasks.dao.ProjectPaths import ProjectPaths
@@ -39,6 +40,7 @@ class ConstellationSpecCtrl:
             return Cluster(name=KIND_CONTEXT_NAME)
 
         logging.fatal("Cluster: {} not specified in constellation {}".format(cluster_name, self.constellation.name))
+        sys.exit(1)
 
 
 def get_constellation_spec_file_paths(

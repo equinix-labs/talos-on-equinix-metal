@@ -6,6 +6,7 @@ import yaml
 from invoke import Context, Failure
 
 from tasks.dao.SystemContext import SystemContext
+from tasks.models.ConstellationSpecV01 import Cluster
 from tasks.models.Namespaces import Namespace
 
 
@@ -129,3 +130,19 @@ class Kubectl:
         # kubectl get machinedeployments.cluster.x-k8s.io,taloscontrolplanes.controlplane.cluster.x-k8s.io -n argocd -o yaml
         # kubectl -n argocd get clusters
         pass
+
+    def cilium_annotate(self, cluster: Cluster, namespace: Namespace, service_name: str):
+        self._ctx.run(
+            "kubectl --context admin@{} --namespace {} annotate service {} "
+            "'io.cilium/global-service'='true' ".format(
+                cluster.name,
+                namespace.value,
+                service_name
+            ), echo=self._echo)
+        self._ctx.run(
+            "kubectl --context admin@{} --namespace {} annotate service {} "
+            "'service.cilium.io/affinity'='local'".format(
+                cluster.name,
+                namespace.value,
+                service_name
+            ), echo=self._echo)
