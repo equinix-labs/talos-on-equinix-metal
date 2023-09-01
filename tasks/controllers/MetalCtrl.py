@@ -168,6 +168,10 @@ class MetalCtrl:
                         patch_file_name
                     ), echo=self._echo)
 
+        ctx.run("kubectl --namespace {} rollout restart ds/network-dependencies-metallb-speaker".format(
+            namespace
+        ), echo=self._echo)
+
     def register_global_vip(self, ctx, vip: Vip, tags: list):
         """
         We want to ensure that only one global_ipv4 is registered for all satellites. Following behaviour should not

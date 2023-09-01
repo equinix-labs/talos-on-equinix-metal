@@ -5,7 +5,7 @@ import yaml
 from invoke import Context
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
-from tasks.dao.ProjectPaths import ProjectPaths
+from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.models.ConstellationSpecV01 import Cluster
 from tasks.models.Namespaces import Namespace
@@ -97,6 +97,16 @@ class Rook:
         if cluster != initial_context:
             self._context.set_cluster(initial_context)
 
+    def status(self):
+        """
+        sync status:
+        radosgw-admin sync status --rgw-realm artifactory
+        """
+        self._ctx.run(
+            "kubectl --namespace {} get CephObjectRealm,CephObjectZoneGroup,CephObjectZone,CephObjectStore".format(
+                Namespace.storage
+            ), echo=self._echo)
+
     def enable_multisite_storage(self):
         kubectl = Kubectl(self._ctx, self._context, self._echo)
         master_cluster = self._context.constellation.satellites[0]
@@ -116,11 +126,15 @@ class Rook:
                     self._pull_realm_secret(cluster, app)
                 else:
                     paths = ProjectPaths(self._context.constellation.name, master_cluster.name)  # ToDo: fix this spaghetti
+                    self._ctx.run("kubectl --context admin@{} apply -f {}".format(
+                        cluster.name,
+                        RepoPaths().apps_dir("storage", "deps", "10_rook_crd", "namespace.yaml")
+                    ), echo=self._echo)
                     self._ctx.run("kubectl --context admin@{} --namespace {} apply -f {}".format(
                         cluster.name,
                         Namespace.storage,
                         paths.cluster_secret_file("{}.yaml".format(app))
-                    ))
+                    ), echo=self._echo)
 
         self._context.set_cluster(initial_context)
 
