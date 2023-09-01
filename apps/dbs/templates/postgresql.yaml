@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   instances: 3
-
+  imageName: ghcr.io/cloudnative-pg/postgresql:13
   # Parameters and pg_hba configuration will be append
   # to the default ones to make the cluster work
   postgresql:
@@ -27,7 +27,7 @@ spec:
 
   # Require 1Gi of space per instance using default storage class
   storage:
-    size: 1Gi
+    size: 10Gi
   serviceAccountTemplate:
     metadata:
       annotations:

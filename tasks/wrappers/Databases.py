@@ -33,14 +33,13 @@ class Databases:
         https://cloudnative-pg.io/documentation/current
         https://github.com/cloudnative-pg/charts
         """
-        master_cluster = None
+        master_cluster = self._context.constellation.satellites[0]
         secrets = self._context.secrets
         context = self._context.cluster()
 
         for cluster in self._context.constellation.satellites:
-            if master_cluster is None:
-                master_cluster = cluster
-            else:
+            self._context.set_cluster(cluster)
+            if master_cluster != cluster:
                 self._create_postgres_master_replication_secret(master_cluster)
 
             data = {
@@ -76,7 +75,6 @@ class Databases:
                 }
             }
 
-            self._context.set_cluster(cluster)
             ApplicationsCtrl(self._ctx, self._context, self._echo, cluster=cluster).install_app(
                 self._application_directory, data, Namespace.database, install)
 
