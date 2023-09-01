@@ -45,6 +45,16 @@ harbor:
         storageClass: ceph-block
       trivy:
         storageClass: ceph-block
+    imageChartStorage:
+      disableredirect: true
+      type: s3
+      s3:
+        region: {{ region }}
+        bucket: {{ bucket }}
+        accesskey: {{ accesskey }}
+        secretkey: {{ secretkey }}
+        regionendpoint: {{ regionendpoint }}
+
   database:
     type: external # ToDo: https://github.com/goharbor/harbor/issues/8649
     external:

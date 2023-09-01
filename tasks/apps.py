@@ -347,20 +347,32 @@ def dashboards(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def harbor(ctx, install: bool = False, echo: bool = False):
+def harbor(ctx, cluster_name: str, install: bool = False, echo: bool = False):
+    """
+    Deploy Harbor
+    """
     context = SystemContext(ctx, echo)
-    _harbor = Harbor(ctx, context, echo)
+    _harbor = Harbor(ctx, context, echo, cluster_name)
     _harbor.install(install)
 
 
 @task()
-def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
+def harbor_storage(ctx, cluster_name: str, install: bool = False, echo: bool = False):
+    """
+    Create s3 bucket for Harbor, needs to happen first
+    """
     context = SystemContext(ctx, echo)
-    if cluster_name is not None:
-        harbor_client = Harbor(ctx, context, echo, context.cluster(cluster_name))
-    else:
-        harbor_client = Harbor(ctx, context, echo, context.cluster())
+    _harbor = Harbor(ctx, context, echo, cluster_name)
+    _harbor.install_storage(install)
 
+
+@task()
+def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
+    """
+    Configure Harbor
+    """
+    context = SystemContext(ctx, echo)
+    harbor_client = Harbor(ctx, context, echo, cluster_name)
     harbor_client.oidc_enable()
 
 

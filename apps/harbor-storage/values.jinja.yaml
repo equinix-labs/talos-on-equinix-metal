@@ -1,0 +1,3 @@
+storage:
+  objectStoreName: {{ object_store_name }}
+  rookNamespace: storage

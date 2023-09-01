@@ -1,6 +1,8 @@
+import base64
 from typing import Callable
 
 import harbor_client
+import yaml
 from harbor_client import Configuration, ProjectReq
 from invoke import Context
 
@@ -30,22 +32,65 @@ class Harbor:
     _satellites: list[Cluster]
     _cluster: Cluster
 
-    def __init__(self, ctx: Context, context: SystemContext, echo: bool, cluster: Cluster = None):
+    def __init__(self, ctx: Context, context: SystemContext, echo: bool, cluster_name: str = None):
         self._ctx = ctx
         self._context = context
         self._satellites = context.constellation.satellites
         self._echo = echo
 
-        if cluster is not None:
-            self._satellites = [cluster]
+        if cluster_name is not None:
+            self._satellites = [self._context.cluster(cluster_name)]
 
-    def install(self, install: bool, application_directory='harbor'):
-        # self._configure_db(Databases(self._ctx, self._context, self._echo))
-
-        secrets = self._context.secrets
+    def install_storage(self, install: bool, application_directory="harbor-storage"):
         context = self._context.cluster()
+
         for cluster in self._satellites:
             self._context.set_cluster(cluster)
+
+            data = {
+                'values': {
+                    'object_store_name': 'm-{}-harbor'.format(cluster.name)
+                }
+            }
+
+            ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
+                application_directory, data, Namespace.apps, install)
+
+        self._context.set_cluster(context)
+
+    def _get_s3_login_details(self, cluster: Cluster) -> dict:
+        object_bucket_yaml = self._ctx.run(
+            "kubectl --context admin@{} "
+            "--namespace {} get ObjectBuckets obc-harbor-harbor-bucket -o yaml".format(
+                cluster.name,
+                Namespace.harbor
+            ), hide="stdout", echo=self._echo).stdout
+        object_bucket = dict(yaml.safe_load(object_bucket_yaml))
+
+        bucket_secret_yaml = self._ctx.run(
+            "kubectl --context admin@{} --namespace {} get secrets harbor-bucket -o yaml".format(
+                cluster.name,
+                Namespace.harbor
+            ), hide="stdout", echo=self._echo).stdout
+        bucket_secret = dict(yaml.safe_load(bucket_secret_yaml))
+
+        return {
+            'bucket': object_bucket['spec']['endpoint']['bucketName'],
+            'accesskey': base64.b64decode(str.encode(bucket_secret['data']['AWS_ACCESS_KEY_ID'])).decode('utf-8'),
+            "secretkey": base64.b64decode(str.encode(bucket_secret['data']['AWS_SECRET_ACCESS_KEY'])).decode('utf-8'),
+            "regionendpoint": "http://{}".format(object_bucket['spec']['endpoint']['bucketHost']),
+        }
+
+    def install(self, install: bool, application_directory='harbor'):
+        secrets = self._context.secrets
+        context = self._context.cluster()
+        master_cluster = self._context.constellation.satellites[0]
+
+        for cluster in self._satellites:
+            self._context.set_cluster(cluster)
+            if cluster == master_cluster:
+                self._configure_db(Databases(self._ctx, self._context, self._echo))  # ToDo: DB detection
+
             data = {
                 'values': {
                     'global_fqdn': get_fqdn('harbor', secrets, cluster),
@@ -58,14 +103,17 @@ class Harbor:
                     'db_port': '5432',
                     'db_harbor_registry': harbor_registry,
                     'db_harbor_notary_server': harbor_notary_server,
-                    'db_harbor_notary_signer': harbor_notary_signer
+                    'db_harbor_notary_signer': harbor_notary_signer,
+                    'region': ""
                 }
             }
+
+            data['values'].update(self._get_s3_login_details(cluster))
 
             ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
                 application_directory, data, Namespace.apps, install)
 
-        self._context.cluster(context.name)
+        self._context.set_cluster(context)
 
     def uninstall(self):
         context = self._context.cluster()
