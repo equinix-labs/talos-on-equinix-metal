@@ -202,6 +202,9 @@ class ProjectPaths:
     def secrets_dir(self):
         return mkdirs(os.path.join(self.cluster_dir(), "secrets"))
 
+    def cluster_secret_file(self, file_name):
+        return os.path.join(self.secrets_dir(), file_name)
+
     def postgres_master_replication_secret(self):
         return os.path.join(self.secrets_dir(), 'postgres-replication.yaml')
 

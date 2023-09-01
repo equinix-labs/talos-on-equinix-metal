@@ -131,7 +131,7 @@ class Kubectl:
         # kubectl -n argocd get clusters
         pass
 
-    def cilium_annotate(self, cluster: Cluster, namespace: Namespace, service_name: str):
+    def cilium_annotate_global_service(self, cluster: Cluster, namespace: Namespace, service_name: str):
         self._ctx.run(
             "kubectl --context admin@{} --namespace {} annotate service {} "
             "'io.cilium/global-service'='true' ".format(

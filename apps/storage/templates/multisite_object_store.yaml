@@ -9,7 +9,7 @@ metadata:
 {{- if .master_zone.defined }}
 spec:
   pull:
-    endpoint: http://rook-ceph-rgw-m-{{ .master_zone.name }}
+    endpoint: http://rook-ceph-rgw-m-{{ .master_zone.name }}.storage
 {{- end }}
 ---
 apiVersion: ceph.rook.io/v1

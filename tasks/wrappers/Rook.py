@@ -5,6 +5,7 @@ import yaml
 from invoke import Context
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
+from tasks.dao.ProjectPaths import ProjectPaths
 from tasks.dao.SystemContext import SystemContext
 from tasks.models.ConstellationSpecV01 import Cluster
 from tasks.models.Namespaces import Namespace
@@ -18,6 +19,7 @@ class Rook:
             echo: bool):
         """
         We will focus on the Multi Site Object Storage - s3 compatible, because simple DR is boring
+        https://github.com/rook/rook/tree/release-1.12/deploy/examples
         https://rook.io/docs/rook/v1.12/Storage-Configuration/Object-Storage-RGW/object-storage/
         https://docs.ceph.com/en/latest/radosgw/multisite/
         https://rook.github.io/docs/rook/v1.12/Storage-Configuration/Object-Storage-RGW/ceph-object-multisite/
@@ -47,33 +49,33 @@ class Rook:
                 'multisite_enabled': cluster != self._context.constellation.bary,
                 'applications': [
                     {
-                        'realm_name': "{}-harbor".format(cluster.name),
-                        'zone_group_name': self._context.constellation.name,
-                        'zone_name': cluster.name,
-                        'object_store_name': cluster.name,
+                        'realm_name': "harbor",
+                        'zone_group_name': "{}-harbor".format(self._context.constellation.name),
+                        'zone_name': "{}-harbor".format(cluster.name),
+                        'object_store_name': "{}-harbor".format(cluster.name),
                         'master_zone': {
                             'defined': cluster != master_cluster,
-                            'name': master_cluster.name
+                            'name': "{}-harbor".format(master_cluster.name)
                         }
                     },
                     {
-                        'realm_name': "{}-nexus".format(cluster.name),
-                        'zone_group_name': self._context.constellation.name,
-                        'zone_name': cluster.name,
-                        'object_store_name': cluster.name,
+                        'realm_name': "nexus",
+                        'zone_group_name': "{}-nexus".format(self._context.constellation.name),
+                        'zone_name': "{}-nexus".format(cluster.name),
+                        'object_store_name': "{}-nexus".format(cluster.name),
                         'master_zone': {
                             'defined': cluster != master_cluster,
-                            'name': master_cluster.name
+                            'name': "{}-nexus".format(master_cluster.name)
                         }
                     },
                     {
-                        'realm_name': "{}-artifactory".format(cluster.name),
-                        'zone_group_name': self._context.constellation.name,
-                        'zone_name': cluster.name,
-                        'object_store_name': cluster.name,
+                        'realm_name': "artifactory",
+                        'zone_group_name': "{}-artifactory".format(self._context.constellation.name),
+                        'zone_name': "{}-artifactory".format(cluster.name),
+                        'object_store_name': "{}-artifactory".format(cluster.name),
                         'master_zone': {
                             'defined': cluster != master_cluster,
-                            'name': master_cluster.name
+                            'name': "{}-artifactory".format(master_cluster.name)
                         }
                     }
                 ]
@@ -97,8 +99,50 @@ class Rook:
 
     def enable_multisite_storage(self):
         kubectl = Kubectl(self._ctx, self._context, self._echo)
-        cluster = self._context.cluster()
-        kubectl.cilium_annotate(cluster, Namespace.storage, "rook-ceph-rgw-multisite-{}".format(cluster.name))
+        master_cluster = self._context.constellation.satellites[0]
+        initial_context = self._context.cluster()
+        applications = ['artifactory', 'harbor', 'nexus']
+
+        for cluster in self._context.constellation.satellites:
+            self._context.set_cluster(cluster)
+            for app in applications:
+                app_name = "{}-{}".format(cluster.name, app)
+                if cluster == master_cluster:
+                    kubectl.cilium_annotate_global_service(
+                        cluster,
+                        Namespace.storage,
+                        "rook-ceph-rgw-m-{}".format(app_name)
+                    )
+                    self._pull_realm_secret(cluster, app)
+                else:
+                    paths = ProjectPaths(self._context.constellation.name, master_cluster.name)  # ToDo: fix this spaghetti
+                    self._ctx.run("kubectl --context admin@{} --namespace {} apply -f {}".format(
+                        cluster.name,
+                        Namespace.storage,
+                        paths.cluster_secret_file("{}.yaml".format(app))
+                    ))
+
+        self._context.set_cluster(initial_context)
+
+    def _pull_realm_secret(self, cluster: Cluster, secret_name: str):
+        realm_secret_yaml = self._ctx.run(
+            "kubectl --context admin@{} --namespace {} "
+            "get secret {}-keys -o yaml".format(
+                cluster.name,
+                Namespace.storage,
+                secret_name),
+            hide="stdout",
+            echo=self._echo).stdout
+
+        realm_secret = dict(yaml.safe_load(realm_secret_yaml))
+        del realm_secret['metadata']['creationTimestamp']
+        del realm_secret['metadata']['ownerReferences']
+        del realm_secret['metadata']['resourceVersion']
+        del realm_secret['metadata']['uid']
+
+        paths = ProjectPaths(self._context.constellation.name, cluster.name)
+        with open(paths.cluster_secret_file("{}.yaml".format(secret_name)), 'w') as secret_file:
+            yaml.dump(realm_secret, secret_file)
 
     def _install_toolbox(self, branch_name='master'):
         toolbox_deployment_file_path = self._context.project_paths.deployments_ceph_toolbox()

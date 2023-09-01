@@ -113,7 +113,7 @@ class Databases:
     def _patch_cluster_service(self):
         kubectl = Kubectl(self._ctx, self._context, self._echo)
         for cluster in self._context.constellation.satellites:
-            kubectl.cilium_annotate(cluster, Namespace.database, "postgres-{}-rw".format(cluster.name))
+            kubectl.cilium_annotate_global_service(cluster, Namespace.database, "postgres-{}-rw".format(cluster.name))
 
     def uninstall(self):
         context = self._context.cluster()
