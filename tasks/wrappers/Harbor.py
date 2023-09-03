@@ -58,27 +58,38 @@ class Harbor:
 
         self._context.set_cluster(context)
 
-    def _get_s3_login_details(self, cluster: Cluster) -> dict:
+    def _get_s3_login_details(self, master_cluster: Cluster, cluster: Cluster) -> dict:
         object_bucket_yaml = self._ctx.run(
             "kubectl --context admin@{} "
             "--namespace {} get ObjectBuckets obc-harbor-harbor-bucket -o yaml".format(
-                cluster.name,
+                master_cluster.name,
                 Namespace.harbor
             ), hide="stdout", echo=self._echo).stdout
         object_bucket = dict(yaml.safe_load(object_bucket_yaml))
 
         bucket_secret_yaml = self._ctx.run(
             "kubectl --context admin@{} --namespace {} get secrets harbor-bucket -o yaml".format(
-                cluster.name,
+                master_cluster.name,
                 Namespace.harbor
             ), hide="stdout", echo=self._echo).stdout
         bucket_secret = dict(yaml.safe_load(bucket_secret_yaml))
+
+        """
+        In our Object Store Multisite, objects are replicated across the zone. This means it is sufficient to create
+        the bucket once in one cluster. The ceph will automagically sync it across.
+        This mean that in all other clusters we wish to use this bucket we need to fetch the bucket details
+        from the master cluster. Then on all other clusters just replace the endpoint url, so that it points to the 
+        local rook/ceph service.
+        """
+        regionendpoint = "http://{}".format(object_bucket['spec']['endpoint']['bucketHost'])
+        if master_cluster != cluster:
+            regionendpoint = regionendpoint.replace(master_cluster.name, cluster.name)
 
         return {
             'bucket': object_bucket['spec']['endpoint']['bucketName'],
             'accesskey': base64.b64decode(str.encode(bucket_secret['data']['AWS_ACCESS_KEY_ID'])).decode('utf-8'),
             "secretkey": base64.b64decode(str.encode(bucket_secret['data']['AWS_SECRET_ACCESS_KEY'])).decode('utf-8'),
-            "regionendpoint": "http://{}".format(object_bucket['spec']['endpoint']['bucketHost']),
+            "regionendpoint": regionendpoint
         }
 
     def install(self, install: bool, application_directory='harbor'):
@@ -108,7 +119,7 @@ class Harbor:
                 }
             }
 
-            data['values'].update(self._get_s3_login_details(cluster))
+            data['values'].update(self._get_s3_login_details(master_cluster, cluster))
 
             ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
                 application_directory, data, Namespace.apps, install)

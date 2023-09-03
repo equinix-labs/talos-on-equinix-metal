@@ -161,7 +161,13 @@ class Rook:
     def _install_toolbox(self, branch_name='master'):
         toolbox_deployment_file_path = self._context.project_paths.deployments_ceph_toolbox()
         if not os.path.isfile(toolbox_deployment_file_path):
-            url = 'https://raw.githubusercontent.com/rook/rook/{}/deploy/examples/toolbox.yaml'.format(branch_name)
+            """
+            https://rook.io/docs/rook/v1.12/Storage-Configuration/Object-Storage-RGW/object-storage/#configure-s5cmd
+            The default toolbox.yaml does not contain the s5cmd. The toolbox must be started with the rook operator
+             image (toolbox-operator-image), which does contain s5cmd.
+            """
+            url = 'https://raw.githubusercontent.com/rook/rook/{}/deploy/examples/toolbox-operator-image.yaml'.format(
+                branch_name)
             r = requests.get(url)
             if r.status_code != 200:
                 print("Check the toolbox URL: " + url)
