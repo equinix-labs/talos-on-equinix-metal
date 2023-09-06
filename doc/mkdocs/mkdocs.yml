@@ -1,0 +1,49 @@
+site_name: GoCloudYourself
+site_url: https://gocy.org
+site_author: Krystian Marek
+
+site_description: >-
+  Become your own cloud provider
+
+repo_url: https://github.com/gocloudyourself/gocy
+repo_name: gocloudyourself/gocy
+
+copyright: Copyright &copy; 2023 - 2023 Krystian Marek
+
+nav:
+  - Home: index.md
+  - Getting started:
+    - Introduction: intro.md
+    - Prerequisites: prerequisites.md
+    - Architecture:
+      - BOM: architecture/bom.md
+      - Diagram: architecture/diagram.md
+    - Resources: resources/resources.md
+  - Setup:
+    - Management cluster: setup/management.md
+  - Development: development/development.md
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+
+theme:
+  name: material
+  custom_dir: gocy_customs
+  language: en
+  features:
+    - announce.dismiss
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/gocloudyourself/gocy
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/krystianmarek
+
