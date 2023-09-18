@@ -8,10 +8,10 @@ rook-ceph-cluster:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
-                - key: node.kubernetes.io/instance-type
+                - key: kubernetes.io/os
                   operator: In
                   values:
-                    - m3.large.x86 # ToDo: set proper labels on nodes -> nodeLabels - https://www.talos.dev/v1.4/reference/configuration/#machineconfig
+                    - linux # ToDo: set proper labels on nodes -> nodeLabels - https://www.talos.dev/v1.4/reference/configuration/#machineconfig
         tolerations:
           - key: node-role.kubernetes.io/control-plane
             operator: Exists

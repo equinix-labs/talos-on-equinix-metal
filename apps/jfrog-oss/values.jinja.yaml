@@ -1,0 +1,129 @@
+artifactory-oss:
+  artifactory:
+    artifactory:
+      splitServicesToContainers: false
+      ingress:
+        enabled: true
+        defaultBackend:
+          enabled: true
+        hosts:
+          - {{ fqdn }}
+        routerPath: /
+        artifactoryPath: /artifactory/
+        className: "nginx-global"
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-gcp
+          external-dns.alpha.kubernetes.io/hostname: {{ fqdn }}
+          nginx.ingress.kubernetes.io/proxy-body-size: "0"
+        labels:
+          traffic-type: external
+        tls:
+          - secretName: tls.{{ fqdn }}
+            hosts:
+              - {{ fqdn }}
+      global:
+        masterKey: {{ artifactory['master_key'] }}
+        joinKey: {{ artifactory['join_key'] }}
+      serviceAccount:
+        create: true
+      nginx:
+        enabled: false
+      artifactory:
+        admin:
+          ip: {{ artifactory['ip'] }}
+          username: {{ artifactory['admin_user'] }}
+          password: {{ artifactory['admin_pass'] }}
+        persistence:
+          enabled: true
+          existingClaim: artifactory-data-volume
+          storageClassName: ceph-filesystem
+          size: 20Gi
+        database:
+          maxOpenConnections: 150
+        tomcat:
+          connector:
+            maxThreads: 300
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "2"
+          limits:
+            memory: "10Gi"
+            cpu: "8"
+        javaOpts:
+          xms: "8g"
+          xmx: "10g"
+      access:
+        database:
+          maxOpenConnections: 150
+        tomcat:
+          connector:
+            maxThreads: 100
+      router:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      frontend:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      metadata:
+        database:
+          maxOpenConnections: 150
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      event:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      jfconnect:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      integration:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      observability:
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      postgresql:
+        enabled: false
+      database:
+        type: postgresql
+        driver: org.postgresql.Driver
+        url: "jdbc:postgresql://dbs-cockroachdb-public.dbs:26257/artifactory?sslmode=disable&user=root"
+        secrets:
+          user:
+            name: root
+            key: root

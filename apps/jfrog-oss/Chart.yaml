@@ -1,12 +1,12 @@
 apiVersion: v2
-name: artifactory
-description: Enables artifactory
+name: artifactory-oss
+description: Enables artifactory-oss
 
 type: application
 version: 0.1.0
 appVersion: "1.16.0"
 
 dependencies:
-  - name: artifactory
+  - name: artifactory-oss
     version: 107.68.8
     repository: https://charts.jfrog.io

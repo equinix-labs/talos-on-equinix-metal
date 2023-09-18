@@ -32,6 +32,8 @@ class Databases:
         None of the tested Repository Managers work with CockroachDB. Until they do we go with
         https://cloudnative-pg.io/documentation/current
         https://github.com/cloudnative-pg/charts
+
+        https://www.pgpool.net/docs/pgpool-II-4.2.3/en/html/example-kubernetes.html
         """
         master_cluster = self._context.constellation.satellites[0]
         secrets = self._context.secrets
@@ -207,4 +209,3 @@ class Databases:
                 ), echo=self._echo)
         except Failure:
             logging.info("Already exists")
-

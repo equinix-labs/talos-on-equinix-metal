@@ -1,0 +1,82 @@
+{{- if $.Values.multisite.enabled }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rgw-proxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      name: rgw-proxy
+  template:
+    metadata:
+      labels:
+        name: rgw-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine-slim
+          ports:
+            - containerPort: 80
+              name: rgw-proxy-port
+          volumeMounts:
+            - mountPath: /etc/nginx/nginx.conf
+              name: config
+              subPath: nginx.conf
+      volumes:
+        - name: config
+          configMap:
+            name: rgw-proxy-nginx-conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rgw-proxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: rgw-proxy-port
+  selector:
+    name: rgw-proxy
+---
+{{/* https://saturncloud.io/blog/how-to-use-nginx-as-a-proxy-for-amazon-s3-resources/ */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rgw-proxy-nginx-conf
+data:
+  nginx.conf: |
+    events {}
+    http {
+      sendfile           on;
+      keepalive_timeout  65;
+      proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m inactive=60m;
+      server {
+        listen 80;
+        server_name rgw-proxy.storage.svc;
+        charset     utf-8;
+        client_max_body_size 0;
+
+        location / {
+          proxy_redirect off;
+          proxy_cache my_cache;
+          proxy_cache_key "$scheme$request_method$host$request_uri";
+          proxy_cache_valid 200 60m;
+          proxy_cache_valid 404 1m;
+
+          if ($request_method = GET ) {
+            proxy_pass http://rook-ceph-rgw-m-titan-harbor;
+          }
+          if ($request_method != GET ) {
+             proxy_pass http://rook-ceph-rgw-m-titan-harbor;
+          }
+        }
+      }
+    }
+
+{{- end }}

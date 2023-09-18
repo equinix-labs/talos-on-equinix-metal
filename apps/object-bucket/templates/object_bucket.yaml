@@ -1,0 +1,19 @@
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: {{ .Values.storage.appName }}-bucket
+provisioner: {{ .Values.storage.rookNamespace }}.ceph.rook.io/bucket
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: {{ .Values.storage.objectStoreName }}
+  objectStoreNamespace: {{ .Values.storage.rookNamespace }}
+---
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: {{ .Values.storage.appName }}-bucket
+  namespace: {{ .Release.Namespace }}
+spec:
+  generateBucketName: {{ .Values.storage.appName }}-bucket
+  storageClassName: {{ .Values.storage.appName }}-bucket

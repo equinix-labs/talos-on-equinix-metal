@@ -5,7 +5,7 @@ cacppt: v0.5.1 # https://github.com/siderolabs/cluster-api-control-plane-provide
 capp: v0.7.2 # https://github.com/kubernetes-sigs/cluster-api-provider-packet
 version: 0.1.0
 bary:
-  name: jupiter
+  name: europa
   metro: da
   cpem: v3.6.2
   talos: v1.4
@@ -33,7 +33,7 @@ bary:
     plan: m3.large.x86
 satellites:
 - name: ganymede
-  metro: ny
+  metro: sv
   cpem: v3.6.2
   talos: v1.4
   kubernetes: v1.27.1
@@ -61,7 +61,7 @@ satellites:
   - count: 1
     plan: c3.medium.x86
 - name: callisto
-  metro: sv
+  metro: ny
   cpem: v3.6.2
   talos: v1.4
   kubernetes: v1.27.1

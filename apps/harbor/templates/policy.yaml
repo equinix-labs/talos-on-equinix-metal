@@ -1,0 +1,70 @@
+{{/*---*/}}
+{{/*apiVersion: "cilium.io/v2"*/}}
+{{/*kind: CiliumNetworkPolicy*/}}
+{{/*metadata:*/}}
+{{/*  name: "rhea-write-to-titan"*/}}
+{{/*  namespace: {{ $.Release.Namespace }}*/}}
+{{/*spec:*/}}
+{{/*  endpointSelector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      name: harbor*/}}
+{{/*      io.cilium.k8s.policy.cluster: {{ .cluster.name }}*/}}
+{{/*  egress:*/}}
+{{/*  - toEndpoints:*/}}
+{{/*    - matchLabels:*/}}
+{{/*        name: ceph-rgw*/}}
+{{/*        io.kubernetes.pod.namespace: storage*/}}
+{{/*        io.cilium.k8s.policy.cluster: {{ .master_cluster.name }}*/}}
+{{/*  - toPorts:*/}}
+{{/*    - rules:*/}}
+{{/*        http:*/}}
+{{/*        - method: "POST"*/}}
+{{/*          path: "/"*/}}
+{{/*        - method: "PUT"*/}}
+{{/*          path: "/"*/}}
+{{/*        - method: "DELETE"*/}}
+{{/*          path: "/"*/}}
+{{/*        - method: "PATCH"*/}}
+{{/*          path: "/"*/}}
+{{/*        - method: "HEAD"*/}}
+{{/*          path: "/"*/}}
+{{/*---*/}}
+{{/*apiVersion: "cilium.io/v2"*/}}
+{{/*kind: CiliumNetworkPolicy*/}}
+{{/*metadata:*/}}
+{{/*  name: "rhea-read-from-rhea"*/}}
+{{/*  namespace: {{ $.Release.Namespace }}*/}}
+{{/*spec:*/}}
+{{/*  endpointSelector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      name: harbor*/}}
+{{/*  egress:*/}}
+{{/*  - toEndpoints:*/}}
+{{/*    - matchLabels:*/}}
+{{/*        name: ceph-rgw*/}}
+{{/*        io.kubernetes.pod.namespace: storage*/}}
+{{/*  - toPorts:*/}}
+{{/*    - rules:*/}}
+{{/*        http:*/}}
+{{/*        - method: "GET"*/}}
+{{/*          path: "/"*/}}
+{{/*---*/}}
+{{/*apiVersion: v1*/}}
+{{/*kind: Service*/}}
+{{/*metadata:*/}}
+{{/*  annotations:*/}}
+{{/*    io.cilium/global-service: "true"*/}}
+{{/*  labels:*/}}
+{{/*    app: rook-ceph-rgw*/}}
+{{/*    rgw: m-harbor*/}}
+{{/*  name: rook-ceph-rgw-m-harbor*/}}
+{{/*  namespace: storage*/}}
+{{/*spec:*/}}
+{{/*  ports:*/}}
+{{/*  - name: http*/}}
+{{/*    port: 80*/}}
+{{/*    protocol: TCP*/}}
+{{/*    targetPort: 8080*/}}
+{{/*  selector:*/}}
+{{/*    app: rook-ceph-rgw*/}}
+{{/*  type: ClusterIP*/}}

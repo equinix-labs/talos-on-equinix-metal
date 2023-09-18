@@ -7,9 +7,23 @@ from invoke import Context
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
 from tasks.dao.ProjectPaths import ProjectPaths, RepoPaths
 from tasks.dao.SystemContext import SystemContext
-from tasks.models.ConstellationSpecV01 import Cluster
+from tasks.models.ConstellationSpecV01 import Cluster, Constellation
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Kubectl import Kubectl
+
+
+def _get_app_config(app_name: str, master_cluster: Cluster,
+                    cluster: Cluster, constellation: Constellation) -> dict:
+    return {
+        'realm_name': app_name,
+        'zone_group_name': "{}-{}".format(constellation.name, app_name),
+        'zone_name': "{}-{}".format(cluster.name, app_name),
+        'object_store_name': "{}-{}".format(cluster.name, app_name),
+        'master_zone': {
+            'defined': cluster != master_cluster,
+            'name': "{}-{}".format(master_cluster.name, app_name)
+        }
+    }
 
 
 class Rook:
@@ -23,6 +37,7 @@ class Rook:
         https://rook.io/docs/rook/v1.12/Storage-Configuration/Object-Storage-RGW/object-storage/
         https://docs.ceph.com/en/latest/radosgw/multisite/
         https://rook.github.io/docs/rook/v1.12/Storage-Configuration/Object-Storage-RGW/ceph-object-multisite/
+        https://www.youtube.com/watch?v=nLyEf59O4cY
 
         krew plugin does not have support for radosgw-admin
         https://rook.io/docs/rook/v1.12/Troubleshooting/krew-plugin/
@@ -48,36 +63,10 @@ class Rook:
             'values': {
                 'multisite_enabled': cluster != self._context.constellation.bary,
                 'applications': [
-                    {
-                        'realm_name': "harbor",
-                        'zone_group_name': "{}-harbor".format(self._context.constellation.name),
-                        'zone_name': "{}-harbor".format(cluster.name),
-                        'object_store_name': "{}-harbor".format(cluster.name),
-                        'master_zone': {
-                            'defined': cluster != master_cluster,
-                            'name': "{}-harbor".format(master_cluster.name)
-                        }
-                    },
-                    {
-                        'realm_name': "nexus",
-                        'zone_group_name': "{}-nexus".format(self._context.constellation.name),
-                        'zone_name': "{}-nexus".format(cluster.name),
-                        'object_store_name': "{}-nexus".format(cluster.name),
-                        'master_zone': {
-                            'defined': cluster != master_cluster,
-                            'name': "{}-nexus".format(master_cluster.name)
-                        }
-                    },
-                    {
-                        'realm_name': "artifactory",
-                        'zone_group_name': "{}-artifactory".format(self._context.constellation.name),
-                        'zone_name': "{}-artifactory".format(cluster.name),
-                        'object_store_name': "{}-artifactory".format(cluster.name),
-                        'master_zone': {
-                            'defined': cluster != master_cluster,
-                            'name': "{}-artifactory".format(master_cluster.name)
-                        }
-                    }
+                    _get_app_config("harbor", master_cluster, cluster, self._context.constellation),
+                    _get_app_config("nexus", master_cluster, cluster, self._context.constellation),
+                    _get_app_config("artifactory", master_cluster, cluster, self._context.constellation),
+                    _get_app_config("artifactory-oss3", master_cluster, cluster, self._context.constellation)
                 ]
             },
             'deps': {
@@ -111,7 +100,7 @@ class Rook:
         kubectl = Kubectl(self._ctx, self._context, self._echo)
         master_cluster = self._context.constellation.satellites[0]
         initial_context = self._context.cluster()
-        applications = ['artifactory', 'harbor', 'nexus']
+        applications = ['artifactory', 'artifactory-oss3', 'harbor', 'nexus']
 
         for cluster in self._context.constellation.satellites:
             self._context.set_cluster(cluster)

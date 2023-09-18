@@ -84,6 +84,7 @@ class Harbor:
         regionendpoint = "http://{}".format(object_bucket['spec']['endpoint']['bucketHost'])
         if master_cluster != cluster:
             regionendpoint = regionendpoint.replace(master_cluster.name, cluster.name)
+        # regionendpoint = "http://rgw-proxy.storage.svc:8080"
 
         return {
             'bucket': object_bucket['spec']['endpoint']['bucketName'],

@@ -1,0 +1,12 @@
+multisite:
+  enabled: {{ multisite_enabled }}
+  applications:
+  {% for application in applications %}
+    - realm_name: {{ application['realm_name'] }}
+      zone_group_name: {{ application['zone_group_name'] }}
+      zone_name: {{ application['zone_name'] }}
+      object_store_name: {{ application['object_store_name'] }}
+      master_zone:
+        defined: {{ application['master_zone']['defined'] }}
+        name: {{ application['master_zone']['name'] }}
+  {% endfor %}

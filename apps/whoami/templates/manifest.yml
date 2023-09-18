@@ -15,18 +15,10 @@ spec:
     spec:
       containers:
         - name: whoami
-          image: traefik/whoami:v1.9.0
+          image: traefik/whoami:v1.10.1
           env:
             - name: WHOAMI_NAME
               value: {{ .Values.test_app.name }}
-#          securityContext: {}
-#            allowPrivilegeEscalation: false
-##            runAsNonRoot: true
-#            capabilities:
-#              drop:
-#               - "ALL"
-#            seccompProfile:
-#              type: RuntimeDefault
           ports:
             - containerPort: 80
               name: whoami-app-port
@@ -69,45 +61,56 @@ spec:
   selector:
     app: whoami-app
 
-{{/*---*/}}
-{{/*apiVersion: "cilium.io/v2"*/}}
-{{/*kind: CiliumNetworkPolicy*/}}
-{{/*metadata:*/}}
-{{/*  name: ingress-whoami-policy*/}}
-{{/*  namespace: {{ .Release.Namespace }}*/}}
-{{/*spec:*/}}
-{{/*  endpointSelector:*/}}
-{{/*    matchLabels:*/}}
-{{/*      app: whoami-app*/}}
-{{/*  ingress:*/}}
-{{/*    - fromEntities:*/}}
-{{/*        - world*/}}
-{{/*      toPorts:*/}}
-{{/*        - ports:*/}}
-{{/*            - port: "80"*/}}
-{{/*              protocol: TCP*/}}
-{{/*    - fromEntities:*/}}
-{{/*        - cluster*/}}
-{{/*      toPorts:*/}}
-{{/*        - ports:*/}}
-{{/*            - port: "80"*/}}
-{{/*              protocol: TCP*/}}
-{{/*  egress:*/}}
-{{/*    - toEntities:*/}}
-{{/*        - world*/}}
-{{/*    - toEntities:*/}}
-{{/*        - cluster*/}}
-{{/*    - toEndpoints:*/}}
-{{/*      - matchLabels:*/}}
-{{/*          io.kubernetes.pod.namespace: kube-system*/}}
-{{/*          k8s-app: kube-dns*/}}
-{{/*      toPorts:*/}}
-{{/*        - ports:*/}}
-{{/*            - port: "53"*/}}
-{{/*              protocol: UDP*/}}
-{{/*          rules:*/}}
-{{/*            dns:*/}}
-{{/*              - matchPattern: "*"*/}}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: api-only-for-remotes
+  namespace: {{ .Release.Namespace }}
+spec:
+  description: Only allow remote debug pods to access /api endpoint
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+      io.cilium.k8s.policy.cluster: titan
+  ingress:
+    - fromEndpoints:
+      - matchLabels:
+          name: debug
+          io.kubernetes.pod.namespace: network-services
+          io.cilium.k8s.policy.cluster: rhea
+      toPorts:
+      - ports:
+        - port: "80"
+          protocol: TCP
+        rules:
+          http:
+          - method: "GET"
+            path: "/api"
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: root-only-for-locals
+  namespace: {{ .Release.Namespace }}
+spec:
+  description: Only allow local debug pods to access /
+  endpointSelector:
+    matchLabels:
+      app: whoami-app
+  ingress:
+    - fromEndpoints:
+      - matchLabels:
+          name: debug
+          io.kubernetes.pod.namespace: network-services
+      toPorts:
+      - ports:
+        - port: "80"
+          protocol: TCP
+        rules:
+          http:
+          - method: "GET"
+            path: "/"
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
