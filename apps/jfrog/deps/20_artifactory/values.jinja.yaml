@@ -36,10 +36,12 @@ artifactory:
       #existingClaim: artifactory-data-volume
       type: aws-s3-v3
       awsS3V3:
-        bucketName: artifactory-bucket-bbdf4133-6b5a-40b4-b12b-309e080fd82e
-        endpoint: rook-ceph-rgw-m-titan-artifactory.storage.svc
+        bucketName: {{ bucket }} # artifactory-bucket-bbdf4133-6b5a-40b4-b12b-309e080fd82e
+        endpoint: {{ regionendpoint }} # rook-ceph-rgw-m-titan-artifactory.storage.svc
         useHttp: true
-        credential: artifactory-bucket
+        useInstanceCredentials: false
+        identity: {{ accesskey }}
+        credential: {{ secretkey }}
         enablePathStyleAccess: true
     database:
       maxOpenConnections: 150

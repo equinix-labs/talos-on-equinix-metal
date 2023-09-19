@@ -1,5 +1,7 @@
+import base64
 import logging
 
+import yaml
 from invoke import Context, Failure
 
 from tasks.controllers.ApplicationsCtrl import ApplicationsCtrl
@@ -22,6 +24,8 @@ class JFrog:
         """
         https://github.com/devopshq/artifactory
         https://jfrog.com/help/r/jfrog-installation-setup-documentation/install-artifactory-ha-with-helm
+        storage:
+        https://jfrog.com/help/r/jfrog-installation-setup-documentation/s3-sharding-examples
         """
         self._ctx = ctx
         self._context = context
@@ -136,8 +140,46 @@ class JFrog:
                 }
             }
         }
+        data['deps']['20_artifactory'].update(
+            self._get_s3_login_details(
+                self._master_cluster, cluster, Namespace.jfrog))
         ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
             self._application_directory, data, Namespace.jfrog, install)
+
+    def _get_s3_login_details(self, master_cluster: Cluster, cluster: Cluster, namespace: Namespace) -> dict:
+        object_bucket_yaml = self._ctx.run(
+            "kubectl --context admin@{} "
+            "--namespace {} get ObjectBuckets obc-jfrog-artifactory-bucket -o yaml".format(
+                master_cluster.name,
+                namespace
+            ), hide="stdout", echo=self._echo).stdout
+        object_bucket = dict(yaml.safe_load(object_bucket_yaml))
+
+        bucket_secret_yaml = self._ctx.run(
+            "kubectl --context admin@{} --namespace {} get secrets artifactory-bucket -o yaml".format(
+                master_cluster.name,
+                namespace
+            ), hide="stdout", echo=self._echo).stdout
+        bucket_secret = dict(yaml.safe_load(bucket_secret_yaml))
+
+        """
+        In our Object Store Multisite, objects are replicated across the zone. This means it is sufficient to create
+        the bucket once in one cluster. The ceph will automagically sync it across.
+        This mean that in all other clusters we wish to use this bucket we need to fetch the bucket details
+        from the master cluster. Then on all other clusters just replace the endpoint url, so that it points to the 
+        local rook/ceph service.
+        """
+        regionendpoint = "http://{}".format(object_bucket['spec']['endpoint']['bucketHost'])
+        if master_cluster != cluster:
+            regionendpoint = regionendpoint.replace(master_cluster.name, cluster.name)
+        # regionendpoint = "http://rgw-proxy.storage.svc:8080"
+
+        return {
+            'bucket': object_bucket['spec']['endpoint']['bucketName'],
+            'accesskey': base64.b64decode(str.encode(bucket_secret['data']['AWS_ACCESS_KEY_ID'])).decode('utf-8'),
+            "secretkey": base64.b64decode(str.encode(bucket_secret['data']['AWS_SECRET_ACCESS_KEY'])).decode('utf-8'),
+            "regionendpoint": regionendpoint
+        }
 
     def uninstall(self):
         try:
