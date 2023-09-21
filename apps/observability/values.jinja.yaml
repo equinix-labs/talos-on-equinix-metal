@@ -1,53 +1,87 @@
-jaeger:
-  provisionDataStore:
-    cassandra: false
-  allInOne:
-    enabled: true
+kube-prometheus-stack:
+  defaultRules:
+    rules:
+      kubeProxy: false
+  grafana:
+    adminUser: {{ admin_user }}
+    adminPassword: {{ admin_pass }}
+    rbac:
+      pspEnabled: true
     ingress:
       enabled: true
       ingressClassName: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-gcp
-        external-dns.alpha.kubernetes.io/hostname: {{ jaeger_fqdn }}
+        external-dns.alpha.kubernetes.io/hostname: {{ grafana_fqdn }}
         nginx.ingress.kubernetes.io/auth-url: https://{{ oauth_fqdn }}/oauth2/auth
         nginx.ingress.kubernetes.io/auth-signin: https://{{ oauth_fqdn }}/oauth2/start
         nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
       hosts:
-        - {{ jaeger_fqdn }}
+        - {{ grafana_fqdn }}
       tls:
-        - secretName: tls.{{ jaeger_fqdn }}
+        - secretName: tls.{{ grafana_fqdn }}
           hosts:
-            - {{ jaeger_fqdn }}
-  storage:
-    type: none
-  agent:
+            - {{ grafana_fqdn }}
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+        - name: TitanPrometheus
+          type: prometheus
+          url: http://prometheus-titan.observability
+        - name: RheaPrometheus
+          type: prometheus
+          url: http://prometheus-rhea.observability
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+        - name: ceph
+          orgId: 1
+          folder: ceph
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/ceph
+    dashboards:
+      ceph:
+        rgw:
+          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
+          #json: |
+          #  "dashboards/rgw.json"
+        iops:
+          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/iops-by-server.json
+          #json: |
+          #  "dashboards/iops.json"
+        cluster:
+          gnetId: 2842
+          revision: 17
+          datasource: Prometheus
+        osd:
+          gnetId: 5336
+          revision: 9
+          datasource: Prometheus
+        pools:
+          gnetId: 5342
+          revision: 9
+          datasource: Prometheus
+  kubeProxy:
     enabled: false
-  collector:
-    enabled: false
-  query:
-    enabled: false
-grafana:
-  adminUser: {{ admin_user }}
-  adminPassword: {{ admin_pass }}
-  ingress:
+  prometheus:
     enabled: true
-    ingressClassName: nginx
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-gcp
-      external-dns.alpha.kubernetes.io/hostname: {{ grafana_fqdn }}
-      nginx.ingress.kubernetes.io/auth-url: https://{{ oauth_fqdn }}/oauth2/auth
-      nginx.ingress.kubernetes.io/auth-signin: https://{{ oauth_fqdn }}/oauth2/start
-      nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
-    hosts:
-      - {{ grafana_fqdn }}
-    tls:
-      - secretName: tls.{{ grafana_fqdn }}
-        hosts:
-          - {{ grafana_fqdn }}
-victoria-metrics-cluster:
-  clusterDomainSuffix: {{ cluster_name }}
-  vmstorage:
-    persistentVolume:
-      storageClass: ceph-block
-opentelemetry-collector:
-  mode: daemonset
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: ceph-block
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+
+    service:
+      annotations:
+        io.cilium/global-service: 'false'
+        service.cilium.io/affinity: 'local'

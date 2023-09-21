@@ -1,4 +1,7 @@
 rook-ceph-cluster:
+  monitoring:
+    enabled: true
+    createPrometheusRules: true
   operatorNamespace: {{ operator_namespace }}
   clusterName: {{ cluster_name }}-rook
   cephClusterSpec:
