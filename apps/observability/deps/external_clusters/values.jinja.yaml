@@ -1,0 +1,5 @@
+prometheus:
+  external_clusters:
+    {% for cluster in external_clusters %}
+    - name: {{ cluster.name|truncate(4, True, '', 0) }}
+    {% endfor %}

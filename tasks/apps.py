@@ -17,6 +17,7 @@ from tasks.wrappers.Helm import Helm
 from tasks.wrappers.JFrog import JFrog
 from tasks.wrappers.JinjaWrapper import JinjaWrapper
 from tasks.wrappers.Kubectl import Kubectl
+from tasks.wrappers.Observability import Observability
 from tasks.wrappers.Rook import Rook
 from tasks.wrappers.Sonatype import Sonatype
 from tasks.wrappers.Talos import Talos
@@ -377,27 +378,13 @@ def harbor_configure(ctx, cluster_name: str = None, echo: bool = False):
 
 
 @task()
-def observability(ctx, install: bool = False, echo: bool = False):
+def observability(ctx, cluster_name: str = None, install: bool = False, echo: bool = False):
     """
     Install observability helm chart
     """
-    application_directory = 'observability'
     context = SystemContext(ctx, echo)
-    cluster = context.cluster()
-    secrets = context.secrets
-
-    data = {
-        'values': {
-            'jaeger_fqdn': get_fqdn('jaeger', secrets, cluster),
-            'oauth_fqdn': get_fqdn('oauth', secrets, cluster),
-            'grafana_fqdn': get_fqdn('grafana', secrets, cluster),
-            'cluster_name': cluster.name + '.local'
-        }
-    }
-    data['values'].update(secrets['grafana'])
-
-    ApplicationsCtrl(ctx, context, echo).install_app(
-        application_directory, data, Namespace.observability, install)
+    _observability = Observability(ctx, context, echo)
+    _observability.install(install, cluster_name)
 
 
 @task()

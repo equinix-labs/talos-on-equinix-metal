@@ -1,0 +1,29 @@
+{{- range $.Values.prometheus.external_clusters }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    io.cilium/global-service: 'true'
+    service.cilium.io/affinity: 'remote'
+  labels:
+    app: kube-prometheus-stack-prometheus
+  name: obs-{{ .name }}-kube-prometheus-s-prometheus
+  namespace: {{ $.Release.Namespace }}
+spec:
+  internalTrafficPolicy: Cluster
+  ports:
+  - name: http-web
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  - appProtocol: http
+    name: reloader-web
+    port: 8080
+    protocol: TCP
+    targetPort: reloader-web
+  selector:
+    app.kubernetes.io/name: prometheus
+    operator.prometheus.io/name: obs-{{ .name }}-kube-prometheus-prometheus
+  type: ClusterIP
+{{- end }}

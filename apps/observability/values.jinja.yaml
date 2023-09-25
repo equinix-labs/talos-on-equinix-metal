@@ -3,6 +3,14 @@ kube-prometheus-stack:
     rules:
       kubeProxy: false
   grafana:
+    enabled: {{ grafana_enabled }}
+    persistence:
+      type: pvc
+      enabled: {{ we_have_storage }}
+      storageClassName: ceph-block
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
     adminUser: {{ admin_user }}
     adminPassword: {{ admin_pass }}
     rbac:
@@ -26,12 +34,11 @@ kube-prometheus-stack:
       datasources.yaml:
         apiVersion: 1
         datasources:
-        - name: TitanPrometheus
+        {% for satellite in satellites %}
+        - name: {{ satellite.name }}Prometheus
           type: prometheus
-          url: http://prometheus-titan.observability
-        - name: RheaPrometheus
-          type: prometheus
-          url: http://prometheus-rhea.observability
+          url: http://observability-{{ satellite.name|truncate(4, True, '', 0) }}-kube-p-prometheus.observability:9090
+        {% endfor %}
     dashboardProviders:
       dashboardproviders.yaml:
         apiVersion: 1
@@ -44,16 +51,22 @@ kube-prometheus-stack:
           editable: false
           options:
             path: /var/lib/grafana/dashboards/ceph
+        {% for satellite in satellites %}
+        - name: ceph-{{ satellite.name }}
+          orgId: 1
+          folder: ceph-{{ satellite.name }}
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/ceph_{{ satellite.name }}
+        {% endfor %}
     dashboards:
       ceph:
-        rgw:
-          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
+        #rgw:
+        #  url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
           #json: |
           #  "dashboards/rgw.json"
-        iops:
-          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/iops-by-server.json
-          #json: |
-          #  "dashboards/iops.json"
         cluster:
           gnetId: 2842
           revision: 17
@@ -66,22 +79,45 @@ kube-prometheus-stack:
           gnetId: 5342
           revision: 9
           datasource: Prometheus
+      {% for satellite in satellites %}
+      ceph-{{ satellite.name }}:
+        rgw:
+          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
+        #  json: |
+        #    "dashboards/rgw.json"
+        #cluster-{{ satellite.name }}:
+        #  gnetId: 2842
+        #  revision: 17
+        #  datasource: {{ satellite.name }}Prometheus
+        #osd-{{ satellite.name }}:
+        #  gnetId: 5336
+        #  revision: 9
+        #  datasource: {{ satellite.name }}Prometheus
+        #pools-{{ satellite.name }}:
+        #  gnetId: 5342
+        #  revision: 9
+        #  datasource: {{ satellite.name }}Prometheus
+      {% endfor %}
   kubeProxy:
     enabled: false
   prometheus:
     enabled: true
     prometheusSpec:
       serviceMonitorSelectorNilUsesHelmValues: false
+      {% if we_have_storage %}
       storageSpec:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: ceph-block
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 50Gi
-
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-block
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+      {% else %}
+      storageSpec: {}
+      {% endif %}
     service:
       annotations:
-        io.cilium/global-service: 'false'
-        service.cilium.io/affinity: 'local'
+        {% if workload_cluster %}
+        io.cilium/global-service: 'true'
+        {% endif %}
