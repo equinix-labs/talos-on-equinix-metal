@@ -31,6 +31,9 @@ class RepoPaths:
     def templates_dir(self, *path):
         return os.path.join(self._root, 'templates', *path)
 
+    def grafana_dashboard(self, name):
+        return self.templates_dir('grafana', name)
+
     def openssl_cnf_file(self):
         return self.templates_dir('openssl.cnf')
 

@@ -36,8 +36,9 @@ kube-prometheus-stack:
         datasources:
         {% for satellite in satellites %}
         - name: {{ satellite.name }}Prometheus
+          uid: {{ satellite.name }}Prometheus
           type: prometheus
-          url: http://observability-{{ satellite.name|truncate(4, True, '', 0) }}-kube-p-prometheus.observability:9090
+          url: http://obs-{{ satellite.name|truncate(4, True, '', 0) }}-kube-prometheus-s-prometheus.observability:9090
         {% endfor %}
     dashboardProviders:
       dashboardproviders.yaml:
@@ -62,41 +63,17 @@ kube-prometheus-stack:
             path: /var/lib/grafana/dashboards/ceph_{{ satellite.name }}
         {% endfor %}
     dashboards:
-      ceph:
-        #rgw:
-        #  url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
-          #json: |
-          #  "dashboards/rgw.json"
-        cluster:
-          gnetId: 2842
-          revision: 17
-          datasource: Prometheus
-        osd:
-          gnetId: 5336
-          revision: 9
-          datasource: Prometheus
-        pools:
-          gnetId: 5342
-          revision: 9
-          datasource: Prometheus
-      {% for satellite in satellites %}
-      ceph-{{ satellite.name }}:
+      {% for dashboard in dashboards %}
+      ceph-{{ dashboard['name'] }}:
         rgw:
-          url: https://raw.githubusercontent.com/ceph/cephmetrics/master/dashboards/mgr-prometheus/ceph-rgw-workload.json
-        #  json: |
-        #    "dashboards/rgw.json"
-        #cluster-{{ satellite.name }}:
-        #  gnetId: 2842
-        #  revision: 17
-        #  datasource: {{ satellite.name }}Prometheus
-        #osd-{{ satellite.name }}:
-        #  gnetId: 5336
-        #  revision: 9
-        #  datasource: {{ satellite.name }}Prometheus
-        #pools-{{ satellite.name }}:
-        #  gnetId: 5342
-        #  revision: 9
-        #  datasource: {{ satellite.name }}Prometheus
+          json: |
+            {{ dashboard['rgw'] | indent(12) }}
+        cluster:
+          json: |
+            {{ dashboard['cluster'] | indent(12) }}
+        pools:
+          json: |
+            {{ dashboard['pools'] | indent(12) }}
       {% endfor %}
   kubeProxy:
     enabled: false
