@@ -44,23 +44,15 @@ kube-prometheus-stack:
       dashboardproviders.yaml:
         apiVersion: 1
         providers:
-        - name: ceph
+        {% for dashboard in dashboards %}
+        - name: ceph-{{ dashboard['name'] }}
           orgId: 1
-          folder: ceph
+          folder: ceph-{{ dashboard['name'] }}
           type: file
           disableDeletion: true
           editable: false
           options:
-            path: /var/lib/grafana/dashboards/ceph
-        {% for satellite in satellites %}
-        - name: ceph-{{ satellite.name }}
-          orgId: 1
-          folder: ceph-{{ satellite.name }}
-          type: file
-          disableDeletion: true
-          editable: false
-          options:
-            path: /var/lib/grafana/dashboards/ceph_{{ satellite.name }}
+            path: /var/lib/grafana/dashboards/ceph-{{ dashboard['name'] }}
         {% endfor %}
     dashboards:
       {% for dashboard in dashboards %}
