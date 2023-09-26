@@ -1,31 +1,4 @@
 {
-  "__inputs": [],
-  "__requires": [
-    {
-      "id": "grafana",
-      "name": "Grafana",
-      "type": "grafana",
-      "version": "5.3.2"
-    },
-    {
-      "id": "graph",
-      "name": "Graph",
-      "type": "panel",
-      "version": "5.0.0"
-    },
-    {
-      "id": "heatmap",
-      "name": "Heatmap",
-      "type": "panel",
-      "version": "5.0.0"
-    },
-    {
-      "id": "singlestat",
-      "name": "Singlestat",
-      "type": "panel",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -42,12 +15,13 @@
     ]
   },
   "description": "Overview of your Ceph cluster.",
-  "editable": false,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
   "gnetId": 2842,
   "graphTooltip": 0,
-  "hideControls": false,
-  "id": null,
+  "id": 30,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapse": false,
@@ -60,9 +34,6 @@
       },
       "id": 2,
       "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "CLUSTER STATE",
       "titleSize": "h6",
@@ -70,9 +41,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -97,7 +68,6 @@
             {
               "id": 1,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -109,7 +79,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#9ac48a"
+                "color": "#9ac48a",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -122,7 +93,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -148,7 +120,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -171,9 +143,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -183,7 +155,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -195,12 +166,14 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
           "unit": "Bps"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -225,7 +198,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -242,14 +215,13 @@
         }
       ],
       "title": "Write Throughput",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -259,7 +231,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -271,7 +242,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a"
+                "color": "#d44a3a",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -284,7 +256,8 @@
             ]
           },
           "unit": "Bps"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -309,7 +282,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -326,14 +299,13 @@
         }
       ],
       "title": "Read Throughput",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -343,7 +315,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -355,7 +326,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -368,7 +340,8 @@
             ]
           },
           "unit": "decbytes"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -394,7 +367,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -412,14 +385,13 @@
         }
       ],
       "title": "Cluster Capacity",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -428,7 +400,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -442,7 +413,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(245, 54, 54, 0.9)"
+                "color": "rgba(245, 54, 54, 0.9)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -455,7 +427,8 @@
             ]
           },
           "unit": "percentunit"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 6,
@@ -468,6 +441,7 @@
       "links": [],
       "maxDataPoints": 100,
       "options": {
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -478,7 +452,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -496,14 +470,13 @@
         }
       ],
       "title": "Available Capacity",
-      "transparent": false,
       "type": "gauge"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -513,7 +486,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -525,7 +497,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -534,7 +507,8 @@
             ]
           },
           "unit": "short"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -559,7 +533,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -576,14 +550,13 @@
         }
       ],
       "title": "Number of Objects",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -593,7 +566,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -605,7 +577,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -614,7 +587,8 @@
             ]
           },
           "unit": "decbytes"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -639,7 +613,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -656,14 +630,13 @@
         }
       ],
       "title": "Bytes Written",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -673,7 +646,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -685,7 +657,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -694,7 +667,8 @@
             ]
           },
           "unit": "decbytes"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -719,7 +693,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -736,14 +710,13 @@
         }
       ],
       "title": "Bytes Read",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -754,7 +727,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#9ac48a"
+                "color": "#9ac48a",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -767,7 +741,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -792,7 +767,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -814,9 +789,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -826,7 +801,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -838,12 +812,14 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
           "unit": "ops"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -868,7 +844,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -885,14 +861,13 @@
         }
       ],
       "title": "Write IOPS",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -902,7 +877,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -914,7 +888,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a"
+                "color": "#d44a3a",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -927,7 +902,8 @@
             ]
           },
           "unit": "ops"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -952,7 +928,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -969,14 +945,13 @@
         }
       ],
       "title": "Read IOPS",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -986,7 +961,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -998,7 +972,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -1011,7 +986,8 @@
             ]
           },
           "unit": "decbytes"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1037,7 +1013,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1054,14 +1030,13 @@
         }
       ],
       "title": "Used Capacity",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1071,7 +1046,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1083,7 +1057,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#ea6460"
+                "color": "#ea6460",
+                "value": null
               },
               {
                 "color": "#052b51",
@@ -1096,7 +1071,8 @@
             ]
           },
           "unit": "short"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1121,7 +1097,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1138,14 +1114,13 @@
         }
       ],
       "title": "Difference",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1155,7 +1130,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1167,7 +1141,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1176,7 +1151,8 @@
             ]
           },
           "unit": "short"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1201,7 +1177,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1218,14 +1194,13 @@
         }
       ],
       "title": "Mon Session Num",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1235,7 +1210,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1261,7 +1235,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1287,7 +1262,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1305,7 +1280,6 @@
         }
       ],
       "title": "Monitors In Quorum",
-      "transparent": false,
       "type": "stat"
     },
     {
@@ -1319,9 +1293,6 @@
       },
       "id": 18,
       "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "OSD STATE",
       "titleSize": "h6",
@@ -1329,9 +1300,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1341,7 +1312,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1353,7 +1323,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#9ac48a"
+                "color": "#9ac48a",
+                "value": null
               },
               {
                 "color": "rgba(237, 40, 40, 0.89)",
@@ -1366,7 +1337,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1391,7 +1363,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1409,14 +1381,13 @@
         }
       ],
       "title": "OSDs OUT",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1426,7 +1397,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1438,7 +1408,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "#eab839",
@@ -1451,7 +1422,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1476,7 +1448,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1494,14 +1466,13 @@
         }
       ],
       "title": "OSDs DOWN",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1511,7 +1482,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1523,7 +1493,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1532,7 +1503,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1557,7 +1529,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1575,14 +1547,13 @@
         }
       ],
       "title": "OSDs UP",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1592,7 +1563,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1604,7 +1574,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1613,7 +1584,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1638,7 +1610,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1656,14 +1628,13 @@
         }
       ],
       "title": "OSDs IN",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1673,7 +1644,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1685,7 +1655,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -1698,7 +1669,8 @@
             ]
           },
           "unit": "none"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1723,7 +1695,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1741,14 +1713,13 @@
         }
       ],
       "title": "Avg PGs",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1758,7 +1729,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1770,7 +1740,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -1783,7 +1754,8 @@
             ]
           },
           "unit": "ms"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1808,7 +1780,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1826,14 +1798,13 @@
         }
       ],
       "title": "Avg Apply Latency",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1843,7 +1814,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "text": "N/A"
                 }
@@ -1855,7 +1825,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)"
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -1868,7 +1839,8 @@
             ]
           },
           "unit": "ms"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1893,7 +1865,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1911,14 +1883,13 @@
         }
       ],
       "title": "Avg Commit Latency",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1928,7 +1899,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "color": "#299c46",
                   "text": "0"
@@ -1941,7 +1911,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#299c46"
+                "color": "#299c46",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -1954,7 +1925,8 @@
             ]
           },
           "unit": "ms"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -1979,7 +1951,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -1995,14 +1967,13 @@
         }
       ],
       "title": "Avg Op Write Latency",
-      "transparent": false,
       "type": "stat"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2012,7 +1983,6 @@
             {
               "id": 0,
               "options": {
-                "match": null,
                 "result": {
                   "color": "#299c46",
                   "text": "0"
@@ -2025,7 +1995,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#299c46"
+                "color": "#299c46",
+                "value": null
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -2038,7 +2009,8 @@
             ]
           },
           "unit": "ms"
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 3,
@@ -2063,7 +2035,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -2080,7 +2052,6 @@
         }
       ],
       "title": "Avg Op Read Latency",
-      "transparent": false,
       "type": "stat"
     },
     {
@@ -2090,13 +2061,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 11
       },
       "id": 28,
       "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "CLUSTER STATS",
       "titleSize": "h6",
@@ -2104,9 +2072,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2126,6 +2094,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 0,
             "pointSize": 5,
@@ -2143,11 +2112,13 @@
             }
           },
           "decimals": 2,
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2292,7 +2263,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 10
+        "y": 12
       },
       "id": 29,
       "interval": "$interval",
@@ -2360,9 +2331,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2382,6 +2353,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2398,11 +2370,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2494,7 +2468,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 10
+        "y": 12
       },
       "id": 30,
       "interval": "$interval",
@@ -2549,9 +2523,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2571,6 +2545,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2587,11 +2562,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2607,7 +2584,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 10
+        "y": 12
       },
       "id": 31,
       "interval": "$interval",
@@ -2662,9 +2639,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2684,6 +2661,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2700,11 +2678,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2720,7 +2700,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 18
+        "y": 20
       },
       "id": 32,
       "options": {
@@ -2755,9 +2735,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2777,6 +2757,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2793,11 +2774,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -2809,7 +2792,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 18
+        "y": 20
       },
       "id": 33,
       "options": {
@@ -2859,9 +2842,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2881,6 +2864,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2897,11 +2881,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2917,7 +2903,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 18
+        "y": 20
       },
       "id": 34,
       "options": {
@@ -2951,9 +2937,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2973,6 +2959,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -2989,6 +2976,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -3010,7 +2998,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 26
+        "y": 28
       },
       "id": 35,
       "options": {
@@ -3044,9 +3032,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3066,6 +3054,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3082,6 +3071,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -3103,7 +3093,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 26
+        "y": 28
       },
       "id": 36,
       "options": {
@@ -3137,9 +3127,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3159,6 +3149,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -3175,6 +3166,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -3196,7 +3188,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 26
+        "y": 28
       },
       "id": 37,
       "options": {
@@ -3236,7 +3228,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "id": 38,
       "panels": [
@@ -3253,7 +3245,9 @@
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "inspect": false
               },
               "decimals": 2,
@@ -3316,9 +3310,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "ALERTS{alertstate=\"firing\",alertname=~\"^Ceph.+\"}",
               "format": "table",
               "instant": true,
@@ -3327,8 +3321,6 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Alerts starting with Ceph",
           "transformations": [
             {
@@ -3353,7 +3345,9 @@
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "filterable": false,
                 "inspect": false
               },
@@ -3417,9 +3411,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "topk(5,sort_desc(ceph_osd_apply_latency_ms{} + ceph_osd_commit_latency_ms{}))",
               "format": "table",
               "instant": true,
@@ -3428,8 +3422,6 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Top Sluggish OSDs",
           "transformations": [
             {
@@ -3454,7 +3446,9 @@
               },
               "custom": {
                 "align": "auto",
-                "displayMode": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
                 "inspect": false
               },
               "decimals": 2,
@@ -3517,9 +3511,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "ceph_osd_up{} == 0",
               "format": "table",
               "instant": true,
@@ -3528,8 +3522,6 @@
               "refId": "A"
             }
           ],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Down OSDs",
           "transformations": [
             {
@@ -3542,9 +3534,6 @@
           "type": "table"
         }
       ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "Alerts",
       "titleSize": "h6",
@@ -3557,7 +3546,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 36
       },
       "id": 42,
       "panels": [
@@ -3645,9 +3634,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "node_memory_Active_anon_bytes{}",
               "format": "time_series",
               "intervalFactor": 1,
@@ -3656,9 +3645,9 @@
             },
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "sum(node_memory_Active_anon_bytes{})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -3752,9 +3741,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "avg by(instance)(irate(node_cpu_seconds_total{job='node',mode!=\"idle\"}[$interval])) * 100",
               "format": "time_series",
               "intervalFactor": 1,
@@ -3848,9 +3837,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "sum by (instance)(irate(node_disk_read_bytes_total{}[$interval]))",
               "format": "time_series",
               "intervalFactor": 1,
@@ -3944,9 +3933,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "sum by (instance)(irate(node_disk_written_bytes_total{}[$interval]))",
               "format": "time_series",
               "intervalFactor": 1,
@@ -4036,9 +4025,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "(node_filesystem_free_bytes{ mountpoint=\"/\", device != \"rootfs\"})*100 / (node_filesystem_size_bytes{ mountpoint=\"/\", device != \"rootfs\"})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -4051,9 +4040,6 @@
           "type": "timeseries"
         }
       ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "Node Statistics (NodeExporter)",
       "titleSize": "h6",
@@ -4066,13 +4052,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 37
       },
       "id": 48,
       "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "OBJECTS",
       "titleSize": "h6",
@@ -4080,9 +4063,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4102,6 +4085,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4118,6 +4102,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -4155,7 +4140,7 @@
         "h": 12,
         "w": 6,
         "x": 0,
-        "y": 46
+        "y": 38
       },
       "id": 49,
       "options": {
@@ -4192,9 +4177,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4214,6 +4199,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4230,6 +4216,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -4268,7 +4255,7 @@
         "h": 12,
         "w": 8,
         "x": 6,
-        "y": 46
+        "y": 38
       },
       "id": 50,
       "options": {
@@ -4570,9 +4557,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4592,6 +4579,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4608,6 +4596,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -4646,7 +4635,7 @@
         "h": 6,
         "w": 10,
         "x": 14,
-        "y": 46
+        "y": 38
       },
       "id": 51,
       "options": {
@@ -4714,9 +4703,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4736,6 +4725,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -4752,6 +4742,7 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -4774,7 +4765,7 @@
         "h": 6,
         "w": 10,
         "x": 14,
-        "y": 52
+        "y": 44
       },
       "id": 52,
       "options": {
@@ -4815,23 +4806,17 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 50
       },
       "id": 53,
       "panels": [],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "LATENCY",
       "titleSize": "h6",
       "type": "row"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
+      "cards": {},
       "color": {
         "cardColor": "#b4ff00",
         "colorScale": "sqrt",
@@ -4841,9 +4826,9 @@
       },
       "dataFormat": "timeseries",
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -4856,13 +4841,14 @@
               "type": "linear"
             }
           }
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 54
+        "y": 51
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -4889,6 +4875,7 @@
           "exponent": 0.5,
           "fill": "#b4ff00",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -4917,7 +4904,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -4942,26 +4929,19 @@
       "xAxis": {
         "show": true
       },
-      "xBucketNumber": null,
       "xBucketSize": "",
       "yAxis": {
-        "decimals": null,
         "format": "ms",
         "logBase": 2,
-        "max": null,
         "min": "0",
         "show": true,
         "splitFactor": 1
       },
       "yBucketBound": "auto",
-      "yBucketNumber": null,
       "yBucketSize": 10
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
+      "cards": {},
       "color": {
         "cardColor": "#65c5db",
         "colorScale": "sqrt",
@@ -4971,9 +4951,9 @@
       },
       "dataFormat": "timeseries",
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -4986,13 +4966,14 @@
               "type": "linear"
             }
           }
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 54
+        "y": 51
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -5018,6 +4999,7 @@
           "exponent": 0.5,
           "fill": "#65c5db",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -5046,7 +5028,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -5071,26 +5053,18 @@
       "xAxis": {
         "show": true
       },
-      "xBucketNumber": null,
       "xBucketSize": "",
       "yAxis": {
-        "decimals": null,
         "format": "ms",
         "logBase": 2,
-        "max": null,
         "min": "0",
         "show": true,
         "splitFactor": 1
       },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "yBucketBound": "auto"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
+      "cards": {},
       "color": {
         "cardColor": "#806eb7",
         "colorScale": "sqrt",
@@ -5100,9 +5074,9 @@
       },
       "dataFormat": "timeseries",
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -5115,13 +5089,14 @@
               "type": "linear"
             }
           }
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 62
+        "y": 59
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -5147,6 +5122,7 @@
           "exponent": 0.5,
           "fill": "#806eb7",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -5176,7 +5152,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -5201,26 +5177,18 @@
       "xAxis": {
         "show": true
       },
-      "xBucketNumber": null,
       "xBucketSize": "",
       "yAxis": {
-        "decimals": null,
         "format": "ms",
         "logBase": 2,
-        "max": null,
         "min": "0",
         "show": true,
         "splitFactor": 1
       },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "yBucketBound": "auto"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
+      "cards": {},
       "color": {
         "cardColor": "#f9934e",
         "colorScale": "sqrt",
@@ -5230,9 +5198,9 @@
       },
       "dataFormat": "timeseries",
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -5245,13 +5213,14 @@
               "type": "linear"
             }
           }
-        }
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 62
+        "y": 59
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -5277,6 +5246,7 @@
           "exponent": 0.5,
           "fill": "#f9934e",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -5306,7 +5276,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -5331,26 +5301,22 @@
       "xAxis": {
         "show": true
       },
-      "xBucketNumber": null,
       "xBucketSize": "",
       "yAxis": {
         "decimals": 2,
         "format": "ms",
         "logBase": 2,
-        "max": null,
         "min": "0",
         "show": true,
         "splitFactor": 1
       },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "yBucketBound": "auto"
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5370,6 +5336,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -5386,11 +5353,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -5406,7 +5375,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 70
+        "y": 67
       },
       "id": 58,
       "options": {
@@ -5451,9 +5420,9 @@
     },
     {
       "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+        "type": "prometheus",
+        "uid": "#{ datasource_uid }#"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5473,6 +5442,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -5489,11 +5459,13 @@
               "mode": "off"
             }
           },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -5509,7 +5481,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 70
+        "y": 67
       },
       "id": 59,
       "options": {
@@ -5568,7 +5540,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 74
       },
       "id": 60,
       "panels": [
@@ -5651,9 +5623,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "count by (ceph_version)(ceph_osd_metadata{})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -5743,9 +5715,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "count by (ceph_version)(ceph_mon_metadata{})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -5835,9 +5807,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "count by (ceph_version)(ceph_mds_metadata{})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -5927,9 +5899,9 @@
           "targets": [
             {
               "datasource": {
-            "type": "prometheus",
-            "uid": "#{ datasource_uid }#"
-          },
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "count by (ceph_version)(ceph_rgw_metadata{})",
               "format": "time_series",
               "intervalFactor": 1,
@@ -5941,9 +5913,6 @@
           "type": "timeseries"
         }
       ],
-      "repeat": null,
-      "repeatIteration": null,
-      "repeatRowId": null,
       "showTitle": true,
       "title": "Ceph Versions",
       "titleSize": "h6",
@@ -5951,8 +5920,7 @@
     }
   ],
   "refresh": "1m",
-  "rows": [],
-  "schemaVersion": 37,
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [
     "ceph-mixin"
@@ -5961,16 +5929,21 @@
     "list": [
       {
         "current": {
-          "text": "Prometheus",
-          "value": "Prometheus"
+          "selected": true,
+          "text": "rheaPrometheus",
+          "value": "rheaPrometheus"
         },
         "hide": 0,
+        "includeAll": false,
         "label": "Data Source",
+        "multi": false,
         "name": "DS_PROMETHEUS",
         "options": [],
         "query": "prometheus",
+        "queryValue": "",
         "refresh": 1,
         "regex": "",
+        "skipUrlSync": false,
         "type": "datasource"
       },
       {
@@ -5978,7 +5951,8 @@
         "auto_count": 10,
         "auto_min": "1m",
         "current": {
-          "text": "$__auto_interval_interval",
+          "selected": false,
+          "text": "auto",
           "value": "$__auto_interval_interval"
         },
         "hide": 0,
@@ -6058,6 +6032,7 @@
         ],
         "query": "5s,10s,30s,1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
         "refresh": 2,
+        "skipUrlSync": false,
         "type": "interval",
         "valuelabels": {}
       }
@@ -6094,5 +6069,7 @@
   },
   "timezone": "",
   "title": "#{ title }#",
-  "version": 0
+  "uid": "#{ uid }#",
+  "version": 1,
+  "weekStart": ""
 }

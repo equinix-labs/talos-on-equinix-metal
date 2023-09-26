@@ -1,44 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "9.0.5"
-    },
-    {
-      "type": "panel",
-      "id": "heatmap",
-      "name": "Heatmap",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -62,11 +22,11 @@
     ]
   },
   "description": "CEPH OSD Status.",
-  "editable": false,
+  "editable": true,
   "fiscalYearStartMonth": 0,
   "gnetId": 5336,
   "graphTooltip": 0,
-  "id": null,
+  "id": 30,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -182,7 +142,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.5",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -289,7 +249,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.5",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -364,7 +324,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.5",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -420,6 +380,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -431,6 +393,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -559,6 +522,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -570,6 +535,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 2,
             "pointSize": 5,
@@ -731,7 +697,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.0.5",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
           "datasource": {
@@ -790,6 +756,21 @@
         "type": "prometheus",
         "uid": "#{ datasource_uid }#"
       },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -822,6 +803,7 @@
           "exponent": 0.5,
           "fill": "#b4ff00",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -833,7 +815,8 @@
           "le": 1e-9
         },
         "legend": {
-          "show": true
+          "show": true,
+          "showLegend": true
         },
         "rowsFrame": {
           "layout": "auto"
@@ -850,7 +833,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -901,6 +884,21 @@
         "type": "prometheus",
         "uid": "#{ datasource_uid }#"
       },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -932,6 +930,7 @@
           "exponent": 0.5,
           "fill": "#65c5db",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -943,7 +942,8 @@
           "le": 1e-9
         },
         "legend": {
-          "show": true
+          "show": true,
+          "showLegend": true
         },
         "rowsFrame": {
           "layout": "auto"
@@ -960,7 +960,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1009,6 +1009,21 @@
         "type": "prometheus",
         "uid": "#{ datasource_uid }#"
       },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1040,6 +1055,7 @@
           "exponent": 0.5,
           "fill": "#806eb7",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -1051,7 +1067,8 @@
           "le": 1e-9
         },
         "legend": {
-          "show": true
+          "show": true,
+          "showLegend": true
         },
         "rowsFrame": {
           "layout": "auto"
@@ -1069,7 +1086,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1119,6 +1136,21 @@
         "type": "prometheus",
         "uid": "#{ datasource_uid }#"
       },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -1150,6 +1182,7 @@
           "exponent": 0.5,
           "fill": "#f9934e",
           "mode": "opacity",
+          "reverse": false,
           "scale": "exponential",
           "scheme": "Oranges",
           "steps": 128
@@ -1161,7 +1194,8 @@
           "le": 1e-9
         },
         "legend": {
-          "show": true
+          "show": true,
+          "showLegend": true
         },
         "rowsFrame": {
           "layout": "auto"
@@ -1179,7 +1213,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.1.3",
+      "pluginVersion": "10.1.1",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1258,8 +1292,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1364,8 +1397,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1436,7 +1468,7 @@
     }
   ],
   "refresh": "5m",
-  "schemaVersion": 36,
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [
     "ceph",
@@ -1446,9 +1478,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "Prometheus",
-          "value": "Prometheus"
+          "selected": true,
+          "text": "#{ datasource_uid }#",
+          "value": "#{ datasource_uid }#"
         },
         "hide": 0,
         "includeAll": false,
@@ -1457,6 +1489,7 @@
         "name": "DS_PROMETHEUS",
         "options": [],
         "query": "prometheus",
+        "queryValue": "",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1551,7 +1584,11 @@
         "type": "interval"
       },
       {
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "osd.0",
+          "value": "osd.0"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "#{ datasource_uid }#"
@@ -1609,6 +1646,7 @@
   },
   "timezone": "browser",
   "title": "#{ title }#",
-  "version": 2,
+  "uid": "#{ uid }#",
+  "version": 3,
   "weekStart": ""
 }

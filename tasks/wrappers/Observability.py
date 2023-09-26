@@ -95,15 +95,18 @@ class Observability:
                 'name': cluster.name,
                 'rgw': _render_dashboard(repo_paths, jinja, 'ceph_rgw', {
                     'title': 'rgw',
-                    'datasource_uid': datasource_uid
+                    'datasource_uid': datasource_uid,
+                    'uid': 'rgw_{}'.format(cluster.name)
                 }),
                 'cluster': _render_dashboard(repo_paths, jinja, 'ceph_cluster', {
                     'title': 'cluster',
-                    'datasource_uid': datasource_uid
+                    'datasource_uid': datasource_uid,
+                    'uid': 'cluster_{}'.format(cluster.name)
                 }),
                 'pools': _render_dashboard(repo_paths, jinja, 'ceph_pools', {
                     'title': 'poold',
-                    'datasource_uid': datasource_uid
+                    'datasource_uid': datasource_uid,
+                    'uid': 'pools_{}'.format(cluster.name)
                 }),
             })
 

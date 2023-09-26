@@ -1,35 +1,12 @@
 {
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": "5.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "titanPrometheus",
-      "name": "Local",
-      "version": "5.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "singlestat",
-      "name": "Singlestat",
-      "version": "5.0.0"
-    }
-  ],
   "annotations": {
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -38,15 +15,19 @@
       }
     ]
   },
-  "editable": false,
-  "gnetId": null,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1530165442642,
+  "id": 32,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -55,6 +36,15 @@
       },
       "id": 2,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "RGW Overview - All Gateways",
       "type": "row"
     },
@@ -68,12 +58,14 @@
         "uid": "#{ datasource_uid }#"
       },
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 8,
         "x": 0,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 29,
       "legend": {
         "avg": false,
@@ -88,7 +80,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -98,6 +94,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "avg(rate(ceph_rgw_get_initial_lat_sum[30s]) / rate(ceph_rgw_get_initial_lat_count[30s]))",
           "format": "time_series",
           "intervalFactor": 1,
@@ -105,6 +105,10 @@
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "avg(rate(ceph_rgw_put_initial_lat_sum[30s]) / rate(ceph_rgw_put_initial_lat_count[30s]))",
           "format": "time_series",
           "intervalFactor": 1,
@@ -113,8 +117,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "Average GET/PUT Latencies",
       "tooltip": {
         "shared": true,
@@ -123,30 +126,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "s",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "aliasColors": {},
@@ -158,12 +157,14 @@
         "uid": "#{ datasource_uid }#"
       },
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 7,
         "x": 8,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 4,
       "legend": {
         "avg": false,
@@ -178,7 +179,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -188,6 +193,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "sum by(rgw_host) (label_replace(rate(ceph_rgw_req[30s]), \"rgw_host\", \"$1\", \"ceph_daemon\", \"rgw.(.*)\"))",
           "format": "time_series",
           "intervalFactor": 1,
@@ -196,8 +205,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "Total Requests/sec by RGW Instance",
       "tooltip": {
         "shared": true,
@@ -206,9 +214,7 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -216,21 +222,19 @@
         {
           "decimals": 0,
           "format": "none",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "aliasColors": {},
@@ -243,12 +247,14 @@
       },
       "description": "Latencies are shown stacked, without a yaxis to provide a visual indication of GET latency imbalance across RGW hosts",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 6,
         "x": 15,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 31,
       "legend": {
         "avg": false,
@@ -263,7 +269,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -273,6 +283,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "label_replace(rate(ceph_rgw_get_initial_lat_sum[30s]),\"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\") / \nlabel_replace(rate(ceph_rgw_get_initial_lat_count[30s]),\"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\")",
           "format": "time_series",
           "intervalFactor": 1,
@@ -281,8 +295,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "GET Latencies by RGW Instance",
       "tooltip": {
         "shared": true,
@@ -291,52 +304,64 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
-          "decimals": null,
           "format": "s",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": false
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": false,
-      "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
-      ],
       "datasource": {
         "type": "prometheus",
         "uid": "#{ datasource_uid }#"
       },
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -345,60 +370,37 @@
         "y": 1
       },
       "id": 8,
-      "interval": null,
       "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "name": "range to text",
-          "value": 2
-        }
-      ],
       "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
       },
-      "tableColumn": "",
+      "pluginVersion": "10.1.1",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "sum(ceph_rgw_qlen)",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
         }
       ],
-      "thresholds": "",
       "title": "Request Queue Length",
-      "type": "singlestat",
-      "valueFontSize": "80%",
-      "valueMaps": [
-        {
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "avg"
+      "type": "stat"
     },
     {
       "aliasColors": {},
@@ -411,12 +413,14 @@
       },
       "description": "Total bytes transferred in/out of all radosgw instances within the cluster",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 8,
         "x": 0,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 6,
       "legend": {
         "avg": false,
@@ -431,7 +435,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -441,6 +449,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "sum(rate(ceph_rgw_get_b[30s]))",
           "format": "time_series",
           "intervalFactor": 1,
@@ -448,6 +460,10 @@
           "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "sum(rate(ceph_rgw_put_b[30s]))",
           "format": "time_series",
           "intervalFactor": 1,
@@ -456,8 +472,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "Bandwidth Consumed by Type",
       "tooltip": {
         "shared": true,
@@ -466,30 +481,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "bytes",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "aliasColors": {},
@@ -502,12 +513,14 @@
       },
       "description": "Total bytes transferred in/out through get/put operations, by radosgw instance",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 7,
         "x": 8,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 9,
       "legend": {
         "avg": false,
@@ -522,7 +535,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -532,6 +549,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "sum by(rgw_host) (\n  (label_replace(rate(ceph_rgw_get_b[30s]), \"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\")) + \n  (label_replace(rate(ceph_rgw_put_b[30s]), \"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\"))\n)",
           "format": "time_series",
           "intervalFactor": 1,
@@ -540,8 +561,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "Bandwidth by RGW Instance",
       "tooltip": {
         "shared": true,
@@ -550,30 +570,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "bytes",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "aliasColors": {},
@@ -586,12 +602,14 @@
       },
       "description": "Latencies are shown stacked, without a yaxis to provide a visual indication of PUT latency imbalance across RGW hosts",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 6,
         "x": 15,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 32,
       "legend": {
         "avg": false,
@@ -606,7 +624,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -616,6 +638,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "label_replace(rate(ceph_rgw_put_initial_lat_sum[30s]),\"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\") / \nlabel_replace(rate(ceph_rgw_put_initial_lat_count[30s]),\"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\")",
           "format": "time_series",
           "intervalFactor": 1,
@@ -624,8 +650,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "PUT Latencies by RGW Instance",
       "tooltip": {
         "shared": true,
@@ -634,31 +659,26 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
-          "decimals": null,
           "format": "s",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": false
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "aliasColors": {},
@@ -671,12 +691,14 @@
       },
       "description": "Failed HTTP Requests by RGW instance",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 6,
         "w": 3,
         "x": 21,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 41,
       "legend": {
         "avg": false,
@@ -691,7 +713,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+      "pluginVersion": "10.1.1",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -701,6 +727,10 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "expr": "label_replace(ceph_rgw_failed_req, \"rgw_host\",\"$1\",\"ceph_daemon\",\"rgw.(.*)\")",
           "format": "time_series",
           "intervalFactor": 1,
@@ -709,8 +739,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
+      "timeRegions": [],
       "title": "Failed Requests",
       "tooltip": {
         "shared": true,
@@ -719,33 +748,33 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": false,
         "values": []
       },
       "yaxes": [
         {
           "format": "none",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": false
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
-      ]
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
       "collapsed": true,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -760,9 +789,9 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-        "type": "prometheus",
-        "uid": "#{ datasource_uid }#"
-      },
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -788,19 +817,16 @@
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
-          "scopedVars": {
-            "rgw_servers": {
-              "selected": false,
-              "text": "rgw.rhs-srv-01",
-              "value": "rgw.rhs-srv-01"
-            }
-          },
           "seriesOverrides": [],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_get_initial_lat_sum{ceph_daemon=~\"($rgw_servers)\"}[30s]) / rate(ceph_rgw_get_initial_lat_count{ceph_daemon=~\"($rgw_servers)\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -808,6 +834,10 @@
               "refId": "A"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_put_initial_lat_sum{ceph_daemon=~\"($rgw_servers)\"}[30s]) / rate(ceph_rgw_put_initial_lat_count{ceph_daemon=~\"($rgw_servers)\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -816,8 +846,6 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "$rgw_servers GET/PUT Latencies",
           "tooltip": {
             "shared": true,
@@ -826,27 +854,20 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "s",
-              "label": null,
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": false
             }
           ]
@@ -857,9 +878,9 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-        "type": "prometheus",
-        "uid": "#{ datasource_uid }#"
-      },
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -885,19 +906,16 @@
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
-          "scopedVars": {
-            "rgw_servers": {
-              "selected": false,
-              "text": "rgw.rhs-srv-01",
-              "value": "rgw.rhs-srv-01"
-            }
-          },
           "seriesOverrides": [],
           "spaceLength": 10,
           "stack": true,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_get_b{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -905,6 +923,10 @@
               "refId": "B"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_put_b{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -913,8 +935,6 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "Bandwidth by HTTP Operation",
           "tooltip": {
             "shared": true,
@@ -923,9 +943,7 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
@@ -935,16 +953,12 @@
               "format": "bytes",
               "label": "",
               "logBase": 1,
-              "max": null,
               "min": "0",
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": false
             }
           ]
@@ -961,9 +975,9 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-        "type": "prometheus",
-        "uid": "#{ datasource_uid }#"
-      },
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "fill": 1,
           "gridPos": {
             "h": 8,
@@ -989,19 +1003,16 @@
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
-          "scopedVars": {
-            "rgw_servers": {
-              "selected": false,
-              "text": "rgw.rhs-srv-01",
-              "value": "rgw.rhs-srv-01"
-            }
-          },
           "seriesOverrides": [],
           "spaceLength": 10,
           "stack": true,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_failed_req{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1009,6 +1020,10 @@
               "refId": "B"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_get{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1016,6 +1031,10 @@
               "refId": "C"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_put{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1023,6 +1042,10 @@
               "refId": "D"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_req{ceph_daemon=~\"[[rgw_servers]]\"}[30s]) -\n  (rate(ceph_rgw_get{ceph_daemon=~\"[[rgw_servers]]\"}[30s]) +\n   rate(ceph_rgw_put{ceph_daemon=~\"[[rgw_servers]]\"}[30s]))",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1031,8 +1054,6 @@
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
           "title": "HTTP Request Breakdown",
           "tooltip": {
             "shared": true,
@@ -1041,27 +1062,19 @@
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ]
@@ -1074,15 +1087,14 @@
             "PUTs": "#eab839"
           },
           "breakPoint": "50%",
-          "cacheTimeout": null,
           "combine": {
             "label": "Others",
             "threshold": 0
           },
           "datasource": {
-        "type": "prometheus",
-        "uid": "#{ datasource_uid }#"
-      },
+            "type": "prometheus",
+            "uid": "#{ datasource_uid }#"
+          },
           "fontSize": "80%",
           "format": "none",
           "gridPos": {
@@ -1092,7 +1104,6 @@
             "y": 15
           },
           "id": 23,
-          "interval": null,
           "legend": {
             "show": true,
             "values": true
@@ -1102,16 +1113,13 @@
           "maxDataPoints": 3,
           "nullPointMode": "connected",
           "pieType": "pie",
-          "scopedVars": {
-            "rgw_servers": {
-              "selected": false,
-              "text": "rgw.rhs-srv-01",
-              "value": "rgw.rhs-srv-01"
-            }
-          },
           "strokeWidth": 1,
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_failed_req{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1119,6 +1127,10 @@
               "refId": "A"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_get{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1126,6 +1138,10 @@
               "refId": "B"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_put{ceph_daemon=~\"[[rgw_servers]]\"}[30s])",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1133,6 +1149,10 @@
               "refId": "C"
             },
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "#{ datasource_uid }#"
+              },
               "expr": "rate(ceph_rgw_req{ceph_daemon=~\"[[rgw_servers]]\"}[30s]) -\n  (rate(ceph_rgw_get{ceph_daemon=~\"[[rgw_servers]]\"}[30s]) +\n   rate(ceph_rgw_put{ceph_daemon=~\"[[rgw_servers]]\"}[30s]))",
               "format": "time_series",
               "intervalFactor": 1,
@@ -1146,12 +1166,21 @@
         }
       ],
       "repeat": "rgw_servers",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "RGW Host Detail : $rgw_servers",
       "type": "row"
     }
   ],
   "refresh": "15s",
-  "schemaVersion": 16,
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [
     "overview"
@@ -1159,24 +1188,27 @@
   "templating": {
     "list": [
       {
-        "allValue": null,
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
-        "type": "prometheus",
-        "uid": "#{ datasource_uid }#"
-      },
+          "type": "prometheus",
+          "uid": "#{ datasource_uid }#"
+        },
+        "definition": "",
         "hide": 2,
         "includeAll": true,
-        "label": null,
         "multi": false,
         "name": "rgw_servers",
         "options": [],
         "query": "label_values(ceph_rgw_req, ceph_daemon)",
         "refresh": 1,
         "regex": "",
+        "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
@@ -1215,5 +1247,7 @@
   },
   "timezone": "",
   "title": "#{ title }#",
-  "version": 26
+  "uid": "#{ uid }#",
+  "version": 1,
+  "weekStart": ""
 }
