@@ -48,7 +48,7 @@ metadata:
 spec:
   gateway:
     port: 80
-    instances: 1
+    instances: 3
   zone:
     name: {{ .zone_name }}
 

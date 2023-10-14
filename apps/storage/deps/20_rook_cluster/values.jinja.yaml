@@ -5,6 +5,9 @@ rook-ceph-cluster:
   operatorNamespace: {{ operator_namespace }}
   clusterName: {{ cluster_name }}-rook
   cephClusterSpec:
+    storage:
+      config:
+        metadataDevice: "nvme"
     placement:
       all:
         nodeAffinity:
