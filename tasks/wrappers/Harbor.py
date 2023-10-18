@@ -75,16 +75,10 @@ class Harbor:
         bucket_secret = dict(yaml.safe_load(bucket_secret_yaml))
 
         """
-        In our Object Store Multisite, objects are replicated across the zone. This means it is sufficient to create
-        the bucket once in one cluster. The ceph will automagically sync it across.
-        This mean that in all other clusters we wish to use this bucket we need to fetch the bucket details
-        from the master cluster. Then on all other clusters just replace the endpoint url, so that it points to the 
-        local rook/ceph service.
+        In our Object Store Multisite bi-directional sync is enabled. We can write/read to/from the local
+        bucket and leave the synchronisation to CEPH.
         """
         regionendpoint = "http://{}".format(object_bucket['spec']['endpoint']['bucketHost'])
-        if master_cluster != cluster:
-            regionendpoint = regionendpoint.replace(master_cluster.name, cluster.name)
-        # regionendpoint = "http://rgw-proxy.storage.svc:8080"
 
         return {
             'bucket': object_bucket['spec']['endpoint']['bucketName'],
@@ -116,7 +110,7 @@ class Harbor:
                     'db_harbor_registry': harbor_registry,
                     'db_harbor_notary_server': harbor_notary_server,
                     'db_harbor_notary_signer': harbor_notary_signer,
-                    'region': ""
+                    'region': "{}-{}".format(cluster.name, 'harbor')
                 }
             }
 

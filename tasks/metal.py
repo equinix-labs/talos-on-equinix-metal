@@ -3,6 +3,7 @@ from invoke import task
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
 from tasks.wrappers.Kubectl import Kubectl
+from tasks.wrappers.Metal import Metal
 
 
 # @task(create_config_dirs)
@@ -18,9 +19,11 @@ def register_vips(ctx, echo: bool = False):
 
 @task()
 def test(ctx, echo=True):
-    state = SystemContext(ctx, echo)
-    kubectl = Kubectl(ctx, state, echo)
-    print(kubectl.get_nodes_eip())
+    # state = SystemContext(ctx, echo)
+    # kubectl = Kubectl(ctx, state, echo)
+    # print(kubectl.get_nodes_eip())
+    _metal = Metal()
+    _metal.version()
 
 
 @task()

@@ -12,7 +12,7 @@ from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Kubectl import Kubectl
 
 
-def _get_app_config(app_name: str, master_cluster: Cluster,
+def _get_app_config(app_name: str, master_cluster: Cluster, remaining_satellites: list[Cluster],
                     cluster: Cluster, constellation: Constellation) -> dict:
     return {
         'realm_name': app_name,
@@ -22,7 +22,8 @@ def _get_app_config(app_name: str, master_cluster: Cluster,
         'master_zone': {
             'defined': cluster != master_cluster,
             'name': "{}-{}".format(master_cluster.name, app_name)
-        }
+        },
+        'remaining_satellite_names': ["{}-{}".format(satellite.name, app_name) for satellite in remaining_satellites]
     }
 
 
@@ -59,14 +60,24 @@ class Rook:
         if cluster != initial_context:
             self._context.set_cluster(cluster)
 
+        """
+        https://tracker.ceph.com/issues/22822
+        We need to make sure that all RGWs can talk to each other, so that bi-directional sync is available. 
+        """
+        remaining_satellites = self._context.satellites_except(cluster)
+
         data = {
             'values': {
                 'multisite_enabled': cluster != self._context.constellation.bary,
                 'applications': [
-                    _get_app_config("harbor", master_cluster, cluster, self._context.constellation),
-                    _get_app_config("nexus", master_cluster, cluster, self._context.constellation),
-                    _get_app_config("artifactory", master_cluster, cluster, self._context.constellation),
-                    _get_app_config("artifactory-oss3", master_cluster, cluster, self._context.constellation)
+                    _get_app_config("harbor", master_cluster,
+                                    remaining_satellites, cluster, self._context.constellation),
+                    _get_app_config("nexus", master_cluster,
+                                    remaining_satellites, cluster, self._context.constellation),
+                    _get_app_config("artifactory", master_cluster,
+                                    remaining_satellites, cluster, self._context.constellation),
+                    _get_app_config("artifactory-oss3", master_cluster,
+                                    remaining_satellites, cluster, self._context.constellation)
                 ]
             },
             'deps': {
@@ -107,13 +118,13 @@ class Rook:
             for app in applications:
                 app_name = "{}-{}".format(cluster.name, app)
                 if cluster == master_cluster:
+                    self._pull_realm_secret(cluster, app)
+                else:
                     kubectl.cilium_annotate_global_service(
                         cluster,
                         Namespace.storage,
                         "rook-ceph-rgw-m-{}".format(app_name)
                     )
-                    self._pull_realm_secret(cluster, app)
-                else:
                     paths = ProjectPaths(self._context.constellation.name, master_cluster.name)  # ToDo: fix this spaghetti
                     self._ctx.run("kubectl --context admin@{} apply -f {}".format(
                         cluster.name,

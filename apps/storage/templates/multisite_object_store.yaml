@@ -52,12 +52,12 @@ spec:
   zone:
     name: {{ .zone_name }}
 
-{{- if .master_zone.defined }}
+{{- range .remaining_satellite_names }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: rook-ceph-rgw-m-{{ .master_zone.name }}
+  name: rook-ceph-rgw-m-{{ . }}
   namespace: {{ $.Release.Namespace }}
   annotations:
     io.cilium/global-service: 'true'
@@ -71,10 +71,10 @@ spec:
       targetPort: 8080
   selector:
     app: rook-ceph-rgw
-    ceph_daemon_id: m-{{ .master_zone.name }}
-    rgw: m-{{ .master_zone.name }}
+    ceph_daemon_id: m-{{ . }}
+    rgw: m-{{ . }}
     rook_cluster: storage
-    rook_object_store: m-{{ .master_zone.name }}
+    rook_object_store: m-{{ . }}
 {{- end }}
 
 {{- end}}

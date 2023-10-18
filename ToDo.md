@@ -1,0 +1,7 @@
+- https://pyinstaller.org/en/stable/usage.html
+- https://click.palletsprojects.com/en/8.1.x/
+- https://blinker.readthedocs.io/en/stable/
+- https://github.com/gruns/icecream
+- https://pexpect.readthedocs.io/en/stable/
+- https://github.com/kubernetes-client/python
+- https://github.com/locustio/locust

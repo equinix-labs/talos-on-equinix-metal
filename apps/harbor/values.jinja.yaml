@@ -33,7 +33,7 @@ harbor:
     persistentVolumeClaim:
       registry:
         storageClass: ceph-block
-        size: 100Gi
+        size: 50Gi
       chartmuseum:
         storageClass: ceph-block
       jobservice:

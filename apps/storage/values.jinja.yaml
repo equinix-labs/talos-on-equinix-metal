@@ -9,4 +9,8 @@ multisite:
       master_zone:
         defined: {{ application['master_zone']['defined'] }}
         name: {{ application['master_zone']['name'] }}
+      remaining_satellite_names:
+        {% for name in application['remaining_satellite_names'] %}
+        - {{ name }}
+        {% endfor %}
   {% endfor %}
