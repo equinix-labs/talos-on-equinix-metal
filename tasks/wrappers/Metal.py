@@ -1,22 +1,28 @@
-from pprint import pprint
-
-import pexpect
 from packaging import version
+from packaging.version import Version
+
+from tasks.wrappers.Expect import Expect
+from tasks.wrappers.GitHub import GitHub
 
 
 class Metal:
-    _cmd: str = "metal"
+    _expect: Expect
+    _url: str
 
-    def version(self):
-        version_raw = pexpect.spawn(" ".join([self._cmd, '--version']))
+    def __init__(self):
+        self._expect = Expect('metal')
+        self._url = 'https://api.github.com/repos/equinix/metal-cli/releases/latest'
 
-        for line in range(0, 5):
-            result = version_raw.expect([r"\n.*?([0-9\.]+)", pexpect.EOF])
-            print(result)
-            if result == 0:
-                pprint(version_raw.match.groups())
+    def version(self) -> Version:
+        _version, _ = self._expect.run(['--version'], r'\d+\.\d+\.\d+')
+        return version.parse(_version)
 
-        # version_str = version_raw.match.groups()[0]
-        # version_obj = version.parse(version_str)
-        #
-        # print(version_obj)
+    def run(self, params: list[str]):
+        return self._expect.run(params)
+
+    def dl_latest(self):
+        github = GitHub()
+        remote_version, urls = github.get_latest_version_url(self._url)
+        if remote_version > self.version():
+            github.download(urls[0], 'metal')
+

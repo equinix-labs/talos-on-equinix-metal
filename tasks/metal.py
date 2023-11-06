@@ -2,7 +2,6 @@ from invoke import task
 
 from tasks.controllers.MetalCtrl import MetalCtrl
 from tasks.dao.SystemContext import SystemContext
-from tasks.wrappers.Kubectl import Kubectl
 from tasks.wrappers.Metal import Metal
 
 

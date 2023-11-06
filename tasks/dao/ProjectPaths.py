@@ -104,6 +104,12 @@ class ProjectPaths:
     def constellation_dir(self):
         return os.path.join(self.project_root(), self._constellation_name)
 
+    def bin_dir(self):
+        return mkdirs(os.path.join(self.project_root(), 'bin'))
+
+    def get_bin(self, name):
+        return os.path.join(self.bin_dir(), name)
+
     # @log_output
     def ca_dir(self):
         return mkdirs(os.path.join(self.constellation_dir(), 'ca'))
