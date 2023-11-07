@@ -10,6 +10,7 @@ from tasks.helpers import get_fqdn
 from tasks.models.ConstellationSpecV01 import Cluster
 from tasks.models.Namespaces import Namespace
 from tasks.wrappers.Databases import Databases
+from tasks.wrappers.Rook import Rook
 
 artifactory_registry = 'artifactory_registry'
 artifactory_oss_registry = 'artifactory_oss_registry'
@@ -95,22 +96,12 @@ class JFrog:
 
         self._create_namespace()
         if cluster == self._master_cluster:
-            # self._create_dbs(Databases(self._ctx, self._context, self._echo), cluster)
-            # self._create_bucket(cluster, 'artifactory', install)
-            pass
+            self._create_dbs(Databases(self._ctx, self._context, self._echo), cluster)
+            rook = Rook(self._ctx, self._context, self._echo)
+            rook.create_bucket(cluster, 'artifactory', install)
 
         # self._create_db_secret()
         self._install_enterprise(cluster, install)
-
-    def _create_bucket(self, cluster: Cluster, app_name: str, install: bool):
-        data = {
-            'values': {
-                'object_store_name': 'm-{}-{}'.format(cluster.name, app_name),
-                'app_name': app_name
-            }
-        }
-        ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
-            'object-bucket', data, Namespace.jfrog, install, '{}-bucket'.format(app_name))
 
     def _install_oss(self, cluster: Cluster, install: bool):
         data = {

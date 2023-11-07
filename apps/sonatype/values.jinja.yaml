@@ -7,6 +7,11 @@ nexus:
   oauth:
     fqdn: {{ oauth_fqdn }}
   db_name: {{ db_name }}
-  db_user: {{ nexus['db_user'] }}
-  db_pass: {{ nexus['db_pass'] }}
-  admin_pass: {{ nexus['admin_pass'] }}
+  db_user: {{ sonatype['db']['user'] }}
+  db_pass: {{ sonatype['db']['pass'] }}
+  admin_pass: {{ sonatype['nexus']['admin_pass'] }}
+  s3:
+    bucket: {{ bucket }}
+    region: {{ regionendpoint }}
+    accessKeyId: {{ accesskey }}
+    sessionToken: {{ secretkey }}

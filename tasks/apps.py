@@ -317,13 +317,13 @@ def jfrog_artifactory_install(ctx, install: bool = False, echo: bool = False):
 
 
 @task()
-def sonatype_nexus_install(ctx, install: bool = False, echo: bool = False):
+def nexus_install(ctx, cluster_name: str, install: bool = False, echo: bool = False):
     """
     Uninstall shared databases
     """
     context = SystemContext(ctx, echo)
 
-    sonatype = Sonatype(ctx, context, echo)
+    sonatype = Sonatype(ctx, context, echo, cluster_name)
     sonatype.install(install)
 
 

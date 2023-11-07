@@ -18,7 +18,7 @@ class Namespace(Enum):
     istio = 'istio-system'
     kube_system = 'kube-system'
     jfrog = 'jfrog'
-    sonatype = 'sonatype',
+    sonatype = 'sonatype'
     harbor = 'harbor'
 
     def __str__(self):

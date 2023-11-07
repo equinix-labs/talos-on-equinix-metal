@@ -1,3 +1,4 @@
+import base64
 import os.path
 
 import requests
@@ -14,6 +15,10 @@ from tasks.wrappers.Kubectl import Kubectl
 
 def _get_app_config(app_name: str, master_cluster: Cluster, remaining_satellites: list[Cluster],
                     cluster: Cluster, constellation: Constellation) -> dict:
+    """
+    Returns Object Storage / Realm configuration for individual applications.
+    Each application using the Object Storage gets its own realm.
+    """
     return {
         'realm_name': app_name,
         'zone_group_name': "{}-{}".format(constellation.name, app_name),
@@ -202,3 +207,49 @@ class Rook:
     def status_osd(self, cluster: Cluster, namespace: Namespace):
         self._cmd_ceph(cluster, namespace, 'osd status')
 
+    def create_bucket(self, cluster: Cluster, app_name: str, install: bool, namespace: Namespace):
+        data = {
+            'values': {
+                'object_store_name': 'm-{}-{}'.format(cluster.name, app_name),
+                'app_name': app_name
+            }
+        }
+        ApplicationsCtrl(self._ctx, self._context, self._echo).install_app(
+            'object-bucket', data, namespace, install, '{}-bucket'.format(app_name))
+
+    def get_s3_login_details(self, master_cluster: Cluster, cluster: Cluster,
+                             namespace: Namespace, bucket_name: str) -> dict:
+        object_bucket_yaml = self._ctx.run(
+            "kubectl --context admin@{} "
+            "get ObjectBuckets obc-{}-{}-bucket -o yaml".format(
+                master_cluster.name,
+                namespace,
+                bucket_name,
+            ), hide="stdout", echo=self._echo).stdout
+        object_bucket = dict(yaml.safe_load(object_bucket_yaml))
+
+        bucket_secret_yaml = self._ctx.run(
+            "kubectl --context admin@{} --namespace {} get secrets {}-bucket -o yaml".format(
+                master_cluster.name,
+                namespace,
+                bucket_name
+            ), hide="stdout", echo=self._echo).stdout
+        bucket_secret = dict(yaml.safe_load(bucket_secret_yaml))
+
+        """
+        In our Object Store Multisite, objects are replicated across the zone. This means it is sufficient to create
+        the bucket once in one cluster. The ceph will automagically sync it across.
+        This mean that in all other clusters we wish to use this bucket we need to fetch the bucket details
+        from the master cluster. Then on all other clusters just replace the endpoint url, so that it points to the 
+        local rook/ceph service.
+        """
+        regionendpoint = "http://{}".format(object_bucket['spec']['endpoint']['bucketHost'])
+        if master_cluster != cluster:
+            regionendpoint = regionendpoint.replace(master_cluster.name, cluster.name)
+
+        return {
+            'bucket': object_bucket['spec']['endpoint']['bucketName'],
+            'accesskey': base64.b64decode(str.encode(bucket_secret['data']['AWS_ACCESS_KEY_ID'])).decode('utf-8'),
+            "secretkey": base64.b64decode(str.encode(bucket_secret['data']['AWS_SECRET_ACCESS_KEY'])).decode('utf-8'),
+            "regionendpoint": regionendpoint
+        }
