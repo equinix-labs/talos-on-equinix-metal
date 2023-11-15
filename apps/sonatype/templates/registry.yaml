@@ -23,6 +23,8 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-gcp
     external-dns.alpha.kubernetes.io/hostname: {{ .name }}.{{ $.Values.nexus.fqdn }}
+    ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: {{ $.Values.nexus.ingressClassName }}
   rules:

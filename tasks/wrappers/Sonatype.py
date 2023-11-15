@@ -1,3 +1,4 @@
+import json
 import logging
 
 from invoke import Context, Failure
@@ -20,8 +21,8 @@ class Sonatype:
             echo: bool = False,
             cluster_name: str = None):
         """
-        https://github.com/devopshq/artifactory
-        https://jfrog.com/help/r/jfrog-installation-setup-documentation/install-artifactory-ha-with-helm
+        Sonatypes recommended approach does not work:
+        https://help.sonatype.com/repomanager3/planning-your-implementation/storage-guide/using-replicated-s3-blob-stores-for-recovery-or-testing
         """
         self._ctx = ctx
         self._context = context
@@ -65,12 +66,31 @@ class Sonatype:
 
         bucket_data = rook.get_s3_login_details(self._master_cluster, cluster, Namespace.sonatype, bucket_name)
 
+        s3_config = {
+            "ceph3": {
+                "s3": {
+                    "bucket": bucket_data['bucket'],
+                    "prefix": "",
+                    "region": "DEFAULT",
+                    "endpoint": bucket_data['regionendpoint'],
+                    "expiration": "-1",
+                    "signertype": "DEFAULT",
+                    "accessKeyId": bucket_data['accesskey'],
+                    "forcepathstyle": "true",
+                    "secretAccessKey": bucket_data['secretkey']
+                }
+            }
+        }
+        s3_config_str = json.dumps(s3_config, sort_keys=True, separators=(',', ':'))
+        s3_config_str = s3_config_str.replace('"', '\\\"')
+
         data = {
             'values': {
                 'fqdn': get_fqdn('nexus', self._context.secrets, self._context.cluster()),
                 'oauth_fqdn': get_fqdn('oauth', self._context.secrets, self._context.cluster()),
                 'sonatype': self._context.secrets['sonatype'],
-                'db_name': 'nexus'
+                'db_name': nexus_registry,
+                's3_config': '\\\"{}\\\"'.format(s3_config_str)
             }
         }
         data['values'].update(bucket_data)

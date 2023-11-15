@@ -1,5 +1,5 @@
 apiVersion: v2
-name: sonatype
+name: nexus
 description: Enables sonatype suite
 
 type: application

@@ -6,11 +6,13 @@ nexus:
   fqdn: {{ fqdn }}
   oauth:
     fqdn: {{ oauth_fqdn }}
-  db_name: {{ db_name }}
-  db_user: {{ sonatype['db']['user'] }}
-  db_pass: {{ sonatype['db']['pass'] }}
+  db:
+    name: {{ db_name }}
+    user: {{ sonatype['db']['user'] }}
+    pass: {{ sonatype['db']['pass'] }}
   admin_pass: {{ sonatype['nexus']['admin_pass'] }}
   s3:
+    config: {{ s3_config }}
     bucket: {{ bucket }}
     region: {{ regionendpoint }}
     accessKeyId: {{ accesskey }}

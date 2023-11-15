@@ -6,8 +6,8 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-gcp
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.nexus.fqdn }}
-    nginx.ingress.kubernetes.io/auth-url: {{ .Values.nexus.oauth.fqdn }}/oauth2/auth
-    nginx.ingress.kubernetes.io/auth-signin: {{ .Values.nexus.oauth.fqdn }}/oauth2/start
+    nginx.ingress.kubernetes.io/auth-url: https://{{ .Values.nexus.oauth.fqdn }}/oauth2/auth
+    nginx.ingress.kubernetes.io/auth-signin: https://{{ .Values.nexus.oauth.fqdn }}/oauth2/start
     nginx.ingress.kubernetes.io/auth-response-headers: "x-auth-request-user, x-auth-request-email, x-auth-request-access-token"
 spec:
   ingressClassName: {{ .Values.nexus.ingressClassName }}
